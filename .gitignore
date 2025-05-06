@@ -1,0 +1,43 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+dev-debug.log
+
+# Dependency directories
+node_modules/
+
+# Next.js build output
+.next/
+out/
+
+# Environment variables
+.env
+.env.local
+.env.development
+.env.production
+.env.production.*
+.env.local*
+
+# Editor directories and files
+.idea
+
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS specific
+.DS_Store
+
+# Task files
+
+
+# Prisma generated files
+src/lib/generated/client/
+*.wasm
+query_engine_bg.*
+wasm-edge-light-loader.*

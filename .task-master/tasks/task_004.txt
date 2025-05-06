@@ -1,0 +1,47 @@
+# Task ID: 4
+# Title: Implement Task API endpoints
+# Status: done
+# Dependencies: 2 ✅, 3 ✅
+# Priority: high
+# Description: Create RESTful API endpoints for task CRUD operations using Next.js API routes.
+# Details:
+Implement the following API endpoints:
+- GET /api/tasks (list all tasks for authenticated user)
+- POST /api/tasks (create new task)
+- GET /api/tasks/:id (get task details)
+- PUT /api/tasks/:id (update task)
+- DELETE /api/tasks/:id (delete task)
+- Ensure proper authentication and validation
+
+# Test Strategy:
+Test each endpoint for correct functionality, authentication, and error handling.
+
+# Subtasks:
+## Subtask ID: 1
+## Title: Middleware successfully extracts and validates Clerk authentication token
+## Status: done
+## Dependencies: None
+## Description: - Unauthorized requests are rejected with appropriate 401 status code and error message
+## Subtask ID: 2
+## Title: User ID is properly extracted from authenticated sessions
+## Status: done
+## Dependencies: None
+## Description: - Middleware can be easily imported and applied to all task API routes
+## Subtask ID: 3
+## Title: Error handling for malformed tokens or expired sessions is implemented
+## Status: done
+## Dependencies: None
+## Description: ## Subtask 2: Implement GET /api/tasks Endpoint for Task Listing
+Description: Create the API route handler for retrieving all tasks belonging to the authenticated user. Implement pagination, sorting, and filtering capabilities to handle large task lists efficiently. Connect to Supabase to query the tasks table with proper user_id filtering.
+Dependencies: 2, 3 (Clerk authentication system, Supabase configuration)
+Acceptance Criteria:
+## Subtask ID: 4
+## Title: Endpoint returns JSON array of tasks for authenticated user only
+## Status: done
+## Dependencies: None
+## Description: - Implementation includes pagination with customizable page size and page number
+## Subtask ID: 5
+## Title: Sorting options are available for relevant fields (due_date, priority, created_at)
+## Status: done
+## Dependencies: None
+## Description: - Filtering by status and priority is supported
