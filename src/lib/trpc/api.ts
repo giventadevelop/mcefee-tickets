@@ -9,7 +9,6 @@ import {
   loggerLink,
   httpBatchLink,
 } from "@trpc/client";
-import { cookies } from "next/headers";
 import SuperJSON from "superjson";
 
 export const api = createTRPCProxyClient<typeof appRouter>({
@@ -22,12 +21,6 @@ export const api = createTRPCProxyClient<typeof appRouter>({
     httpBatchLink({
       url: "/api/trpc",
       transformer: SuperJSON,
-      headers() {
-        return {
-          cookie: cookies().toString(),
-          "x-trpc-source": "rsc",
-        };
-      },
     }),
   ],
 });

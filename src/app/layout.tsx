@@ -1,22 +1,19 @@
+"use client";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import TrpcProvider from "@/lib/trpc/Provider";
 import Script from "next/script";
 import { Header } from "@/components/Header";
-import { headers } from "next/headers";
 import { ProfileBootstrapper } from "@/components/ProfileBootstrapper";
 
 const inter = Inter({ subsets: ["latin"] });
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const headersList = await headers();
-  const cookies = headersList.get("cookie") ?? "";
-
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className} suppressHydrationWarning>
@@ -46,7 +43,7 @@ export default async function RootLayout({
           }}
         >
           <ProfileBootstrapper />
-          <TrpcProvider cookies={cookies}>
+          <TrpcProvider>
             <Header />
             {children}
           </TrpcProvider>

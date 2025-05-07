@@ -2,7 +2,7 @@ import { auth } from '@clerk/nextjs'
 import { TaskList } from '@/components/task-list'
 import Link from 'next/link'
 import { Pagination } from '@/components/Pagination'
-import { headers, cookies } from "next/headers";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
@@ -19,7 +19,6 @@ export default async function TasksPage({
   searchParams: { [key: string]: string | string[] | undefined }
 }) {
   // Initialize headers and auth
-  const headersList = await headers();
   const cookiesList = await cookies();
   const { userId } = await auth();
 

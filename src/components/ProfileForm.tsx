@@ -3,24 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
-
-interface UserProfileDTO {
-  id?: number;
-  userId: string;
-  firstName?: string;
-  lastName?: string;
-  email?: string;
-  phone?: string;
-  addressLine1?: string;
-  addressLine2?: string;
-  city?: string;
-  state?: string;
-  zipCode?: string;
-  country?: string;
-  notes?: string;
-  createdAt: string;
-  updatedAt: string;
-}
+import { UserProfileDTO } from "@/types";
 
 const defaultFormData: Omit<UserProfileDTO, 'createdAt' | 'updatedAt'> = {
   userId: '',
@@ -34,7 +17,12 @@ const defaultFormData: Omit<UserProfileDTO, 'createdAt' | 'updatedAt'> = {
   state: '',
   zipCode: '',
   country: '',
-  notes: ''
+  notes: '',
+  familyName: '',
+  cityTown: '',
+  district: '',
+  educationalInstitution: '',
+  profileImageUrl: '',
 };
 
 function LoadingSkeleton() {
@@ -205,13 +193,23 @@ export default function ProfileForm() {
         },
       });
 
-      const existingProfiles = await checkResponse.json();
-      const existingProfile = Array.isArray(existingProfiles) ? existingProfiles[0] : existingProfiles;
+      let existingProfile = null;
+      if (checkResponse.ok) {
+        const existingProfiles = await checkResponse.json();
+        existingProfile = Array.isArray(existingProfiles) ? existingProfiles[0] : existingProfiles;
+        if (!existingProfile || !existingProfile.id) {
+          existingProfile = null;
+        }
+      } else {
+        // If the GET fails (404), treat as no profile
+        existingProfile = null;
+      }
 
       console.debug('Existing profile check result:', existingProfile);
 
-      const profileData = {
-        ...(existingProfile?.id ? { id: existingProfile.id } : {}),
+      // Only include id if updating
+      const profileData: UserProfileDTO = {
+        id: existingProfile && existingProfile.id ? existingProfile.id : null,
         userId,
         firstName: formData.firstName || '',
         lastName: formData.lastName || '',
@@ -224,12 +222,17 @@ export default function ProfileForm() {
         zipCode: formData.zipCode || '',
         country: formData.country || '',
         notes: formData.notes || '',
+        familyName: formData.familyName || '',
+        cityTown: formData.cityTown || '',
+        district: formData.district || '',
+        educationalInstitution: formData.educationalInstitution || '',
+        profileImageUrl: formData.profileImageUrl || '',
         createdAt: existingProfile?.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
 
-      const method = existingProfile ? 'PUT' : 'POST';
-      const apiUrl = existingProfile
+      const method = existingProfile && existingProfile.id ? 'PUT' : 'POST';
+      const apiUrl = existingProfile && existingProfile.id
         ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/user-profiles/${existingProfile.id}`
         : `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/user-profiles`;
 
@@ -419,6 +422,86 @@ export default function ProfileForm() {
         </div>
       </div>
 
+      {/* Optional India Details Section */}
+      <div className="my-6">
+        <div className="text-xs text-gray-500 mb-1">[optional] The following fields are for India-specific details.</div>
+        <div className="border rounded-lg p-4 bg-gray-50">
+          <h3 className="text-base font-semibold mb-4">India Details</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="familyName" className="block text-sm font-medium text-gray-700">
+                Family Name
+              </label>
+              <input
+                type="text"
+                id="familyName"
+                name="familyName"
+                value={formData.familyName || ""}
+                onChange={handleChange}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                tabIndex={0}
+              />
+            </div>
+            <div>
+              <label htmlFor="cityTown" className="block text-sm font-medium text-gray-700">
+                City/Town
+              </label>
+              <input
+                type="text"
+                id="cityTown"
+                name="cityTown"
+                value={formData.cityTown || ""}
+                onChange={handleChange}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                tabIndex={0}
+              />
+            </div>
+            <div>
+              <label htmlFor="district" className="block text-sm font-medium text-gray-700">
+                District
+              </label>
+              <input
+                type="text"
+                id="district"
+                name="district"
+                value={formData.district || ""}
+                onChange={handleChange}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                tabIndex={0}
+              />
+            </div>
+            <div>
+              <label htmlFor="educationalInstitution" className="block text-sm font-medium text-gray-700">
+                Educational Institution
+              </label>
+              <input
+                type="text"
+                id="educationalInstitution"
+                name="educationalInstitution"
+                value={formData.educationalInstitution || ""}
+                onChange={handleChange}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                tabIndex={0}
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label htmlFor="profileImageUrl" className="block text-sm font-medium text-gray-700">
+                Profile Image URL
+              </label>
+              <input
+                type="text"
+                id="profileImageUrl"
+                name="profileImageUrl"
+                value={formData.profileImageUrl || ""}
+                onChange={handleChange}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                tabIndex={0}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div>
         <label htmlFor="notes" className="block text-sm font-medium text-gray-700">
           Notes
@@ -430,6 +513,7 @@ export default function ProfileForm() {
           onChange={handleChange}
           rows={4}
           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+          tabIndex={0}
         />
       </div>
 

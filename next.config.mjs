@@ -28,7 +28,7 @@ const nextConfig = {
   },
 
   // Enable SWC minification for improved performance
-  swcMinify: true,
+  // swcMinify: true,
 
   // Customize webpack config if needed
   webpack: (config, { buildId, dev, isServer, defaultLoaders, webpack }) => {

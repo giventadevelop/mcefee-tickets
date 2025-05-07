@@ -20,7 +20,7 @@ export interface Task {
 }
 
 export interface UserProfileDTO {
-  id: number;
+  id?: number;
   userId: string;
   firstName?: string;
   lastName?: string;
@@ -33,6 +33,11 @@ export interface UserProfileDTO {
   zipCode?: string;
   country?: string;
   notes?: string;
+  familyName?: string;
+  cityTown?: string;
+  district?: string;
+  educationalInstitution?: string;
+  profileImageUrl?: string;
   createdAt: string;
   updatedAt: string;
 }
