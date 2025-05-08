@@ -3,7 +3,6 @@ description: Guidelines for creating and maintaining Cursor rules to ensure cons
 globs: .cursor/rules/*.mdc
 alwaysApply: true
 ---
-
 - **Required Rule Structure:**
   ```markdown
   ---
@@ -27,7 +26,7 @@ alwaysApply: true
   ```typescript
   // ✅ DO: Show good examples
   const goodExample = true;
-  
+
   // ❌ DON'T: Show anti-patterns
   const badExample = false;
   ```
@@ -50,4 +49,125 @@ alwaysApply: true
   - Keep descriptions concise
   - Include both DO and DON'T examples
   - Reference actual code over theoretical examples
-  - Use consistent formatting across rules 
+  - Use consistent formatting across rules
+
+- **Environment Variable Loading (Production & Amplify/AWS Lambda Ready)**
+  - Lazily load environment variables inside functions, not at module top-level
+  - Use a helper function to check for multiple prefixes (e.g., `AMPLIFY_`, `AWS_AMPLIFY_`, and no prefix)
+  - Support both server and client contexts (Next.js config and `process.env`)
+  - Example: See `getStripeEnvVar` in [`src/lib/stripe/init.ts`](mdc:src/lib/stripe/init.ts)
+
+- **DTO (Data Transfer Object) Setup and Usage**
+  - **Centralize DTO Definitions**
+    - Define all DTOs in `src/types/index.ts` (or submodules if the file grows large)
+    - Use TypeScript `interface` or `type` for DTOs, matching backend API schema
+    ```typescript
+    // ✅ DO: Centralize DTOs
+    export interface UserProfileDTO {
+      id: number | null;
+      userId: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+      // ...other fields
+    }
+    ```
+  - **Keep DTOs Flat and Serializable**
+    - Avoid methods or computed properties; use only serializable types
+    ```typescript
+    // ✅ DO: Use only serializable fields
+    export interface SubscriptionDTO {
+      id: number | null;
+      userId: string;
+      plan: string;
+      status: 'active' | 'inactive' | 'canceled';
+      // ...other fields
+    }
+    ```
+  - **Match Backend Schema**
+    - Align DTO fields/types with backend API (OpenAPI/Swagger, Prisma, REST docs)
+    - Document intentional differences
+    ```typescript
+    // ✅ DO: Match backend schema
+    export interface EventDTO {
+      id: number;
+      name: string;
+      date: string; // ISO string
+      // ...other fields
+    }
+    ```
+  - **Use DTOs in All API Calls and Forms**
+    - Import DTOs wherever you handle API data (fetch, mutate, form state, validation)
+    - Type API responses and form state with DTOs
+    ```typescript
+    // ✅ DO: Use DTOs in API and forms
+    import type { UserProfileDTO } from "@/types";
+    const profile: UserProfileDTO = await fetchProfile();
+    const [formData, setFormData] = useState<Omit<UserProfileDTO, 'createdAt' | 'updatedAt'>>(defaultFormData);
+    ```
+  - **Extend or Compose DTOs for Feature-Specific Needs**
+    - Extend DTOs for feature-specific variants
+    - Use TypeScript utility types (`Pick`, `Omit`, `Partial`)
+    ```typescript
+    // ✅ DO: Compose DTOs for feature needs
+    export type UserProfileFormDTO = Omit<UserProfileDTO, 'createdAt' | 'updatedAt'>;
+    export interface UserProfileWithSubscriptionDTO extends UserProfileDTO {
+      subscription?: SubscriptionDTO;
+    }
+    ```
+  - **Document DTOs**
+    - Add JSDoc comments to each DTO for clarity
+    ```typescript
+    /**
+     * DTO for user profile data exchanged with the backend.
+     */
+    export interface UserProfileDTO {
+      // ...
+    }
+    ```
+  - **Update DTOs When Backend Changes**
+    - Review and update DTOs whenever the backend schema changes
+    - Refactor usages across the project to match updated DTOs
+
+- **API Invocation & Data Processing Guidelines**
+  - Use server components or route handlers for initial data fetching (e.g., Crust APIs)
+  - Always `await` data before rendering the page/component
+    ```typescript
+    // In a server component
+    const data = await fetchCrustApi();
+    return <Page data={data} />;
+    ```
+  - Handle headers only in server context (server components, route handlers, middleware)
+  - Pass data to client components via props
+  - Gracefully handle API errors (show fallback UI or error message)
+
+- **Summary Table**
+
+| Guideline                      | Example/Note                                 |
+|-------------------------------|----------------------------------------------|
+| Centralize DTOs                | src/types/index.ts                           |
+| Keep DTOs flat/serializable    | No methods, only data fields                 |
+| Match backend schema           | Align field names/types                      |
+| Use DTOs in API/forms          | Type API responses, form state               |
+| Compose/extend for features    | Omit, Pick, extends                          |
+| Document DTOs                  | JSDoc comments                               |
+| Update on backend changes      | Refactor usages when backend changes         |
+| Lazy env var loading           | Use helper, see src/lib/stripe/init.ts       |
+| API fetch in server context    | Use server components/route handlers         |
+| Await data before rendering    | Always await before rendering                |
+| Handle headers in server only  | Never in client components                   |
+| Pass data via props            | Server → client via props                    |
+| Graceful API error handling    | Fallback UI, error message                   |
+
+- **Rule Maintenance:**
+  - Update rules when new patterns emerge
+  - Add examples from actual codebase
+  - Remove outdated patterns
+  - Cross-reference related rules
+
+- **Best Practices:**
+  - Use bullet points for clarity
+  - Keep descriptions concise
+  - Include both DO and DON'T examples
+  - Reference actual code over theoretical examples
+  - Use consistent formatting across rules
