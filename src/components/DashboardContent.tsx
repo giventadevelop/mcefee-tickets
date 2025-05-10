@@ -55,7 +55,7 @@ export function DashboardContent({ tasks = [], stats, subscription, pendingSubsc
       try {
         const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
         if (!apiBaseUrl) return;
-        const res = await fetch(`${apiBaseUrl}/api/user-subscriptions/by-profile/me`, {
+        const res = await fetch(`/api/proxy/user-subscriptions/by-profile/me`, {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
           cache: 'no-store',

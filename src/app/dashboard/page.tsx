@@ -19,7 +19,7 @@ async function getUserProfile(userId: string): Promise<UserProfileDTO | null> {
       throw new Error('API base URL not configured');
     }
 
-    const response = await fetch(`${apiBaseUrl}/api/user-profiles/by-user/${userId}`, {
+    const response = await fetch(`/api/proxy/user-profiles/by-user/${userId}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -61,7 +61,7 @@ async function checkSubscriptionStatus(userId: string, isReturnFromStripe: boole
   while (attempt < maxRetries) {
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/user-subscriptions/by-profile/${userProfile.id}`,
+        `/api/proxy/user-subscriptions/by-profile/${userProfile.id}`,
         {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
@@ -140,7 +140,7 @@ export default async function DashboardPage(props: PageProps) {
   let tasks = [];
   try {
     const response = await fetch(
-      `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/user-tasks?userId.equals=${userId}`,
+      `/api/proxy/user-tasks?userId.equals=${userId}`,
       {
         method: 'GET',
         headers: {

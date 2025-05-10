@@ -58,7 +58,7 @@ export async function POST(req: Request) {
       // Get user profile
       let userProfile = null;
       try {
-        const response = await fetch(`${apiBaseUrl}/api/user-profiles/by-user/${userId}`, {
+        const response = await fetch(`/api/proxy/user-profiles/by-user/${userId}`, {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
         });
@@ -80,7 +80,7 @@ export async function POST(req: Request) {
       // Get user subscriptions
       let subscription = null;
       try {
-        const response = await fetch(`${apiBaseUrl}/api/user-subscriptions/by-profile/${userProfile.id}`, {
+        const response = await fetch(`/api/proxy/user-subscriptions/by-profile/${userProfile.id}`, {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
         });
@@ -119,7 +119,7 @@ export async function POST(req: Request) {
         stripeCurrentPeriodEnd: periodEnd,
       };
       try {
-        const updateResponse = await fetch(`${apiBaseUrl}/api/user-subscriptions/${subscription.id}`, {
+        const updateResponse = await fetch(`/api/proxy/user-subscriptions/${subscription.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(updatedSubscription),

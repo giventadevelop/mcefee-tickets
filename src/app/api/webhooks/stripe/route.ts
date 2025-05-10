@@ -252,7 +252,7 @@ export async function POST(req: Request) {
               for (let attempt = 0; attempt < 3; attempt++) {
                 try {
                   const profileResponse = await fetch(
-                    `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/user-profiles/by-user/${userId}`,
+                    `/api/proxy/user-profiles/by-user/${userId}`,
                     { method: 'GET', headers: { 'Content-Type': 'application/json' } }
                   );
 
@@ -274,7 +274,7 @@ export async function POST(req: Request) {
               for (let attempt = 0; attempt < 3; attempt++) {
                 try {
                   const subscriptionResponse = await fetch(
-                    `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/user-subscriptions/by-profile/${userProfile.id}`,
+                    `/api/proxy/user-subscriptions/by-profile/${userProfile.id}`,
                     { method: 'GET', headers: { 'Content-Type': 'application/json' } }
                   );
 

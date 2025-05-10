@@ -14,8 +14,8 @@ export function ProfileBootstrapper() {
         const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
         if (!apiBaseUrl) return;
 
-        // Check if profile exists
-        const res = await fetch(`${apiBaseUrl}/api/user-profiles/by-user/${userId}`);
+        // Use /by-user/:userId for single profile lookup
+        const res = await fetch(`/api/proxy/user-profiles/by-user/${userId}`);
         if (res.ok) return; // Profile exists
 
         // If not found, create minimal profile
@@ -31,7 +31,7 @@ export function ProfileBootstrapper() {
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
           };
-          await fetch(`${apiBaseUrl}/api/user-profiles`, {
+          await fetch(`/api/proxy/user-profiles`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(profile),

@@ -95,12 +95,8 @@ export default function ProfileForm() {
 
         console.log('Fetching profile for userId:', userId);
 
-        // Use userId.equals as a query parameter
-        const queryParams = new URLSearchParams({
-          'userId.equals': userId
-        });
-
-        const url = `${apiBaseUrl}/api/user-profiles?${queryParams}`;
+        // Use /by-user/:userId for single profile lookup
+        const url = `/api/proxy/user-profiles/by-user/${userId}`;
         console.log('Full URL being fetched:', url); // Changed to console.log
 
         try {
@@ -182,12 +178,8 @@ export default function ProfileForm() {
 
       console.debug('Checking if profile exists for userId:', userId);
 
-      // First check if profile exists
-      const queryParams = new URLSearchParams({
-        'userId.equals': userId
-      });
-
-      const checkResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/user-profiles?${queryParams}`, {
+      // First check if profile exists using /by-user/:userId
+      const checkResponse = await fetch(`/api/proxy/user-profiles/by-user/${userId}`, {
         headers: {
           'Content-Type': 'application/json',
         },
@@ -195,8 +187,7 @@ export default function ProfileForm() {
 
       let existingProfile = null;
       if (checkResponse.ok) {
-        const existingProfiles = await checkResponse.json();
-        existingProfile = Array.isArray(existingProfiles) ? existingProfiles[0] : existingProfiles;
+        existingProfile = await checkResponse.json();
         if (!existingProfile || !existingProfile.id) {
           existingProfile = null;
         }
@@ -233,8 +224,8 @@ export default function ProfileForm() {
 
       const method = existingProfile && existingProfile.id ? 'PUT' : 'POST';
       const apiUrl = existingProfile && existingProfile.id
-        ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/user-profiles/${existingProfile.id}`
-        : `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/user-profiles`;
+        ? `/api/proxy/user-profiles/${existingProfile.id}`
+        : `/api/proxy/user-profiles`;
 
       console.debug(`${method}ing profile data:`, profileData);
 
