@@ -6,13 +6,21 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 function buildQueryString(query: Record<string, any>) {
   const params = new URLSearchParams();
   for (const key in query) {
-    if (key !== 'id') params.append(key, query[key]);
+    const value = query[key];
+    if (Array.isArray(value)) {
+      value.forEach(v => params.append(key, v));
+    } else if (typeof value !== 'undefined') {
+      params.append(key, value);
+    }
   }
   const qs = params.toString();
   return qs ? `?${qs}` : '';
 }
 
+console.log('user-tasks proxy handler loaded (single segment test)');
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  console.log('[proxy] user-tasks:', { method: req.method, slug: req.query.slug, query: req.query });
   if (!API_BASE_URL) {
     res.status(500).json({ error: 'API base URL not configured' });
     return;
@@ -20,31 +28,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const token = await getCachedApiJwt();
   const { method, query, body } = req;
-  // Get the path segments after /api/proxy/user-profiles
-  const slug = (req.query.slug || []) as string[];
+  const slug = req.query.slug as string | undefined;
   const queryString = buildQueryString(query);
 
-  console.log('[proxy] user-profiles: method:', method, 'slug:', slug, 'query:', query);
-
-  // Handle /by-user/:userId
-  if (slug[0] === 'by-user' && slug[1] && method === 'GET') {
-    console.log('[proxy] Matched /by-user/:userId', slug[1]);
-    const userId = slug[1];
-    const apiUrl = `${API_BASE_URL}/api/user-profiles/by-user/${userId}`;
-    const apiRes = await fetch(apiUrl, {
-      method: 'GET',
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const data = await apiRes.text();
-    res.status(apiRes.status).send(data);
-    return;
-  }
-
-  // Handle /:id (single profile CRUD)
-  if (slug.length === 1 && slug[0] && method !== 'POST') {
-    console.log('[proxy] Matched /:id', slug[0]);
-    const id = slug[0];
-    const apiUrl = `${API_BASE_URL}/api/user-profiles/${id}${queryString}`;
+  // Handle /:id (single task CRUD)
+  if (slug && method !== 'POST') {
+    const id = slug;
+    const apiUrl = `${API_BASE_URL}/api/user-tasks/${id}${queryString}`;
     let apiRes;
     switch (method) {
       case 'GET':
@@ -78,9 +68,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   // Handle / (list, create, filter)
-  if (slug.length === 0) {
-    console.log('[proxy] Matched / (list, create, filter)');
-    const apiUrl = `${API_BASE_URL}/api/user-profiles${queryString}`;
+  if (!slug) {
+    const apiUrl = `${API_BASE_URL}/api/user-tasks${queryString}`;
     let apiRes;
     switch (method) {
       case 'GET':
@@ -108,6 +97,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   // Fallback: Not found
-  console.log('[proxy] Fallback: Not found', { slug, method });
   res.status(404).json({ error: 'Not found' });
 }

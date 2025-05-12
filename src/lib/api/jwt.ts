@@ -35,3 +35,21 @@ export async function generateApiJwt() {
   }
   return data.id_token;
 }
+
+let cachedToken: string | null = null;
+let tokenExpiry: number | null = null;
+
+export async function getCachedApiJwt() {
+  const now = Math.floor(Date.now() / 1000);
+  if (cachedToken && tokenExpiry && now < tokenExpiry - 60) { // 60s buffer
+    return cachedToken;
+  }
+  // Fetch new token
+  const token = await generateApiJwt();
+  // Decode expiry from JWT
+  const [, payloadB64] = token.split('.');
+  const payload = JSON.parse(Buffer.from(payloadB64, 'base64').toString());
+  tokenExpiry = payload.exp;
+  cachedToken = token;
+  return cachedToken;
+}

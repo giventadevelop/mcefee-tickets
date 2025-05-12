@@ -71,9 +71,10 @@ export const metadata: Metadata = {
 // Force Node.js runtime
 export const runtime = 'nodejs';
 
-export default async function PricingPage({ searchParams }: PageProps) {
+export default async function PricingPage(props: any) {
   try {
-    // Get search params safely - searchParams is already an object, don't await its properties
+    // Await searchParams if it is a Promise (Next.js dynamic API)
+    const searchParams = await Promise.resolve(props.searchParams);
     const messageParam = searchParams?.message;
     const success = searchParams?.success;
     const sessionId = searchParams?.session_id;
@@ -89,16 +90,16 @@ export default async function PricingPage({ searchParams }: PageProps) {
     }
 
     const email = clerkUser.emailAddresses[0].emailAddress;
-    const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
-    if (!apiBaseUrl) {
+    if (!baseUrl) {
       throw new Error('API base URL not configured');
     }
 
     // Try to get existing user profile with proper no-store caching
     let userProfile: UserProfileDTO | null = null;
     try {
-      const response = await fetch(`${apiBaseUrl}/api/user-profiles/by-user/${userId}`, {
+      const response = await fetch(`${baseUrl}/api/proxy/user-profiles/by-user/${userId}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -125,7 +126,7 @@ export default async function PricingPage({ searchParams }: PageProps) {
     let subscription: UserSubscriptionDTO | null = null;
     try {
       const response = await fetch(
-        `${apiBaseUrl}/api/user-subscriptions/by-profile/${userProfile.id}`,
+        `${baseUrl}/api/proxy/user-subscriptions/by-profile/${userProfile.id}`,
         {
           method: 'GET',
           headers: {
@@ -156,7 +157,7 @@ export default async function PricingPage({ searchParams }: PageProps) {
           userProfile: userProfile
         };
 
-        const response = await fetch(`${apiBaseUrl}/api/user-subscriptions`, {
+        const response = await fetch(`${baseUrl}/api/proxy/user-subscriptions`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

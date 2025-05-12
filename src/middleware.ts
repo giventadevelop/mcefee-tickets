@@ -16,9 +16,9 @@ const publicPaths = [
   '/sign-in(.*)',
   '/sign-up(.*)',
   '/event(.*)',     // Make event pages public
-  '/pricing(.*)',   // Make pricing page public
   '/api/webhooks(.*)', // Keep webhooks public
   '/api/stripe/event-checkout', // Make event checkout public
+  '/api/proxy/user-tasks(.*)', // Allow user-tasks proxy to be public
 ];
 
 // Initialize Clerk middleware with proper error handling

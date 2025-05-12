@@ -7,6 +7,7 @@ export function ProfileBootstrapper() {
   const { user } = useUser();
 
   useEffect(() => {
+    if (!isSignedIn || !userId) return; // Prevents undefined userId calls
     console.log("ProfileBootstrapper useEffect running", { isSignedIn, userId, user });
     const checkAndCreateProfile = async () => {
       console.log("checkAndCreateProfile called");

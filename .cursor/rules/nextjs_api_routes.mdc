@@ -1,0 +1,47 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+- **Always create an `index.ts` file for resource listing and creation endpoints**
+  - Handles requests to the base resource path (e.g., `/api/proxy/user-tasks`)
+  - Used for operations like listing all resources (`GET`) and creating new resources (`POST`)
+  - Example:
+    ```typescript
+    // ✅ DO: Use index.ts for list/create
+    // src/pages/api/proxy/user-tasks/index.ts
+    export default async function handler(req, res) {
+      if (req.method === 'GET') { /* list all */ }
+      if (req.method === 'POST') { /* create new */ }
+    }
+    ```
+
+- **Use `[...slug].ts` (or `[id].ts`) for dynamic resource access**
+  - Handles requests to dynamic paths (e.g., `/api/proxy/user-tasks/[id]`, `/api/proxy/user-tasks/[...slug]`)
+  - Used for operations on a specific resource (read, update, delete)
+  - Example:
+    ```typescript
+    // ✅ DO: Use [...slug].ts for dynamic routes
+    // src/pages/api/proxy/user-tasks/[...slug].ts
+    export default async function handler(req, res) {
+      const { slug } = req.query;
+      // handle /user-tasks/:id, /user-tasks/:id/edit, etc.
+    }
+    ```
+
+- **Rationale**
+  - Next.js does not route the base path (e.g., `/user-tasks`) to `[...slug].ts`; it only matches `/user-tasks/anything`
+  - Without `index.ts`, requests to the base path will return 404
+  - This separation ensures all RESTful resource operations are correctly routed
+
+- **Anti-patterns**
+  ```typescript
+  // ❌ DON'T: Expect [...slug].ts to handle the base path
+  // src/pages/api/proxy/user-tasks/[...slug].ts
+  // This will NOT match /api/proxy/user-tasks (only /api/proxy/user-tasks/anything)
+  ```
+
+- **References**
+  - See [`src/pages/api/proxy/user-tasks/index.ts`](mdc:src/pages/api/proxy/user-tasks/index.ts) for list/create
+  - See [`src/pages/api/proxy/user-tasks/[...slug].ts`](mdc:src/pages/api/proxy/user-tasks/[...slug].ts) for dynamic routes
+  - [Next.js API Routes: Dynamic and Catch-all](https://nextjs.org/docs/pages/building-your-application/routing/api-routes#catch-all-routes)

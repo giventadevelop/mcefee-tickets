@@ -20,17 +20,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const token = await getCachedApiJwt();
   const { method, query, body } = req;
-  // Get the path segments after /api/proxy/user-profiles
   const slug = (req.query.slug || []) as string[];
   const queryString = buildQueryString(query);
 
-  console.log('[proxy] user-profiles: method:', method, 'slug:', slug, 'query:', query);
-
-  // Handle /by-user/:userId
-  if (slug[0] === 'by-user' && slug[1] && method === 'GET') {
-    console.log('[proxy] Matched /by-user/:userId', slug[1]);
-    const userId = slug[1];
-    const apiUrl = `${API_BASE_URL}/api/user-profiles/by-user/${userId}`;
+  // Handle /by-profile/:profileId
+  if (slug[0] === 'by-profile' && slug[1] && method === 'GET') {
+    const profileId = slug[1];
+    const apiUrl = `${API_BASE_URL}/api/user-subscriptions/by-profile/${profileId}`;
     const apiRes = await fetch(apiUrl, {
       method: 'GET',
       headers: { Authorization: `Bearer ${token}` },
@@ -40,11 +36,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return;
   }
 
-  // Handle /:id (single profile CRUD)
+  // Handle /:id (single subscription CRUD)
   if (slug.length === 1 && slug[0] && method !== 'POST') {
-    console.log('[proxy] Matched /:id', slug[0]);
     const id = slug[0];
-    const apiUrl = `${API_BASE_URL}/api/user-profiles/${id}${queryString}`;
+    const apiUrl = `${API_BASE_URL}/api/user-subscriptions/${id}${queryString}`;
     let apiRes;
     switch (method) {
       case 'GET':
@@ -79,8 +74,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   // Handle / (list, create, filter)
   if (slug.length === 0) {
-    console.log('[proxy] Matched / (list, create, filter)');
-    const apiUrl = `${API_BASE_URL}/api/user-profiles${queryString}`;
+    const apiUrl = `${API_BASE_URL}/api/user-subscriptions${queryString}`;
     let apiRes;
     switch (method) {
       case 'GET':
@@ -108,6 +102,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   // Fallback: Not found
-  console.log('[proxy] Fallback: Not found', { slug, method });
   res.status(404).json({ error: 'Not found' });
 }
