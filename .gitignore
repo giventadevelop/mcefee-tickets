@@ -44,3 +44,4 @@ wasm-edge-light-loader.*
 
 # Ignore the task-master dev script
 .task-master/dev.js
+dev.js
