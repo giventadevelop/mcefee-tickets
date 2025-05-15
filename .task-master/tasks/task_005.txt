@@ -1,15 +1,16 @@
 # Task ID: 5
-# Title: Create User Profile API endpoints
-# Status: done
-# Dependencies: 2 ✅
-# Priority: medium
-# Description: Implement API endpoints for user profile management.
+# Title: Implement media upload and management UI
+# Status: pending
+# Dependencies: 3 ⏱️, 4 ⏱️
+# Priority: high
+# Description: Create user interface for admins to upload and manage media files for events.
 # Details:
-Implement the following API endpoints:
-- GET /api/profile (get current user profile)
-- PUT /api/profile (update user profile)
-- Connect with Clerk user management
-- Implement proper validation and error handling
+- Create media upload component with drag-and-drop functionality
+- Implement media type selection (flyer, gallery image, etc.)
+- Add media preview functionality
+- Create media management UI (list, delete)
+- Integrate media upload with event form
+- Add validation for required media types
 
 # Test Strategy:
-Test profile retrieval and update functionality with various input scenarios.
+Test uploading, previewing, and deleting media files. Verify integration with event form.

@@ -1,0 +1,218 @@
+<context>
+# Overview
+Task Management Application for Individual Users
+
+This application provides a streamlined, user-friendly task management solution for individuals who need to organize and track their personal tasks. It solves the problem of task organization and tracking by providing a secure, personalized environment where users can manage their tasks with a modern, intuitive interface.
+
+Target Users:
+- Individual professionals
+- Personal project managers
+- Anyone needing to organize personal tasks
+
+Value Proposition:
+- Secure personal task management
+- Clean, modern interface using shadcn-ui
+- Seamless authentication experience
+- Mobile-responsive design
+
+# Core Features
+
+1. User Authentication
+   - What: Secure user registration and login system
+   - Why: Ensures personal tasks remain private and secure
+   - How: Implemented using Clerk authentication service
+
+2. Task Management
+   - What: CRUD operations for personal tasks
+   - Why: Core functionality for task organization
+   - How: RESTful API endpoints with Supabase database storage
+
+3. Task Organization
+   - What: Status tracking, priority setting, and due dates
+   - Why: Helps users prioritize and track task progress
+   - How: Intuitive UI with filtering and sorting capabilities
+
+4. User Profile
+   - What: Personal profile management
+   - Why: Allows users to manage their account information
+   - How: Profile dashboard with editable user details
+
+# User Experience
+
+User Personas:
+
+1. Professional Individual
+   - Needs to track work-related tasks
+   - Values clean interface and efficiency
+   - Requires mobile access
+
+2. Personal Project Manager
+   - Manages multiple personal projects
+   - Needs priority and status tracking
+   - Values organization and clarity
+
+Key User Flows:
+
+1. Authentication Flow
+   - Sign up with email/password
+   - Login with credentials
+   - Password recovery
+
+2. Task Management Flow
+   - Create new task
+   - View task list
+   - Update task status
+   - Delete completed tasks
+
+UI/UX Considerations:
+- Modern, clean interface using shadcn-ui
+- Mobile-first responsive design
+- Intuitive navigation
+- Clear visual hierarchy
+- Immediate feedback on actions
+</context>
+
+<PRD>
+# Technical Architecture
+
+System Components:
+1. Frontend
+   - Next.js application
+   - shadcn-ui component library
+   - Responsive layouts
+   - Client-side state management
+
+2. Backend
+   - Next.js API routes
+   - Supabase database
+   - Clerk authentication
+   - RESTful API design
+
+Data Models:
+
+1. User (Managed by Clerk)
+   - id: string
+   - email: string
+   - name: string
+   - created_at: timestamp
+
+2. Task
+   - id: uuid
+   - user_id: string (foreign key)
+   - title: string
+   - description: text
+   - status: enum
+   - priority: enum
+   - due_date: timestamp
+   - created_at: timestamp
+   - updated_at: timestamp
+
+APIs and Integrations:
+1. Authentication API (Clerk)
+   - /api/auth/*
+
+2. Task API
+   - GET /api/tasks
+   - POST /api/tasks
+   - GET /api/tasks/:id
+   - PUT /api/tasks/:id
+   - DELETE /api/tasks/:id
+
+3. User API
+   - GET /api/profile
+   - PUT /api/profile
+
+Infrastructure:
+- Supabase for database
+- Clerk for authentication
+- Vercel for deployment
+
+# Development Roadmap
+
+Phase 1: MVP
+- Basic authentication (sign up, login)
+- Core task CRUD operations
+- Simple task list view
+- Basic user profile
+
+Phase 2: Enhanced Features
+- Task filtering and sorting
+- Priority levels
+- Due dates
+- Status tracking
+- Enhanced UI components
+
+Phase 3: Advanced Features
+- Task categories/tags
+- Search functionality
+- Task analytics
+- Mobile optimization
+- Performance improvements
+
+# Logical Dependency Chain
+
+Foundation (Must be built first):
+1. Authentication system setup
+2. Database schema implementation
+3. Basic API endpoints
+4. Core UI components
+
+Progressive Enhancement:
+1. Task list view with basic CRUD
+2. User profile management
+3. Task organization features
+4. Advanced filtering and sorting
+5. Analytics and reporting
+
+# Risks and Mitigations
+
+Technical Challenges:
+1. Risk: Real-time updates for task status
+   Mitigation: Implement optimistic updates with proper error handling
+
+2. Risk: Mobile responsiveness
+   Mitigation: Mobile-first design approach using shadcn-ui
+
+3. Risk: Performance with large task lists
+   Mitigation: Implement pagination and lazy loading
+
+MVP Considerations:
+1. Risk: Feature creep
+   Mitigation: Strict adherence to MVP feature set
+
+2. Risk: UI complexity
+   Mitigation: Start with essential components, progressive enhancement
+
+Resource Constraints:
+1. Risk: Development time
+   Mitigation: Leverage existing components and libraries
+
+2. Risk: Technical debt
+   Mitigation: Clean architecture and code reviews
+
+# Appendix
+
+Technical Specifications:
+1. Frontend:
+   - Next.js 14+
+   - TypeScript
+   - shadcn-ui components
+   - Responsive design
+
+2. Backend:
+   - Supabase
+   - Clerk Authentication
+   - RESTful API
+   - PostgreSQL database
+
+3. Development Tools:
+   - task-master
+   - kirimase
+   - Polaris
+   - Version control (Git)
+
+UI References:
+- code_html_template folder for base templates
+- shadcn-ui component library
+- Mobile-responsive layouts
+</PRD>

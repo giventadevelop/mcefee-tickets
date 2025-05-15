@@ -1,0 +1,15 @@
+# Task ID: 3
+# Title: Configure Supabase and create database schema
+# Status: done
+# Dependencies: 1 ✅
+# Priority: high
+# Description: Set up Supabase project and implement the database schema for the Task model.
+# Details:
+Set up database infrastructure:
+- Create Supabase project
+- Define Task table with all required fields (id, user_id, title, description, status, priority, due_date, created_at, updated_at)
+- Configure database security policies to ensure users can only access their own tasks
+- Create database migration scripts
+
+# Test Strategy:
+Verify the database schema is correctly implemented and security policies work as expected.

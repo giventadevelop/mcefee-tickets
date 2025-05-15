@@ -1,16 +1,16 @@
 # Task ID: 9
-# Title: Implement task filtering and sorting
+# Title: Develop ticket purchase UI
 # Status: pending
-# Dependencies: 7 ✅
-# Priority: medium
-# Description: Add the ability to filter and sort tasks by various properties.
+# Dependencies: 8 ⏱️
+# Priority: high
+# Description: Create user interface for purchasing tickets, including selection, quantity, and payment flow.
 # Details:
-Enhance task list with filtering and sorting:
-- Add filter controls for status, priority, and due date
-- Implement sorting by creation date, due date, priority
-- Create UI components for filter and sort controls
-- Implement client-side filtering and sorting logic
-- Ensure mobile-friendly filter/sort interface
+- Create ticket selection UI with cards
+- Implement quantity selection
+- Add price calculation logic
+- Create checkout flow
+- Implement success page with ticket details
+- Add validation for ticket availability
 
 # Test Strategy:
-Test various filtering and sorting combinations to ensure correct results are displayed.
+Test ticket selection, quantity changes, and checkout flow. Verify price calculations are correct.

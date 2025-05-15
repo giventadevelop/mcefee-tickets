@@ -1,15 +1,17 @@
 # Task ID: 3
-# Title: Configure Supabase and create database schema
-# Status: done
+# Title: Configure AWS S3 integration for media storage
+# Status: pending
 # Dependencies: 1 ✅
 # Priority: high
-# Description: Set up Supabase project and implement the database schema for the Task model.
+# Description: Set up AWS S3 bucket and create API routes for media upload and retrieval.
 # Details:
-Set up database infrastructure:
-- Create Supabase project
-- Define Task table with all required fields (id, user_id, title, description, status, priority, due_date, created_at, updated_at)
-- Configure database security policies to ensure users can only access their own tasks
-- Create database migration scripts
+- Create AWS S3 bucket
+- Configure IAM permissions
+- Set up environment variables for AWS credentials
+- Create API route for media upload to S3
+- Implement file type validation and size restrictions
+- Create function to generate and store media URLs
+- Implement media deletion from S3
 
 # Test Strategy:
-Verify the database schema is correctly implemented and security policies work as expected.
+Test uploading various file types and sizes to S3, verify URLs are correctly stored and accessible.

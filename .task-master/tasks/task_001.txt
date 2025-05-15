@@ -1,15 +1,16 @@
 # Task ID: 1
-# Title: Set up project scaffolding with Next.js
+# Title: Set up project structure and authentication
 # Status: done
 # Dependencies: None
 # Priority: high
-# Description: Initialize Next.js project with TypeScript, install shadcn-ui, and configure development environment.
+# Description: Initialize the project structure with Next.js and set up Clerk authentication for admin access control.
 # Details:
-Create the initial project structure including:
-- Initialize Next.js 14+ with TypeScript
-- Install and configure shadcn-ui component library
-- Set up folder structure following Next.js best practices
-- Configure ESLint and Prettier for code quality
+- Initialize Next.js project
+- Configure Clerk authentication
+- Set up admin role and permissions
+- Create protected admin routes
+- Implement authentication middleware
+- Test admin authentication flow
 
 # Test Strategy:
-Verify that the project builds without errors and the development server starts correctly.
+Verify that only authenticated admins can access protected routes and perform admin actions.

@@ -41,3 +41,6 @@ src/lib/generated/client/
 *.wasm
 query_engine_bg.*
 wasm-edge-light-loader.*
+
+# Ignore the task-master dev script
+.task-master/dev.js
