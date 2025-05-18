@@ -3,29 +3,14 @@ import { NextResponse } from 'next/server';
 import { initStripeConfig, getStripeEnvVar } from '@/lib/stripe/init';
 import getConfig from 'next/config';
 import Stripe from 'stripe';
+import type { UserProfileDTO, UserSubscriptionDTO } from '@/types';
 
 // Force Node.js runtime
 export const runtime = 'nodejs';
 
-// Add these interfaces at the top of the file
-interface UserSubscriptionDTO {
-  id?: number;
-  stripeCustomerId?: string;
-  stripeSubscriptionId?: string;
-  stripePriceId?: string;
-  stripeCurrentPeriodEnd?: string;
-  status: string;
-  userProfile?: UserProfileDTO;
-}
-
-interface UserProfileDTO {
-  id: number;
-  userId: string;
-}
-
-// Add this helper function at the top level
+// Helper function for updating subscriptions (unchanged)
 async function updateSubscriptionWithRetry(
-  apiBaseUrl: string,
+  baseUrl: string,
   subscriptionId: number,
   subscriptionData: UserSubscriptionDTO,
   maxRetries = 3
@@ -38,7 +23,7 @@ async function updateSubscriptionWithRetry(
       });
 
       const response = await fetch(
-        `${apiBaseUrl}/api/user-subscriptions/${subscriptionId}`,
+        `${baseUrl}/api/proxy/user-subscriptions/${subscriptionId}`,
         {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -133,6 +118,12 @@ export async function POST(req: Request) {
       const event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
       console.log('[STRIPE-WEBHOOK] Successfully verified webhook signature');
 
+      // Get baseUrl for proxy API calls
+      let baseUrl = process.env.NEXT_PUBLIC_APP_URL;
+      if (!baseUrl) {
+        baseUrl = 'http://localhost:3000';
+      }
+
       // Process the event
       switch (event.type) {
         case 'checkout.session.completed':
@@ -145,11 +136,11 @@ export async function POST(req: Request) {
             const userId = session.metadata?.userId || null;
 
             try {
-              // Create transaction records using the REST API
+              // Create transaction records using the proxy API
               const transactions = await Promise.all(
                 parsedTickets.map(async (ticket: any) => {
                   console.log('[STRIPE-WEBHOOK] Creating transaction with userId:', userId);
-                  const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/ticket-transactions`, {
+                  const response = await fetch(`${baseUrl}/api/proxy/ticket-transactions`, {
                     method: 'POST',
                     headers: {
                       'Content-Type': 'application/json',
@@ -252,7 +243,7 @@ export async function POST(req: Request) {
               for (let attempt = 0; attempt < 3; attempt++) {
                 try {
                   const profileResponse = await fetch(
-                    `/api/proxy/user-profiles/by-user/${userId}`,
+                    `${baseUrl}/api/proxy/user-profiles/by-user/${userId}`,
                     { method: 'GET', headers: { 'Content-Type': 'application/json' } }
                   );
 
@@ -274,7 +265,7 @@ export async function POST(req: Request) {
               for (let attempt = 0; attempt < 3; attempt++) {
                 try {
                   const subscriptionResponse = await fetch(
-                    `/api/proxy/user-subscriptions/by-profile/${userProfile.id}`,
+                    `${baseUrl}/api/proxy/user-subscriptions/by-profile/${userProfile.id}`,
                     { method: 'GET', headers: { 'Content-Type': 'application/json' } }
                   );
 
@@ -303,7 +294,7 @@ export async function POST(req: Request) {
               // Update or create subscription with retry
               if (existingSubscription?.id) {
                 await updateSubscriptionWithRetry(
-                  process.env.NEXT_PUBLIC_API_BASE_URL!,
+                  baseUrl,
                   existingSubscription.id,
                   existingSubscription
                 );
@@ -312,11 +303,11 @@ export async function POST(req: Request) {
                 for (let attempt = 0; attempt < 3; attempt++) {
                   try {
                     const response = await fetch(
-                      `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/user-subscriptions`,
+                      `${baseUrl}/api/proxy/user-subscriptions`,
                       {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(subscriptionData),
+                        body: JSON.stringify(existingSubscription),
                       }
                     );
 
@@ -360,17 +351,11 @@ export async function POST(req: Request) {
         status: 200,
       });
     } catch (err) {
-      console.error('[STRIPE-WEBHOOK] Error verifying webhook signature:', err);
-      return new NextResponse(
-        JSON.stringify({ error: 'Invalid webhook signature' }),
-        { status: 400 }
-      );
+      console.error('[STRIPE-WEBHOOK] Error processing webhook:', err);
+      return new NextResponse('Webhook error', { status: 400 });
     }
-  } catch (error: any) {
-    console.error('[STRIPE-WEBHOOK] Webhook error:', error);
-    return new NextResponse(
-      JSON.stringify({ error: error.message || 'Internal server error' }),
-      { status: 500 }
-    );
+  } catch (error) {
+    console.error('[STRIPE-WEBHOOK] Handler error:', error);
+    return new NextResponse('Internal server error', { status: 500 });
   }
 }

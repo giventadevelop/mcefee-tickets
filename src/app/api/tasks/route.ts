@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs';
 import { z } from 'zod';
-import { UserTaskDTO } from '@/types';
+import type { UserTaskDTO } from '@/types';
 
 // Force Node.js runtime
 export const runtime = 'nodejs';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+const API_BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 if (!API_BASE_URL) {
   throw new Error('API base URL not configured');
 }
@@ -26,6 +26,10 @@ const createTaskSchema = z.object({
     { message: 'Invalid date or datetime format' }
   ),
   status: z.enum(['pending', 'in_progress', 'completed']).default('pending'),
+  eventId: z.number().optional(),
+  assigneeName: z.string().max(255).optional(),
+  assigneeContactPhone: z.string().max(50).optional(),
+  assigneeContactEmail: z.string().max(255).optional(),
 });
 const updateTaskSchema = createTaskSchema.partial();
 
@@ -171,21 +175,21 @@ function applyFilters(tasks: UserTaskDTO[], searchParams: URLSearchParams): User
       if (specified !== undefined && specified !== (task.completed !== undefined && task.completed !== null)) return false;
     }
     // userId filters
-    if (searchParams.get('userId.equals') && task.userId !== searchParams.get('userId.equals')) return false;
-    if (searchParams.get('userId.notEquals') && task.userId === searchParams.get('userId.notEquals')) return false;
+    if (searchParams.get('userId.equals') && task.userId !== Number(searchParams.get('userId.equals'))) return false;
+    if (searchParams.get('userId.notEquals') && task.userId === Number(searchParams.get('userId.notEquals'))) return false;
     if (searchParams.get('userId.in')) {
-      const arr = parseArray(searchParams.get('userId.in'));
+      const arr = parseArray(searchParams.get('userId.in'))?.map(Number);
       if (arr && !arr.includes(task.userId)) return false;
     }
     if (searchParams.get('userId.notIn')) {
-      const arr = parseArray(searchParams.get('userId.notIn'));
+      const arr = parseArray(searchParams.get('userId.notIn'))?.map(Number);
       if (arr && arr.includes(task.userId)) return false;
     }
     if (searchParams.get('userId.specified')) {
       const specified = parseBool(searchParams.get('userId.specified'));
       if (specified !== undefined && specified !== (task.userId !== undefined && task.userId !== null)) return false;
     }
-    // createdAt/updatedAt filters
+    // createdAt/updatedAt filters (compare as strings)
     if (searchParams.get('createdAt.greaterThan') && !(task.createdAt > searchParams.get('createdAt.greaterThan')!)) return false;
     if (searchParams.get('createdAt.lessThan') && !(task.createdAt < searchParams.get('createdAt.lessThan')!)) return false;
     if (searchParams.get('createdAt.greaterThanOrEqual') && !(task.createdAt >= searchParams.get('createdAt.greaterThanOrEqual')!)) return false;
@@ -231,7 +235,7 @@ export async function GET(request: NextRequest, context?: { params?: { id?: stri
     const userId = getUserId();
     // If context and params.id is present, fetch a single task
     if (context && context.params && context.params.id) {
-      const response = await fetch(`${API_BASE_URL}/api/user-tasks/${context.params.id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/proxy/user-tasks/${context.params.id}`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
         cache: 'no-store',
@@ -240,7 +244,7 @@ export async function GET(request: NextRequest, context?: { params?: { id?: stri
       return NextResponse.json(data, { status: response.status });
     }
     // Otherwise, fetch all tasks (existing logic)
-    const url = new URL(`${API_BASE_URL}/api/user-tasks`);
+    const url = new URL(`${API_BASE_URL}/api/proxy/user-tasks`);
     for (const [key, value] of new URL(request.url).searchParams.entries()) {
       url.searchParams.append(key, value);
     }
@@ -266,8 +270,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = createTaskSchema.parse(body);
     const now = new Date().toISOString();
+    // Default eventId to 1 if null or undefined
+    const eventId = validatedData.eventId == null ? 1 : validatedData.eventId;
     // Build full UserTaskDTO (omit id for POST)
-    const payload = {
+    const payload: Partial<UserTaskDTO> = {
       // id: not included for POST
       title: validatedData.title,
       description: validatedData.description ?? '',
@@ -275,11 +281,15 @@ export async function POST(request: NextRequest) {
       priority: validatedData.priority,
       dueDate: validatedData.dueDate,
       completed: validatedData.status === 'completed',
-      userId,
+      userId: Number(userId),
+      eventId,
+      assigneeName: validatedData.assigneeName,
+      assigneeContactPhone: validatedData.assigneeContactPhone,
+      assigneeContactEmail: validatedData.assigneeContactEmail,
       createdAt: now,
       updatedAt: now,
     };
-    const response = await fetch(`${API_BASE_URL}/api/user-tasks`, {
+    const response = await fetch(`${API_BASE_URL}/api/proxy/user-tasks`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -307,7 +317,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Task id is required' }, { status: 400 });
     }
     // Fetch the existing task to get all required fields
-    const existingRes = await fetch(`${API_BASE_URL}/api/user-tasks/${id}`, {
+    const existingRes = await fetch(`${API_BASE_URL}/api/proxy/user-tasks/${id}`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
       cache: 'no-store',
@@ -326,8 +336,10 @@ export async function PUT(request: NextRequest) {
     } else if (dueDateValue !== null && dueDateValue !== undefined) {
       dueDateValue = String(dueDateValue);
     }
+    // Default eventId to 1 if null or undefined
+    const eventId = updateData.eventId == null ? 1 : updateData.eventId;
     // Build full UserTaskDTO for PUT
-    const merged = {
+    const merged: UserTaskDTO = {
       id: existingTask.id,
       title: updateData.title ?? existingTask.title,
       description: updateData.description ?? existingTask.description ?? '',
@@ -336,12 +348,18 @@ export async function PUT(request: NextRequest) {
       dueDate: dueDateValue,
       createdAt: existingTask.createdAt,
       updatedAt: now,
-      userId: existingTask.userId ?? userId,
+      userId: existingTask.userId ?? Number(userId),
       completed: (updateData.status ? updateData.status === 'completed' : existingTask.completed) ?? false,
+      eventId,
+      assigneeName: updateData.assigneeName ?? existingTask.assigneeName,
+      assigneeContactPhone: updateData.assigneeContactPhone ?? existingTask.assigneeContactPhone,
+      assigneeContactEmail: updateData.assigneeContactEmail ?? existingTask.assigneeContactEmail,
+      user: existingTask.user,
+      event: existingTask.event,
     };
     // Validate the merged payload
     const validatedUpdate = updateTaskSchema.parse(merged);
-    const response = await fetch(`${API_BASE_URL}/api/user-tasks/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/api/proxy/user-tasks/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(merged),
@@ -370,10 +388,12 @@ export async function DELETE(request: NextRequest) {
     if (!id) {
       return NextResponse.json({ error: 'Task id is required' }, { status: 400 });
     }
-    const response = await fetch(`${API_BASE_URL}/api/user-tasks/${id}`, {
+    // Ensure id is a string for the URL
+    const idStr = String(id);
+    const response = await fetch(`${API_BASE_URL}/api/proxy/user-tasks/${idStr}`, {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId }),
+      body: JSON.stringify({ userId: Number(userId) }),
     });
     if (response.status === 204) {
       return new NextResponse(null, { status: 204 });

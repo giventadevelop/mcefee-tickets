@@ -14,38 +14,11 @@ interface PageProps {
   };
 }
 
-async function getUserProfile(userId: string): Promise<UserProfileDTO | null> {
-  try {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-    const response = await fetch(`${baseUrl}/api/proxy/user-profiles/by-user/${userId}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (response.ok) {
-      return await response.json();
-    } else if (response.status !== 404) {
-      throw new Error(`Failed to fetch user profile: ${response.statusText}`);
-    }
-    return null;
-  } catch (error) {
-    console.error('Error fetching user profile:', error);
-    return null;
-  }
-}
-
-async function checkSubscriptionStatus(userId: string, isReturnFromStripe: boolean = false): Promise<UserSubscriptionDTO | null> {
+async function checkSubscriptionStatus(userProfile: UserProfileDTO, isReturnFromStripe: boolean = false): Promise<UserSubscriptionDTO | null> {
   // If returning from Stripe, try up to 3 times with a 1-second delay
   const maxAttempts = isReturnFromStripe ? 3 : 1;
   const delayMs = 1000; // 1 second
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-
-  const userProfile = await getUserProfile(userId);
-  if (!userProfile) {
-    return null;
-  }
 
   // Check subscription status with more retries if returning from Stripe
   const maxRetries = isReturnFromStripe ? 5 : 1;
@@ -101,6 +74,28 @@ async function checkSubscriptionStatus(userId: string, isReturnFromStripe: boole
   return subscription;
 }
 
+async function getUserProfile(userId: string): Promise<UserProfileDTO | null> {
+  try {
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const response = await fetch(`${baseUrl}/api/proxy/user-profiles/by-user/${userId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (response.ok) {
+      return await response.json();
+    } else if (response.status !== 404) {
+      throw new Error(`Failed to fetch user profile: ${response.statusText}`);
+    }
+    return null;
+  } catch (error) {
+    console.error('Error fetching user profile:', error);
+    return null;
+  }
+}
+
 export default async function DashboardPage(props: PageProps) {
   // Await searchParams if it is a Promise (Next.js dynamic API)
   const searchParams = await Promise.resolve(props.searchParams);
@@ -119,8 +114,14 @@ export default async function DashboardPage(props: PageProps) {
   const page = typeof searchParams?.page !== 'undefined' ? Number(searchParams.page) : 0;
   const size = typeof searchParams?.size !== 'undefined' ? Number(searchParams.size) : 20;
 
+  // Get user profile once and use it throughout
+  const userProfile = await getUserProfile(userId);
+  if (!userProfile) {
+    redirect('/sign-in');
+  }
+
   // Check subscription status with retry logic for Stripe returns
-  const subscription = await checkSubscriptionStatus(userId, isReturnFromStripe);
+  const subscription = await checkSubscriptionStatus(userProfile, isReturnFromStripe);
 
   // If no subscription or not active/trialing, handle pending state if returning from Stripe
   let pendingSubscription = false;
@@ -132,12 +133,12 @@ export default async function DashboardPage(props: PageProps) {
     }
   }
 
-  // Get all tasks for the user
+  // Get all tasks for the user using userProfile.id
   let tasks = [];
   try {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
     const response = await fetch(
-      `${baseUrl}/api/proxy/user-tasks?userId.equals=${userId}&page=${page}&size=${size}`,
+      `${baseUrl}/api/proxy/user-tasks?userId.equals=${userProfile.id}&page=${page}&size=${size}`,
       {
         method: 'GET',
         headers: {

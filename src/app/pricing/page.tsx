@@ -2,6 +2,7 @@ import { auth, currentUser } from "@clerk/nextjs";
 import { Metadata } from 'next';
 import { PricingPlans } from '@/components/subscription/PricingPlans';
 import { redirect } from 'next/navigation';
+import type { UserProfileDTO, UserSubscriptionDTO } from '@/types';
 
 
 
@@ -34,35 +35,6 @@ interface PageProps {
   };
 }
 
-export interface UserProfileDTO {
-  id?: string;
-  userId: string;
-  firstName?: string | null;
-  lastName?: string | null;
-  email: string;
-  phone?: string | null;
-  addressLine1?: string | null;
-  addressLine2?: string | null;
-  city?: string | null;
-  state?: string | null;
-  zipCode?: string | null;
-  country?: string | null;
-  notes?: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface UserSubscriptionDTO {
-  id?: string;
-  userId: string;
-  stripeCustomerId: string | null;
-  stripeSubscriptionId: string | null;
-  stripePriceId: string | null;
-  stripeCurrentPeriodEnd: Date | null;
-  status: string;
-  userProfile?: UserProfileDTO;
-}
-
 export const metadata: Metadata = {
   title: "Pricing - TaskMngr",
   description: "Choose the right plan for your needs",
@@ -70,6 +42,10 @@ export const metadata: Metadata = {
 
 // Force Node.js runtime
 export const runtime = 'nodejs';
+
+function nullToUndefined<T>(value: T | null | undefined): T | undefined {
+  return value === null || value === undefined ? undefined : value;
+}
 
 export default async function PricingPage(props: any) {
   try {
@@ -148,12 +124,11 @@ export default async function PricingPage(props: any) {
     if (!subscription) {
       try {
         const newSubscription: UserSubscriptionDTO = {
-          userId,
           status: 'pending',
-          stripeCustomerId: null,
-          stripeSubscriptionId: null,
-          stripePriceId: null,
-          stripeCurrentPeriodEnd: null,
+          stripeCustomerId: undefined,
+          stripeSubscriptionId: undefined,
+          stripePriceId: undefined,
+          stripeCurrentPeriodEnd: undefined,
           userProfile: userProfile
         };
 
@@ -166,13 +141,20 @@ export default async function PricingPage(props: any) {
         });
 
         if (!response.ok) {
-          throw new Error(`Failed to create subscription: ${response.statusText}`);
+          const errorText = await response.text();
+          console.error('Failed to create subscription:', errorText);
+          throw new Error(`Failed to create subscription: ${response.statusText} - ${errorText}`);
         }
 
         const responseData = await response.json();
         subscription = {
           ...responseData,
-          stripeCurrentPeriodEnd: responseData.stripeCurrentPeriodEnd ? new Date(responseData.stripeCurrentPeriodEnd) : null
+          stripeCustomerId: nullToUndefined(responseData.stripeCustomerId),
+          stripeSubscriptionId: nullToUndefined(responseData.stripeSubscriptionId),
+          stripePriceId: nullToUndefined(responseData.stripePriceId),
+          stripeCurrentPeriodEnd: nullToUndefined(responseData.stripeCurrentPeriodEnd)
+            ? new Date(responseData.stripeCurrentPeriodEnd)
+            : undefined,
         };
       } catch (error) {
         console.error('Error creating subscription:', error);

@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getCachedApiJwt } from '@/lib/api/jwt';
+import { getCachedApiJwt, generateApiJwt } from '@/lib/api/jwt';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
@@ -12,29 +12,47 @@ function buildQueryString(query: Record<string, any>) {
   return qs ? `?${qs}` : '';
 }
 
+// Generalized fetch with JWT retry and debug logging
+async function fetchWithJwtRetry(apiUrl: string, options: any = {}, debugLabel = '') {
+  let token = await getCachedApiJwt();
+  let response = await fetch(apiUrl, {
+    ...options,
+    headers: {
+      ...options.headers,
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  console.log(`[${debugLabel}] First attempt:`, apiUrl, response.status);
+  if (response.status === 401) {
+    console.warn(`[${debugLabel}] JWT expired/invalid, regenerating and retrying...`);
+    token = await generateApiJwt();
+    response = await fetch(apiUrl, {
+      ...options,
+      headers: {
+        ...options.headers,
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    console.log(`[${debugLabel}] Second attempt:`, apiUrl, response.status);
+  }
+  return response;
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (!API_BASE_URL) {
     res.status(500).json({ error: 'API base URL not configured' });
     return;
   }
 
-  const token = await getCachedApiJwt();
   const { method, query, body } = req;
-  // Get the path segments after /api/proxy/user-profiles
   const slug = (req.query.slug || []) as string[];
   const queryString = buildQueryString(query);
 
-  console.log('[proxy] user-profiles: method:', method, 'slug:', slug, 'query:', query);
-
   // Handle /by-user/:userId
   if (slug[0] === 'by-user' && slug[1] && method === 'GET') {
-    console.log('[proxy] Matched /by-user/:userId', slug[1]);
     const userId = slug[1];
     const apiUrl = `${API_BASE_URL}/api/user-profiles/by-user/${userId}`;
-    const apiRes = await fetch(apiUrl, {
-      method: 'GET',
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const apiRes = await fetchWithJwtRetry(apiUrl, { method: 'GET' }, 'user-profiles-by-user-GET');
     const data = await apiRes.text();
     res.status(apiRes.status).send(data);
     return;
@@ -42,31 +60,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   // Handle /:id (single profile CRUD)
   if (slug.length === 1 && slug[0] && method !== 'POST') {
-    console.log('[proxy] Matched /:id', slug[0]);
     const id = slug[0];
     const apiUrl = `${API_BASE_URL}/api/user-profiles/${id}${queryString}`;
     let apiRes;
     switch (method) {
       case 'GET':
-        apiRes = await fetch(apiUrl, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        apiRes = await fetchWithJwtRetry(apiUrl, { method: 'GET' }, 'user-profiles-id-GET');
         break;
       case 'PUT':
-        apiRes = await fetch(apiUrl, {
+        apiRes = await fetchWithJwtRetry(apiUrl, {
           method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
-        });
+        }, 'user-profiles-id-PUT');
         break;
       case 'DELETE':
-        apiRes = await fetch(apiUrl, {
-          method: 'DELETE',
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        apiRes = await fetchWithJwtRetry(apiUrl, { method: 'DELETE' }, 'user-profiles-id-DELETE');
         break;
       default:
         res.status(405).json({ error: 'Method not allowed' });
@@ -79,24 +88,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   // Handle / (list, create, filter)
   if (slug.length === 0) {
-    console.log('[proxy] Matched / (list, create, filter)');
     const apiUrl = `${API_BASE_URL}/api/user-profiles${queryString}`;
     let apiRes;
     switch (method) {
       case 'GET':
-        apiRes = await fetch(apiUrl, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        apiRes = await fetchWithJwtRetry(apiUrl, { method: 'GET' }, 'user-profiles-root-GET');
         break;
       case 'POST':
-        apiRes = await fetch(apiUrl, {
+        apiRes = await fetchWithJwtRetry(apiUrl, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
-        });
+        }, 'user-profiles-root-POST');
         break;
       default:
         res.status(405).json({ error: 'Method not allowed' });
@@ -108,6 +111,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   // Fallback: Not found
-  console.log('[proxy] Fallback: Not found', { slug, method });
   res.status(404).json({ error: 'Not found' });
 }

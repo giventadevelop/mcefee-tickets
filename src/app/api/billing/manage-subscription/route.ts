@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth, currentUser } from '@clerk/nextjs';
 import Stripe from 'stripe';
+import type { UserProfileDTO, UserSubscriptionDTO } from '@/types';
 
 // Force Node.js runtime - Edge runtime is not compatible with Prisma
 export const runtime = 'nodejs';
@@ -16,34 +17,6 @@ const getStripe = () => {
   });
 };
 
-interface UserProfileDTO {
-  id?: number;
-  userId: string;
-  firstName?: string;
-  lastName?: string;
-  email?: string;
-  phone?: string;
-  addressLine1?: string;
-  addressLine2?: string;
-  city?: string;
-  state?: string;
-  zipCode?: string;
-  country?: string;
-  notes?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface UserSubscriptionDTO {
-  id?: number;
-  stripeCustomerId?: string;
-  stripeSubscriptionId?: string;
-  stripePriceId?: string;
-  stripeCurrentPeriodEnd?: string;
-  status: string;
-  userProfile?: UserProfileDTO;
-}
-
 export async function POST(req: Request) {
   try {
     const { userId } = auth();
@@ -57,8 +30,8 @@ export async function POST(req: Request) {
     let baseUrl = process.env.NEXT_PUBLIC_APP_URL;
     if (!baseUrl) {
       // Extract base URL from the request
-      const url = new URL(req.url);
-      baseUrl = `${url.protocol}//${url.host}`;
+      const urlObj = new URL(req.url);
+      baseUrl = `${urlObj.protocol}//${urlObj.host}`;
       console.warn('NEXT_PUBLIC_APP_URL not set, using request URL:', baseUrl);
     }
 
@@ -83,17 +56,11 @@ export async function POST(req: Request) {
       }
 
       const email = clerkUser.emailAddresses[0].emailAddress;
-      const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
 
-      if (!apiBaseUrl) {
-        throw new Error('API base URL not configured');
-      }
-
-      // Try to get existing user profile
+      // Try to get existing user profile via proxy
       let userProfile: UserProfileDTO | null = null;
-
       try {
-        const response = await fetch(`${apiBaseUrl}/api/user-profiles/by-user/${userId}`, {
+        const response = await fetch(`${baseUrl}/api/proxy/user-profiles/by-user/${userId}`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -109,10 +76,10 @@ export async function POST(req: Request) {
         console.error('Error fetching user profile:', error);
       }
 
-      // Try to get existing subscription
+      // Try to get existing subscription via proxy
       let subscription: UserSubscriptionDTO | null = null;
       try {
-        const response = await fetch(`${apiBaseUrl}/api/user-subscriptions/by-profile/${userProfile?.id}`, {
+        const response = await fetch(`${baseUrl}/api/proxy/user-subscriptions/by-profile/${userProfile?.id}`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -130,7 +97,7 @@ export async function POST(req: Request) {
         throw new Error('Failed to fetch subscription data');
       }
 
-      // Create subscription if it doesn't exist
+      // Create subscription if it doesn't exist via proxy
       if (!subscription) {
         try {
           const newSubscription: UserSubscriptionDTO = {
@@ -143,7 +110,7 @@ export async function POST(req: Request) {
             },
           };
 
-          const response = await fetch(`${apiBaseUrl}/api/user-subscriptions`, {
+          const response = await fetch(`${baseUrl}/api/proxy/user-subscriptions`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -186,7 +153,7 @@ export async function POST(req: Request) {
             customerId = customer.id;
           }
 
-          // Update subscription with the customer ID
+          // Update subscription with the customer ID via proxy
           if (subscription && subscription.id) {
             try {
               const updatedSubscription: UserSubscriptionDTO = {
@@ -194,7 +161,7 @@ export async function POST(req: Request) {
                 stripeCustomerId: customerId,
               };
 
-              const response = await fetch(`${apiBaseUrl}/api/user-subscriptions/${subscription.id}`, {
+              const response = await fetch(`${baseUrl}/api/proxy/user-subscriptions/${subscription.id}`, {
                 method: 'PUT',
                 headers: {
                   'Content-Type': 'application/json',
@@ -205,70 +172,63 @@ export async function POST(req: Request) {
               if (!response.ok) {
                 throw new Error(`Failed to update subscription: ${response.statusText}`);
               }
-
-              subscription = await response.json();
             } catch (error) {
               console.error('Error updating subscription:', error);
-              throw new Error('Failed to update subscription with customer ID');
             }
           }
         }
+      } catch (error) {
+        console.error('Error handling Stripe customer:', error);
+      }
 
-        let url: string;
+      let url: string;
 
-        if (body.isSubscribed && body.stripeSubscriptionId && customerId) {
-          const session = await stripe.billingPortal.sessions.create({
-            customer: customerId,
-            return_url: `${baseUrl}/dashboard`,
-          });
+      if (body.isSubscribed && body.stripeSubscriptionId && customerId) {
+        const session = await stripe.billingPortal.sessions.create({
+          customer: customerId,
+          return_url: `${baseUrl}/dashboard`,
+        });
 
-          if (!session.url) {
-            throw new Error('Failed to create billing portal session');
-          }
-          url = session.url;
-        } else {
-          const session = await stripe.checkout.sessions.create({
-            success_url: `${baseUrl}/dashboard`,
-            cancel_url: `${baseUrl}/dashboard`,
-            payment_method_types: ['card'],
-            mode: 'subscription',
-            billing_address_collection: 'auto',
-            customer: customerId,
-            subscription_data: {
-              metadata: {
-                userId: userId,
-              },
-            },
-            line_items: [
-              {
-                price: body.stripePriceId,
-                quantity: 1,
-              },
-            ],
+        if (!session.url) {
+          throw new Error('Failed to create billing portal session');
+        }
+        url = session.url;
+      } else {
+        const session = await stripe.checkout.sessions.create({
+          success_url: `${baseUrl}/dashboard`,
+          cancel_url: `${baseUrl}/dashboard`,
+          payment_method_types: ['card'],
+          mode: 'subscription',
+          billing_address_collection: 'auto',
+          customer: customerId,
+          subscription_data: {
             metadata: {
               userId: userId,
             },
-          });
+          },
+          line_items: [
+            {
+              price: body.stripePriceId,
+              quantity: 1,
+            },
+          ],
+          metadata: {
+            userId: userId,
+          },
+        });
 
-          if (!session.url) {
-            throw new Error('Failed to create checkout session');
-          }
-          url = session.url;
+        if (!session.url) {
+          throw new Error('Failed to create checkout session');
         }
-
-        return NextResponse.json({ url });
-      } catch (stripeError) {
-        console.error('Stripe API error:', stripeError);
-        return NextResponse.json(
-          { error: stripeError instanceof Error ? stripeError.message : 'Failed to process subscription' },
-          { status: 400 }
-        );
+        url = session.url;
       }
-    } catch (apiError) {
-      console.error('API operation failed:', apiError);
+
+      return NextResponse.json({ url });
+    } catch (stripeError) {
+      console.error('Stripe API error:', stripeError);
       return NextResponse.json(
-        { error: apiError instanceof Error ? apiError.message : 'Failed to process API request' },
-        { status: 500 }
+        { error: stripeError instanceof Error ? stripeError.message : 'Failed to process subscription' },
+        { status: 400 }
       );
     }
   } catch (error) {

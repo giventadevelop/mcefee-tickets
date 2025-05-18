@@ -110,11 +110,57 @@ export default function ProfileForm() {
 
           if (!response.ok) {
             if (response.status === 404) {
-              console.log('No profile found for userId:', userId);
-              return;
+              // No profile found, create full minimal profile object
+              const now = new Date().toISOString();
+              const minimalProfile: UserProfileDTO = {
+
+                userId: userId,
+                firstName: '',
+                lastName: '',
+                email: '',
+                phone: '',
+                addressLine1: '',
+                addressLine2: '',
+                city: '',
+                state: '',
+                zipCode: '',
+                country: '',
+                notes: '',
+                familyName: '',
+                cityTown: '',
+                district: '',
+                educationalInstitution: '',
+                profileImageUrl: '',
+                createdAt: now,
+                updatedAt: now,
+              };
+              const createRes = await fetch('/api/proxy/user-profiles', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(minimalProfile),
+              });
+              if (createRes.ok) {
+                const newProfile = await createRes.json();
+                setProfileId(newProfile.id);
+                setFormData(prev => ({ ...defaultFormData, ...newProfile }));
+                return;
+              } else {
+                let errorText = 'Failed to create minimal profile';
+                try {
+                  const errorData = await createRes.json();
+                  errorText = errorData.message || JSON.stringify(errorData);
+                } catch (e) {
+                  errorText = await createRes.text();
+                }
+                console.error('Profile creation error:', errorText);
+                setError(errorText);
+                throw new Error(errorText);
+              }
             }
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+            const errorData = await response.json().catch(async () => await response.text());
+            const errorMsg = errorData && errorData.message ? errorData.message : (typeof errorData === 'string' ? errorData : `HTTP error! status: ${response.status}`);
+            setError(errorMsg);
+            throw new Error(errorMsg);
           }
 
           const data = await response.json();
@@ -268,152 +314,153 @@ export default function ProfileForm() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">
-            First Name *
-          </label>
-          <input
-            type="text"
-            id="firstName"
-            name="firstName"
-            value={formData.firstName}
-            onChange={handleChange}
-            required
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-          />
-        </div>
+      <div className="border rounded-lg p-4 bg-gray-50 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">
+              First Name *
+            </label>
+            <input
+              type="text"
+              id="firstName"
+              name="firstName"
+              value={formData.firstName}
+              onChange={handleChange}
+              required
+              className="mt-1 block w-full border border-gray-400 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+            />
+          </div>
 
-        <div>
-          <label htmlFor="lastName" className="block text-sm font-medium text-gray-700">
-            Last Name *
-          </label>
-          <input
-            type="text"
-            id="lastName"
-            name="lastName"
-            value={formData.lastName}
-            onChange={handleChange}
-            required
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-          />
-        </div>
+          <div>
+            <label htmlFor="lastName" className="block text-sm font-medium text-gray-700">
+              Last Name *
+            </label>
+            <input
+              type="text"
+              id="lastName"
+              name="lastName"
+              value={formData.lastName}
+              onChange={handleChange}
+              required
+              className="mt-1 block w-full border border-gray-400 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+            />
+          </div>
 
-        <div>
-          <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-            Email *
-          </label>
-          <input
-            type="email"
-            id="email"
-            name="email"
-            value={formData.email}
-            onChange={handleChange}
-            required
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-          />
-        </div>
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+              Email *
+            </label>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
+              required
+              className="mt-1 block w-full border border-gray-400 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+            />
+          </div>
 
-        <div>
-          <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
-            Phone
-          </label>
-          <input
-            type="tel"
-            id="phone"
-            name="phone"
-            value={formData.phone || ""}
-            onChange={handleChange}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-          />
-        </div>
+          <div>
+            <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
+              Phone
+            </label>
+            <input
+              type="tel"
+              id="phone"
+              name="phone"
+              value={formData.phone || ""}
+              onChange={handleChange}
+              className="mt-1 block w-full border border-gray-400 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+            />
+          </div>
 
-        <div>
-          <label htmlFor="addressLine1" className="block text-sm font-medium text-gray-700">
-            Address Line 1
-          </label>
-          <input
-            type="text"
-            id="addressLine1"
-            name="addressLine1"
-            value={formData.addressLine1 || ""}
-            onChange={handleChange}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-          />
-        </div>
+          <div>
+            <label htmlFor="addressLine1" className="block text-sm font-medium text-gray-700">
+              Address Line 1
+            </label>
+            <input
+              type="text"
+              id="addressLine1"
+              name="addressLine1"
+              value={formData.addressLine1 || ""}
+              onChange={handleChange}
+              className="mt-1 block w-full border border-gray-400 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+            />
+          </div>
 
-        <div>
-          <label htmlFor="addressLine2" className="block text-sm font-medium text-gray-700">
-            Address Line 2
-          </label>
-          <input
-            type="text"
-            id="addressLine2"
-            name="addressLine2"
-            value={formData.addressLine2 || ""}
-            onChange={handleChange}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-          />
-        </div>
+          <div>
+            <label htmlFor="addressLine2" className="block text-sm font-medium text-gray-700">
+              Address Line 2
+            </label>
+            <input
+              type="text"
+              id="addressLine2"
+              name="addressLine2"
+              value={formData.addressLine2 || ""}
+              onChange={handleChange}
+              className="mt-1 block w-full border border-gray-400 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+            />
+          </div>
 
-        <div>
-          <label htmlFor="city" className="block text-sm font-medium text-gray-700">
-            City
-          </label>
-          <input
-            type="text"
-            id="city"
-            name="city"
-            value={formData.city || ""}
-            onChange={handleChange}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-          />
-        </div>
+          <div>
+            <label htmlFor="city" className="block text-sm font-medium text-gray-700">
+              City
+            </label>
+            <input
+              type="text"
+              id="city"
+              name="city"
+              value={formData.city || ""}
+              onChange={handleChange}
+              className="mt-1 block w-full border border-gray-400 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+            />
+          </div>
 
-        <div>
-          <label htmlFor="state" className="block text-sm font-medium text-gray-700">
-            State
-          </label>
-          <input
-            type="text"
-            id="state"
-            name="state"
-            value={formData.state || ""}
-            onChange={handleChange}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-          />
-        </div>
+          <div>
+            <label htmlFor="state" className="block text-sm font-medium text-gray-700">
+              State
+            </label>
+            <input
+              type="text"
+              id="state"
+              name="state"
+              value={formData.state || ""}
+              onChange={handleChange}
+              className="mt-1 block w-full border border-gray-400 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+            />
+          </div>
 
-        <div>
-          <label htmlFor="zipCode" className="block text-sm font-medium text-gray-700">
-            ZIP Code
-          </label>
-          <input
-            type="text"
-            id="zipCode"
-            name="zipCode"
-            value={formData.zipCode || ""}
-            onChange={handleChange}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-          />
-        </div>
+          <div>
+            <label htmlFor="zipCode" className="block text-sm font-medium text-gray-700">
+              ZIP Code
+            </label>
+            <input
+              type="text"
+              id="zipCode"
+              name="zipCode"
+              value={formData.zipCode || ""}
+              onChange={handleChange}
+              className="mt-1 block w-full border border-gray-400 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+            />
+          </div>
 
-        <div>
-          <label htmlFor="country" className="block text-sm font-medium text-gray-700">
-            Country
-          </label>
-          <input
-            type="text"
-            id="country"
-            name="country"
-            value={formData.country || ""}
-            onChange={handleChange}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-          />
+          <div>
+            <label htmlFor="country" className="block text-sm font-medium text-gray-700">
+              Country
+            </label>
+            <input
+              type="text"
+              id="country"
+              name="country"
+              value={formData.country || ""}
+              onChange={handleChange}
+              className="mt-1 block w-full border border-gray-400 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+            />
+          </div>
         </div>
       </div>
 
-      {/* Optional India Details Section */}
       <div className="my-6">
         <div className="text-xs text-gray-500 mb-1">[optional] The following fields are for India-specific details.</div>
         <div className="border rounded-lg p-4 bg-gray-50">
@@ -429,7 +476,7 @@ export default function ProfileForm() {
                 name="familyName"
                 value={formData.familyName || ""}
                 onChange={handleChange}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                className="mt-1 block w-full border border-gray-400 rounded-lg focus:border-blue-500 focus:ring-blue-500"
                 tabIndex={0}
               />
             </div>
@@ -443,7 +490,7 @@ export default function ProfileForm() {
                 name="cityTown"
                 value={formData.cityTown || ""}
                 onChange={handleChange}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                className="mt-1 block w-full border border-gray-400 rounded-lg focus:border-blue-500 focus:ring-blue-500"
                 tabIndex={0}
               />
             </div>
@@ -457,7 +504,7 @@ export default function ProfileForm() {
                 name="district"
                 value={formData.district || ""}
                 onChange={handleChange}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                className="mt-1 block w-full border border-gray-400 rounded-lg focus:border-blue-500 focus:ring-blue-500"
                 tabIndex={0}
               />
             </div>
@@ -471,7 +518,7 @@ export default function ProfileForm() {
                 name="educationalInstitution"
                 value={formData.educationalInstitution || ""}
                 onChange={handleChange}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                className="mt-1 block w-full border border-gray-400 rounded-lg focus:border-blue-500 focus:ring-blue-500"
                 tabIndex={0}
               />
             </div>
@@ -485,7 +532,7 @@ export default function ProfileForm() {
                 name="profileImageUrl"
                 value={formData.profileImageUrl || ""}
                 onChange={handleChange}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                className="mt-1 block w-full border border-gray-400 rounded-lg focus:border-blue-500 focus:ring-blue-500"
                 tabIndex={0}
               />
             </div>
@@ -493,7 +540,7 @@ export default function ProfileForm() {
         </div>
       </div>
 
-      <div>
+      <div className="border rounded-lg p-4 bg-gray-50 mb-6">
         <label htmlFor="notes" className="block text-sm font-medium text-gray-700">
           Notes
         </label>
@@ -503,7 +550,7 @@ export default function ProfileForm() {
           value={formData.notes || ""}
           onChange={handleChange}
           rows={4}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+          className="mt-1 block w-full border border-gray-400 rounded-lg focus:border-blue-500 focus:ring-blue-500"
           tabIndex={0}
         />
       </div>
