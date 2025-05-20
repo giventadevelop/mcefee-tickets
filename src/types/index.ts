@@ -66,19 +66,19 @@ export interface EventDTO {
   title: string;
   caption?: string;
   description?: string;
-  event_type_id: number;
-  start_date: string; // ISO date string
-  end_date: string;   // ISO date string
-  start_time: string; // HH:mm:ss
-  end_time: string;   // HH:mm:ss
+  startDate: string; // ISO date string
+  endDate: string;   // ISO date string
+  startTime: string; // e.g. '06:00 PM'
+  endTime: string;   // e.g. '08:00 PM'
   location?: string;
-  directions_to_venue?: string;
+  directionsToVenue?: string;
   capacity?: number;
-  admission_type: 'free' | 'ticketed';
-  is_active?: boolean;
-  created_by: string;
-  created_at?: string;
-  updated_at?: string;
+  admissionType: string;
+  isActive?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  createdBy?: UserProfileDTO;
+  eventType?: EventTypeDTO;
 }
 
 /**
@@ -88,4 +88,35 @@ export interface EventTypeDTO {
   id: number;
   name: string;
   description?: string;
+}
+
+export interface EventMediaDTO {
+  id?: number;
+  title: string;
+  description?: string;
+  eventMediaType: string;
+  storageType: string;
+  fileUrl?: string;
+  fileData?: string[];
+  fileDataContentType?: string;
+  contentType?: string;
+  fileSize?: number;
+  isPublic?: boolean;
+  eventFlyer?: boolean;
+  isEventManagementOfficialDocument?: boolean;
+  createdAt: string;
+  updatedAt: string;
+  event?: EventDTO;
+  uploadedBy?: UserProfileDTO;
+}
+
+export interface CalendarEventDTO {
+  id?: number;
+  calendarProvider: string;
+  externalEventId?: string;
+  calendarLink: string;
+  createdAt: string;
+  updatedAt: string;
+  event?: EventDTO;
+  createdBy?: UserProfileDTO;
 }

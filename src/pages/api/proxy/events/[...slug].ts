@@ -64,6 +64,41 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return;
   }
 
+  // Handle /:id/media (event media upload)
+  if (slug.length === 2 && slug[1] === 'media') {
+    const id = slug[0];
+    const apiUrl = `${API_BASE_URL}/api/events/${id}/media${queryString}`;
+    if (method === 'POST') {
+      // Forward multipart/form-data
+      // Remove Next.js body parsing for file uploads
+      // Use req.pipe to forward the raw request
+      const fetch = (await import('node-fetch')).default;
+      const headers = { ...req.headers, authorization: `Bearer ${token}` };
+      delete headers['host'];
+      delete headers['connection'];
+      // Convert any array header values to string (e.g., 'set-cookie')
+      const sanitizedHeaders: Record<string, string> = {};
+      for (const [key, value] of Object.entries(headers)) {
+        if (Array.isArray(value)) {
+          sanitizedHeaders[key] = value.join('; ');
+        } else if (typeof value === 'string') {
+          sanitizedHeaders[key] = value;
+        }
+      }
+      // Pipe the request to the backend
+      const apiRes = await fetch(apiUrl, {
+        method: 'POST',
+        headers: sanitizedHeaders,
+        body: req,
+      });
+      res.status(apiRes.status);
+      apiRes.body.pipe(res);
+      return;
+    }
+    res.status(405).json({ error: 'Method not allowed' });
+    return;
+  }
+
   // Fallback: Not found
   res.status(404).json({ error: 'Not found' });
 }
