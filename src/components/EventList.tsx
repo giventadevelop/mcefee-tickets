@@ -94,40 +94,37 @@ export function EventList({ events, eventTypes: eventTypesProp, onEdit, onCancel
                 </td>
                 <td className="p-2 border align-middle">
                   <div className="flex gap-4 items-center justify-center">
-                    <span className="relative group flex flex-col items-center">
-                      <button className="text-blue-600 hover:text-blue-800" onClick={() => onEdit(event)}>
-                        <FaEdit />
-                      </button>
+                    <button className="relative group flex flex-col items-center text-blue-600 hover:text-blue-800 focus:outline-none" onClick={() => onEdit(event)}>
+                      <FaEdit />
                       <span className="text-[10px] text-gray-600 mt-1">Edit</span>
-                    </span>
-                    <span className="relative group flex flex-col items-center">
-                      <button className="text-red-600 hover:text-red-800" onClick={() => onCancel(event)}>
-                        <FaTrashAlt />
-                      </button>
+                    </button>
+                    <button className="relative group flex flex-col items-center text-red-600 hover:text-red-800 focus:outline-none" onClick={() => onCancel(event)}>
+                      <FaTrashAlt />
                       <span className="text-[10px] text-gray-600 mt-1">Delete</span>
-                    </span>
+                    </button>
                   </div>
                 </td>
                 <td className="p-2 border text-center align-middle">
                   <span className="relative group flex flex-col items-center">
-                    <a href={`/admin/events/${event.id}/media`} className="inline-block">
+                    <a href={`/admin/events/${event.id}/media`} className="inline-block w-full h-full">
                       <FaUpload className="text-green-600 hover:text-green-800 mx-auto" />
+                      <span className="text-[10px] text-gray-600 mt-1 block">List or upload media files</span>
                     </a>
-                    <span className="text-[10px] text-gray-600 mt-1">List or upload media files</span>
                   </span>
                 </td>
                 <td className="p-2 border text-center align-middle">
-                  <span className="relative group">
+                  <span className="relative group flex flex-col items-center">
                     {calendarEvent && calendarEvent.calendarLink ? (
-                      <a href={calendarEvent.calendarLink} target="_blank" rel="noopener noreferrer" className="inline-block">
+                      <a href={calendarEvent.calendarLink} target="_blank" rel="noopener noreferrer" className="inline-block w-full h-full">
                         <img src="/images/icons8-calendar.gif" alt="Calendar" className="w-7 h-7 rounded shadow mx-auto" />
+                        <span className="text-[10px] text-gray-600 mt-1 block">View Calendar</span>
                       </a>
                     ) : (
                       <span className="text-gray-400 cursor-not-allowed inline-block">
                         <img src="/images/icons8-calendar.gif" alt="Calendar" className="w-7 h-7 rounded shadow opacity-50 mx-auto" />
+                        <span className="text-[10px] text-gray-600 mt-1 block">View Calendar</span>
                       </span>
                     )}
-                    <span className="absolute left-1/2 -translate-x-1/2 mt-2 z-10 hidden group-hover:block bg-black text-white text-xs rounded px-2 py-1 whitespace-nowrap border border-gray-300">View Calendar</span>
                   </span>
                 </td>
                 {showDetailsOnHover && hoveredEventId === event.id && (

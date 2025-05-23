@@ -97,6 +97,7 @@ export interface EventMediaDTO {
   eventMediaType: string;
   storageType: string;
   fileUrl?: string;
+  preSignedUrl?: string;
   fileData?: string[];
   fileDataContentType?: string;
   contentType?: string;
