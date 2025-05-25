@@ -75,3 +75,163 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Add custom styles from HTML template, refactored for Tailwind and deduplicated */
+
+.hero-section {
+  position: relative;
+  min-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  background: #fff;
+}
+
+.hero-mcafee-logo {
+  width: 180px;
+  margin-bottom: 2rem;
+}
+
+.hero-title {
+  font-family: 'Sora', sans-serif;
+  font-size: 3rem;
+  font-weight: 700;
+  color: #222;
+  line-height: 1.1;
+}
+
+@media (min-width: 768px) {
+  .hero-title {
+    font-size: 4.5rem;
+  }
+}
+
+.hero-background {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.hero-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.4) 0%, rgba(0, 0, 0, 0.8) 100%);
+}
+
+.about-us-section {
+  background: #f9fafb;
+}
+
+.about-us-content {
+  background: #fff;
+  border-radius: 1rem;
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.06);
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+@media (min-width: 768px) {
+  .about-us-content {
+    flex-direction: row;
+    padding: 3rem;
+  }
+}
+
+.about-us-text {
+  font-size: 1.125rem;
+  color: #374151;
+}
+
+.section-title-wrapper h3 {
+  font-family: 'Sora', sans-serif;
+  font-weight: 700;
+  color: #222;
+}
+
+.section-subtitle {
+  color: #ffce59;
+  font-weight: 600;
+  font-size: 1.25rem;
+}
+
+.events-section {
+  background: #fff;
+}
+
+.event-item {
+  background: #f9fafb;
+  border-radius: 1rem;
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.06);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.event-image {
+  width: 100%;
+  height: 12rem;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.event-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+/* Responsive tweaks */
+@media (max-width: 768px) {
+  .hero-title {
+    font-size: 2rem;
+  }
+
+  .about-us-content {
+    flex-direction: column;
+    padding: 1.5rem;
+  }
+
+  .event-item {
+    padding: 1rem;
+  }
+
+  .event-image {
+    height: 8rem;
+  }
+}
+
+@keyframes ticker-marquee {
+  0% {
+    transform: translateX(0);
+  }
+
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.ticker-marquee {
+  display: flex;
+  white-space: nowrap;
+  will-change: transform;
+  animation: ticker-marquee 20s linear infinite;
+}
+
+.ticker-section {
+  overflow: hidden;
+}
+
+.ticker-item {
+  display: inline-block;
+  padding: 0 2rem;
+  font-weight: 600;
+  font-size: 1.125rem;
+}

@@ -47,13 +47,12 @@ export function Header() {
   if (pathname?.startsWith("/sign-")) return null;
 
   return (
-    <header className="border-b border-gray-200 bg-white">
-      <nav className="mx-auto px-4 sm:px-6 lg:px-8 py-4">
-        <div className="relative flex items-center justify-between h-16">
+    <header className="bg-transparent">
+      <nav className="mx-auto px-4 sm:px-6 lg:px-8 py-[18px]">
+        <div className="relative flex items-center justify-between h-[58px]">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 shrink-0">
-            <span className="text-xl">📋</span>
-            <span className="text-xl font-bold text-gray-900">TaskMngr</span>
+            <img src="/images/side_images/malayalees_us-logo_text_us_star_logo_header.png" alt="Malayalees US Logo" className="w-[200px] h-[100px]" />
           </Link>
 
           {/* Mobile menu button */}
