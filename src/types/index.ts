@@ -121,3 +121,9 @@ export interface CalendarEventDTO {
   event?: EventDTO;
   createdBy?: UserProfileDTO;
 }
+
+export interface EventWithMedia extends EventDTO {
+  thumbnailUrl?: string;
+  startTime?: string;
+  endTime?: string;
+}

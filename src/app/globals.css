@@ -218,15 +218,20 @@
   }
 }
 
-.ticker-marquee {
-  display: flex;
-  white-space: nowrap;
-  will-change: transform;
+.animate-marquee {
   animation: ticker-marquee 20s linear infinite;
 }
 
 .ticker-section {
   overflow: hidden;
+  background-color: #f59e0b;
+  /* yellow-500 */
+}
+
+.ticker {
+  display: flex;
+  white-space: nowrap;
+  will-change: transform;
 }
 
 .ticker-item {

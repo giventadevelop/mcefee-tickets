@@ -1,20 +1,29 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
-import { getCachedApiJwt } from '@/lib/api/jwt';
+import { NextApiRequest, NextApiResponse } from 'next';
+import { getCachedApiJwt, generateApiJwt } from '@/lib/api/jwt';
+import { EventDTO } from '@/types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
-function buildQueryString(query: Record<string, any>) {
-  const params = new URLSearchParams();
-  for (const key in query) {
-    const value = query[key];
-    if (Array.isArray(value)) {
-      value.forEach(v => params.append(key, v));
-    } else if (typeof value !== 'undefined') {
-      params.append(key, value);
-    }
+async function fetchWithJwtRetry(apiUrl: string, options: any = {}, debugLabel = '') {
+  let token = await getCachedApiJwt();
+  let response = await fetch(apiUrl, {
+    ...options,
+    headers: {
+      ...options.headers,
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  if (response.status === 401) {
+    token = await generateApiJwt();
+    response = await fetch(apiUrl, {
+      ...options,
+      headers: {
+        ...options.headers,
+        Authorization: `Bearer ${token}`,
+      },
+    });
   }
-  const qs = params.toString();
-  return qs ? `?${qs}` : '';
+  return response;
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -22,83 +31,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     res.status(500).json({ error: 'API base URL not configured' });
     return;
   }
+  try {
+    const { slug } = req.query;
+    const path = Array.isArray(slug) ? slug.join('/') : slug;
+    const apiUrl = `${API_BASE_URL}/api/events/${path}`;
+    const response = await fetchWithJwtRetry(apiUrl, {
+      method: req.method,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: req.method !== 'GET' ? JSON.stringify(req.body) : undefined,
+    }, 'events-proxy');
 
-  const token = await getCachedApiJwt();
-  const { method, query, body } = req;
-  const slug = (req.query.slug || []) as string[];
-  const queryString = buildQueryString(query);
-
-  // Handle /:id (single event CRUD)
-  if (slug.length === 1 && slug[0]) {
-    const id = slug[0];
-    const apiUrl = `${API_BASE_URL}/api/events/${id}${queryString}`;
-    let apiRes;
-    switch (method) {
-      case 'GET':
-        apiRes = await fetch(apiUrl, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        break;
-      case 'PUT':
-        apiRes = await fetch(apiUrl, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(body),
-        });
-        break;
-      case 'DELETE':
-        apiRes = await fetch(apiUrl, {
-          method: 'DELETE',
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        break;
-      default:
-        res.status(405).json({ error: 'Method not allowed' });
-        return;
-    }
-    const data = await apiRes.text();
-    res.status(apiRes.status).send(data);
-    return;
+    const data = await response.text();
+    res.status(response.status).send(data);
+  } catch (error) {
+    console.error('Error in events proxy:', error);
+    res.status(500).json({ error: 'Failed to fetch events' });
   }
-
-  // Handle /:id/media (event media upload)
-  if (slug.length === 2 && slug[1] === 'media') {
-    const id = slug[0];
-    const apiUrl = `${API_BASE_URL}/api/events/${id}/media${queryString}`;
-    if (method === 'POST') {
-      // Forward multipart/form-data
-      // Remove Next.js body parsing for file uploads
-      // Use req.pipe to forward the raw request
-      const fetch = (await import('node-fetch')).default;
-      const headers = { ...req.headers, authorization: `Bearer ${token}` };
-      delete headers['host'];
-      delete headers['connection'];
-      // Convert any array header values to string (e.g., 'set-cookie')
-      const sanitizedHeaders: Record<string, string> = {};
-      for (const [key, value] of Object.entries(headers)) {
-        if (Array.isArray(value)) {
-          sanitizedHeaders[key] = value.join('; ');
-        } else if (typeof value === 'string') {
-          sanitizedHeaders[key] = value;
-        }
-      }
-      // Pipe the request to the backend
-      const apiRes = await fetch(apiUrl, {
-        method: 'POST',
-        headers: sanitizedHeaders,
-        body: req,
-      });
-      res.status(apiRes.status);
-      apiRes.body.pipe(res);
-      return;
-    }
-    res.status(405).json({ error: 'Method not allowed' });
-    return;
-  }
-
-  // Fallback: Not found
-  res.status(404).json({ error: 'Not found' });
 }

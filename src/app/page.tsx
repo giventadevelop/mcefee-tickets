@@ -2,45 +2,200 @@
 import Link from "next/link";
 import { UserRoleDisplay } from "@/components/UserRoleDisplay";
 import { ProfileBootstrapper } from "@/components/ProfileBootstrapper";
-import React from "react";
+import { EventCard } from "@/components/EventCard";
+import { EventWithMedia } from "@/types";
+import { useEffect, useState } from "react";
+import Image from "next/image";
 
 export default function Page() {
+  const [events, setEvents] = useState<EventWithMedia[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchEvents() {
+      try {
+        // Fetch events with sorting by startDate in descending order
+        const eventsResponse = await fetch('/api/proxy/events?sort=startDate,desc');
+        if (!eventsResponse.ok) {
+          throw new Error('Failed to fetch events');
+        }
+        const eventsData = await eventsResponse.json();
+
+        // For each event, fetch its media
+        const eventsWithMedia = await Promise.all(
+          eventsData.map(async (event: EventWithMedia) => {
+            try {
+              const mediaResponse = await fetch(`/api/proxy/event-medias?eventId.equals=${event.id}&eventFlyer.equals=true`);
+              if (!mediaResponse.ok) {
+                console.warn(`Failed to fetch media for event ${event.id}`);
+                return event;
+              }
+              const mediaData = await mediaResponse.json();
+
+              if (mediaData && mediaData.length > 0) {
+                return {
+                  ...event,
+                  thumbnailUrl: mediaData[0].fileUrl
+                };
+              }
+              return event;
+            } catch (error) {
+              console.error(`Error fetching media for event ${event.id}:`, error);
+              return event;
+            }
+          })
+        );
+
+        // Filter for future events only
+        const futureEvents = eventsWithMedia
+          .filter(event => new Date(event.startDate) > new Date())
+          .slice(0, 6); // Show maximum 6 events (2 rows of 3)
+
+        setEvents(futureEvents);
+      } catch (error) {
+        console.error('Error fetching events:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchEvents();
+  }, []);
+
+  // Determine hero image based on upcoming events
+  const today = new Date();
+  const threeMonthsFromNow = new Date();
+  threeMonthsFromNow.setMonth(today.getMonth() + 3);
+
+  let heroImageUrl = "/images/side_images/chilanka_2025.webp"; // default image
+
+  if (events && events.length > 0) {
+    // Find the next event with startDate >= today
+    const upcomingEvents = events
+      .filter(event => event.startDate && new Date(event.startDate) >= today)
+      .sort((a, b) => {
+        const aDate = a.startDate ? new Date(a.startDate).getTime() : Infinity;
+        const bDate = b.startDate ? new Date(b.startDate).getTime() : Infinity;
+        return aDate - bDate;
+      });
+
+    if (upcomingEvents.length > 0) {
+      const nextEvent = upcomingEvents[0];
+      const eventDate = nextEvent.startDate ? new Date(nextEvent.startDate) : null;
+      if (eventDate && eventDate <= threeMonthsFromNow && nextEvent.thumbnailUrl) {
+        heroImageUrl = nextEvent.thumbnailUrl;
+      }
+    }
+  }
+
   return (
     <div className="min-h-screen w-full bg-gradient-to-b from-blue-100 via-white to-blue-200">
       <main>
         {/* Hero Section */}
-        <section className="hero-section relative flex flex-row items-stretch justify-start px-4 min-h-[14.6vh] md:min-h-[17.3vh] bg-transparent" style={{ minHeight: '293px' }}>
+        <section
+          className="hero-section relative w-full h-[350px] md:h-[350px] sm:h-[220px] h-[160px] bg-transparent pb-0"
+          style={{ height: undefined }}
+        >
           {/* Side Image as absolute vertical border with enhanced soft shadow, now extends further into navbar for stronger blending */}
-          <div style={{ position: 'absolute', left: 0, top: 0, width: '250px', minWidth: '120px', height: '100%', zIndex: 0 }}>
-            <img
+          <div
+            style={{
+              position: 'absolute',
+              left: 0,
+              top: 0,
+              width: '250px',
+              minWidth: '120px',
+              height: '100%',
+              zIndex: 1,
+            }}
+            className="w-[120px] md:w-[250px] min-w-[80px] h-full"
+          >
+            {/* Overlay logo at top left of side image */}
+            <Image
+              src="/images/side_images/malayalees_us_logo.avif"
+              alt="Malayalees US Logo"
+              width={80}
+              height={80}
+              style={{
+                position: 'absolute',
+                top: 8,
+                left: 8,
+                background: 'rgba(255,255,255,0.7)',
+                borderRadius: '50%',
+                boxShadow: '0 8px 64px 16px rgba(80,80,80,0.22)',
+                zIndex: 2,
+              }}
+              className="md:w-[120px] md:h-[120px] w-[80px] h-[80px]"
+              priority
+            />
+            <Image
               src="/images/side_images/pooram_side_image_two_images_blur_1.png"
               alt="Kerala Sea Coast"
+              width={250}
+              height={400}
               className="h-full object-cover rounded-l-lg shadow-2xl"
-              style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: '60% center', display: 'block', boxShadow: '0 0 96px 32px rgba(80,80,80,0.22)' }}
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                objectPosition: '60% center',
+                display: 'block',
+                boxShadow: '0 0 96px 32px rgba(80,80,80,0.22)',
+              }}
+              priority
             />
           </div>
-          {/* Logo absolutely positioned over the side image, with enhanced soft shadow */}
-          <div className="absolute" style={{ left: '70px', top: '20px', zIndex: 10 }}>
-            <img src="/images/side_images/malayalees_us_logo.avif" alt="MCEFEE Logo" style={{ width: 120, height: 120, minWidth: 80, minHeight: 80, background: 'rgba(255,255,255,0.7)', borderRadius: '50%', boxShadow: '0 8px 64px 16px rgba(80,80,80,0.22)' }} />
-          </div>
-          {/* Content with left padding for image */}
-          <div className="flex flex-row items-start flex-1 h-full pl-[260px] gap-8 relative z-10">
-            {/* Hero Text */}
-            <div className="flex flex-col justify-center flex-1 text-left pl-8">
-              <h1 className="hero-title text-2xl md:text-4xl font-bold mb-2 text-gray-900">
-                Welcome to MCEFEE
-              </h1>
-              <span className="block text-yellow-400 text-xl md:text-3xl font-bold mb-2">Malayalee Cultural &amp; Educational Foundation of East Europe</span>
-              <p className="text-base md:text-xl text-gray-700 mb-4 max-w-2xl">
-                Building a vibrant Malayalee community in Eastern Europe through culture, education, and togetherness.
-              </p>
-              <a href="#about" className="inline-block bg-yellow-400 text-gray-900 px-8 py-3 rounded-lg font-semibold text-lg shadow hover:bg-yellow-300 transition">Learn More</a>
+
+          {/* Hero Image fills the rest */}
+          <div
+            className="absolute hero-image-container"
+            style={{
+              left: 265,
+              top: 8,
+              right: 8,
+              bottom: 8,
+              zIndex: 2,
+            }}
+          >
+            <div className="w-full h-full relative">
+              {/* Blurred background image for width fill */}
+              <Image
+                src={heroImageUrl}
+                alt="Hero blurred background"
+                fill
+                className="object-cover w-full h-full blur-lg scale-105"
+                style={{
+                  zIndex: 0,
+                  filter: 'blur(24px) brightness(1.1)',
+                  objectPosition: 'center',
+                }}
+                aria-hidden="true"
+                priority
+              />
+              {/* Main hero image, fully visible */}
+              <Image
+                src={heroImageUrl}
+                alt="Event or Default"
+                fill
+                className="object-cover w-full h-full"
+                style={{
+                  objectFit: 'cover',
+                  objectPosition: 'center',
+                  zIndex: 1,
+                  background: 'linear-gradient(to bottom, #f8fafc 0%, #fff 100%)',
+                }}
+                priority
+              />
+              {/* Fade overlays for all four borders */}
+              <div className="pointer-events-none absolute left-0 top-0 w-full h-8" style={{ background: 'linear-gradient(to bottom, rgba(248,250,252,1) 0%, rgba(248,250,252,0) 100%)', zIndex: 20 }} />
+              <div className="pointer-events-none absolute left-0 bottom-0 w-full h-8" style={{ background: 'linear-gradient(to top, rgba(248,250,252,1) 0%, rgba(248,250,252,0) 100%)', zIndex: 20 }} />
+              <div className="pointer-events-none absolute left-0 top-0 h-full w-8" style={{ background: 'linear-gradient(to right, rgba(248,250,252,1) 0%, rgba(248,250,252,0) 100%)', zIndex: 20 }} />
+              <div className="pointer-events-none absolute right-0 top-0 h-full w-8" style={{ background: 'linear-gradient(to left, rgba(248,250,252,1) 0%, rgba(248,250,252,0) 100%)', zIndex: 20 }} />
             </div>
           </div>
         </section>
 
         {/* Feature Boxes Section */}
-        <section className="feature-boxes flex flex-col md:flex-row w-full">
+        <section className="feature-boxes flex flex-col md:flex-row w-full mt-12">
           <div className="feature-box flex-1 w-full min-h-[180px] mb-4 md:mb-0" style={{ backgroundImage: "url('/images/unite_india_logo.avif')", backgroundSize: '45%', backgroundRepeat: 'no-repeat', backgroundPosition: 'center', backgroundColor: '#1a1a1a', padding: '40px' }}>
             {/* <div>
                     <h4>Story behind the foundation</h4>
@@ -55,45 +210,33 @@ export default function Page() {
           </div>
         </section>
 
-        {/* Events Section (example) */}
+        {/* Events Section */}
         <section id="events" className="events-section py-20 bg-white">
           <div className="container mx-auto px-4">
-            <div className="section-title-wrapper mb-10">
+            <div className="section-title-wrapper mb-10 text-center">
               <h3 className="text-4xl md:text-5xl font-bold mb-4 text-gray-900">Upcoming Events</h3>
               <div className="section-subtitle text-lg text-yellow-500 font-semibold mb-2">Join Our Celebrations</div>
             </div>
-            <div className="grid md:grid-cols-3 gap-8">
-              <div className="event-item bg-gray-50 rounded-lg shadow p-6 flex flex-col items-center">
-                <div className="event-image w-full h-48 rounded-lg overflow-hidden mb-4">
-                  <img src="/images/event1.jpg" alt="Event 1" className="w-full h-full object-cover" />
-                </div>
-                <div className="event-content text-center">
-                  <h4 className="event-title text-xl font-semibold mb-2">Onam 2024</h4>
-                  <p className="text-gray-600 mb-2">Celebrate Kerala's harvest festival with us! Traditional games, music, and a grand feast await.</p>
-                  <span className="text-yellow-600 font-bold">August 25, 2024</span>
-                </div>
+            {loading ? (
+              <div className="flex justify-center items-center min-h-[400px]">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-400"></div>
               </div>
-              <div className="event-item bg-gray-50 rounded-lg shadow p-6 flex flex-col items-center">
-                <div className="event-image w-full h-48 rounded-lg overflow-hidden mb-4">
-                  <img src="/images/event2.jpg" alt="Event 2" className="w-full h-full object-cover" />
+            ) : (
+              <>
+                <div className="flex justify-center">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl">
+                    {events.map((event) => (
+                      <EventCard key={event.id} event={event} />
+                    ))}
+                  </div>
                 </div>
-                <div className="event-content text-center">
-                  <h4 className="event-title text-xl font-semibold mb-2">Malayalam Movie Night</h4>
-                  <p className="text-gray-600 mb-2">Enjoy a screening of a classic Malayalam film with friends and family. Popcorn included!</p>
-                  <span className="text-yellow-600 font-bold">September 10, 2024</span>
+                <div className="text-center mt-8">
+                  <Link href="/events" className="inline-block bg-yellow-400 text-gray-900 px-8 py-3 rounded-lg font-semibold text-lg shadow hover:bg-yellow-300 transition">
+                    View All Events
+                  </Link>
                 </div>
-              </div>
-              <div className="event-item bg-gray-50 rounded-lg shadow p-6 flex flex-col items-center">
-                <div className="event-image w-full h-48 rounded-lg overflow-hidden mb-4">
-                  <img src="/images/event3.jpg" alt="Event 3" className="w-full h-full object-cover" />
-                </div>
-                <div className="event-content text-center">
-                  <h4 className="event-title text-xl font-semibold mb-2">Youth Talent Show</h4>
-                  <p className="text-gray-600 mb-2">Showcase your skills in music, dance, and more. Open to all ages!</p>
-                  <span className="text-yellow-600 font-bold">October 5, 2024</span>
-                </div>
-              </div>
-            </div>
+              </>
+            )}
           </div>
         </section>
 
@@ -108,13 +251,13 @@ export default function Page() {
               <img src="/images/about_us_malyalee_us.jpg" alt="About Us" className="rounded-lg w-full md:w-1/2 max-w-md shadow-lg" />
               <div className="about-us-text text-lg text-gray-700 md:w-1/2">
                 <p>
-                  Formed in 1979 with the purpose of bringing together Indians of Kerala origin living in New Jersey to maintain the rich heritage and to provide their children an opportunity to get a glimpse of our culture.
+                  Formed  with the purpose of bringing together Indians of Kerala origin living in New Jersey/US to maintain the rich heritage and to provide their children an opportunity to get a glimpse of our culture.
 
-                  Registered in the Newark hall of records as a non-profit organization.  The inaugural meeting of the association was conducted in the Grace Church Hall in Orange NJ on May 12th 1979.
 
-                  Kerala Association of New Jersey (KANJ), is one of the largest and oldest Indian Associations in America.  KANJ continues to grow in its 46th year, while spreading the culture of the beautiful state of Kerala through popular events and activities.
 
-                  KANJ stands for the integrity and unity of New Jersey Keralites. It seeks to promote the culture of Kerala, the southernmost state of India. It preserves Kerala traditions in American soil for future generations to discover, share, and follow.
+                  Malayalees.us, is one of the largest  Indian Associations in America.  It continues to grow , while spreading the culture of the beautiful state of Kerala through popular events and activities.
+
+                  The community stands for the integrity and unity of malayalees in the USA. It seeks to promote the culture of Kerala, the southernmost state of India. It preserves Kerala traditions in American soil for future generations to discover, share, and follow.
                 </p>
                 <ul className="list-disc pl-6 mt-4 text-base text-gray-600">
                   <li>Organizing cultural festivals and events</li>
@@ -195,57 +338,32 @@ export default function Page() {
         {/* Team Section */}
         <section className="team-section py-20 bg-white" id="team-section">
           <div className="container mx-auto px-4">
-            <div className="section-title-wrapper mb-10">
+            <div className="section-title-wrapper mb-10 text-center">
               <span className="section-subtitle text-yellow-500 font-semibold mb-2 block">Team</span>
               <h3 className="text-3xl md:text-4xl font-bold mb-6">Meet our best volunteers team</h3>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-8 justify-center">
-              {/* Team members - use images from public/images/team_members/ */}
-              <div className="team-item flex flex-col items-center">
-                <div className="team-image w-32 h-32 rounded-full overflow-hidden mb-4 bg-gray-200 mx-auto">
-                  <img src="/images/team_members/Manoj_Kizhakkoot.png" alt="Manoj_Kizhakkoot" className="object-cover w-full h-full" style={{ objectPosition: 'center 20%' }} onError={e => e.currentTarget.src = '/images/about-us.jpg'} />
+            <div className="flex justify-center">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-12 max-w-4xl">
+                {/* Team members - use images from public/images/team_members/ */}
+                <div className="team-item flex flex-col items-center">
+                  <div className="team-image w-48 h-48 rounded-full overflow-hidden mb-4 bg-gray-200 shadow-lg">
+                    <img src="/images/team_members/Manoj_Kizhakkoot.png" alt="Manoj_Kizhakkoot" className="object-cover w-full h-full" style={{ objectPosition: 'center 20%' }} onError={e => e.currentTarget.src = '/images/about-us.jpg'} />
+                  </div>
+                  <div className="team-content text-center">
+                    <h5 className="team-title text-xl font-semibold mb-2">Manoj Kizhakkoot</h5>
+                    <div className="team-position text-gray-500">Founder: NJ Malayalees, Unite India</div>
+                  </div>
                 </div>
-                <div className="team-content text-center">
-                  <h5 className="team-title text-lg font-semibold">Manoj Kizhakkoot</h5>
-                  <div className="team-position text-gray-500">Founder: NJ Malayalees, Unite India</div>
-                </div>
-              </div>
-              <div className="team-item flex flex-col items-center">
-                <div className="team-image w-32 h-32 rounded-full overflow-hidden mb-4 bg-gray-200 mx-auto">
-                  <img src="/images/team_members/srk.png" alt="SRK" className="object-cover w-full h-full" onError={e => e.currentTarget.src = '/images/about-us.jpg'} />
-                </div>
-                <div className="team-content text-center">
-                  <h5 className="team-title text-lg font-semibold">SRK</h5>
-                  <div className="team-position text-gray-500">Unite India - Financial Controller</div>
-                </div>
-              </div>
-              {/* <div className="team-item flex flex-col items-center">
-                <div className="team-image w-32 h-32 rounded-full overflow-hidden mb-4 bg-gray-200">
-                  <img src="/images/team_members/arun_sadasivan.jpeg" alt="Arun Sadasivan" className="object-cover w-full h-full" onError={e => e.currentTarget.src = '/images/about-us.jpg'} />
-                </div>
-                <div className="team-content text-center">
-                  <h5 className="team-title text-lg font-semibold">Arun Sadasivan</h5>
-                  <div className="team-position text-gray-500">Volunteer</div>
+                <div className="team-item flex flex-col items-center">
+                  <div className="team-image w-48 h-48 rounded-full overflow-hidden mb-4 bg-gray-200 shadow-lg">
+                    <img src="/images/team_members/srk.png" alt="SRK" className="object-cover w-full h-full" onError={e => e.currentTarget.src = '/images/about-us.jpg'} />
+                  </div>
+                  <div className="team-content text-center">
+                    <h5 className="team-title text-xl font-semibold mb-2">SRK</h5>
+                    <div className="team-position text-gray-500">Unite India - Financial Controller</div>
+                  </div>
                 </div>
               </div>
-              <div className="team-item flex flex-col items-center">
-                <div className="team-image w-32 h-32 rounded-full overflow-hidden mb-4 bg-gray-200">
-                  <img src="/images/team_members/latha_krishnan.jpeg" alt="Latha Krishnan" className="object-cover w-full h-full" onError={e => e.currentTarget.src = '/images/about-us.jpg'} />
-                </div>
-                <div className="team-content text-center">
-                  <h5 className="team-title text-lg font-semibold">Latha Krishnan</h5>
-                  <div className="team-position text-gray-500">Volunteer</div>
-                </div>
-              </div>
-              <div className="team-item flex flex-col items-center">
-                <div className="team-image w-32 h-32 rounded-full overflow-hidden mb-4 bg-gray-200">
-                  <img src="/images/team_members/varun_lal.jpeg" alt="Varun Lal" className="object-cover w-full h-full" onError={e => e.currentTarget.src = '/images/about-us.jpg'} />
-                </div>
-                <div className="team-content text-center">
-                  <h5 className="team-title text-lg font-semibold">Varun Lal</h5>
-                  <div className="team-position text-gray-500">Volunteer</div>
-                </div>
-              </div> */}
             </div>
           </div>
         </section>
@@ -261,11 +379,12 @@ export default function Page() {
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8">
               <div className="contact-item">
                 <h6 className="text-lg font-semibold mb-2">Location</h6>
-                <p>MCEFEE<br />Malayali Cultural Exchange Foundation<br />for Education and Events<br />New Jersey, USA</p>
+                <p>Unite India
+                  <br />New Jersey, USA</p>
               </div>
               <div className="contact-item">
                 <h6 className="text-lg font-semibold mb-2">Phone</h6>
-                <p><a href="tel:+19085168781" className="text-blue-600 hover:underline">(908) 516-8781</a></p>
+                <p><a href="tel:+16317088442" className="text-blue-600 hover:underline">+1 (631) 708-8442</a></p>
               </div>
               <div className="contact-item">
                 <h6 className="text-lg font-semibold mb-2">Social</h6>
@@ -277,7 +396,7 @@ export default function Page() {
               </div>
               <div className="contact-item">
                 <h6 className="text-lg font-semibold mb-2">Email</h6>
-                <p><a href="mailto:Contactus@mcefee.org" className="text-blue-600 hover:underline">Contactus@mcefee.org</a></p>
+                <p><a href="mailto:Contactus@malyalees.org" className="text-blue-600 hover:underline">Contactus@malyalees.org</a></p>
               </div>
             </div>
           </div>
@@ -289,7 +408,7 @@ export default function Page() {
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 pb-8 border-b border-gray-700">
               <div className="footer-widget flex flex-col items-center md:items-start">
                 <div className="footer-logo mb-4">
-                  <img src="/images/mcefee_logo_black_border_transparent.png" alt="Footer Logo" className="w-32 h-auto" onError={e => e.currentTarget.src = '/images/about-us.jpg'} />
+                  <img src="/images/side_images/malayalees_us_logo.avif" alt="Footer Logo" className="w-32 h-auto" onError={e => e.currentTarget.src = '/images/about-us.jpg'} />
                 </div>
                 <h6 className="footer-widget-title text-lg font-semibold mb-2">Follow us</h6>
                 <ul className="footer-socials flex gap-3">
@@ -309,20 +428,27 @@ export default function Page() {
               <div className="footer-widget">
                 <h6 className="footer-widget-title text-lg font-semibold mb-2">Contacts</h6>
                 <div className="footer-contact text-sm">
-                  <p>MCEFEE<br />Malayali Cultural Exchange Foundation<br />for Education and Events<br />New Jersey, USA</p>
-                  <p><a href="tel:+19085168781" className="text-blue-400 hover:underline">(908) 516-8781</a></p>
-                  <p><a href="mailto:Contactus@mcefee.org" className="text-blue-400 hover:underline">Contactus@mcefee.org</a></p>
+                  <p>Unite India<br />New Jersey, USA</p>
+                  <p><a href="tel:+16317088442" className="text-blue-400 hover:underline">+1 (631) 708-8442</a></p>
+                  <p><a href="mailto:Contactus@malyalees.org" className="text-blue-400 hover:underline"></a></p>
                 </div>
               </div>
             </div>
             <div className="footer-wrapper py-6 flex flex-col items-center">
               <div className="copyright text-yellow-400 text-center text-sm">
-                © {new Date().getFullYear()} MCEFEE<br />Malayali Cultural Exchange Foundation<br />for Education and Events
+                © {new Date().getFullYear()} United Team India
               </div>
             </div>
           </div>
         </footer>
       </main>
+      <style jsx global>{`
+        @media (max-width: 768px) {
+          .hero-section .hero-image-container {
+            left: 120px !important;
+          }
+        }
+      `}</style>
     </div >
   );
 }

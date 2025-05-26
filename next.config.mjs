@@ -10,7 +10,7 @@ const nextConfig = {
 
   // Enable image optimization
   images: {
-    domains: [], // Add domains for external images here
+    domains: ['eventapp-media-bucket.s3.us-east-2.amazonaws.com'], // Added S3 bucket domain for external images
     formats: ['image/avif', 'image/webp'],
   },
 

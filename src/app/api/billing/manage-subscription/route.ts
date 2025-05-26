@@ -179,56 +179,56 @@ export async function POST(req: Request) {
         }
       } catch (error) {
         console.error('Error handling Stripe customer:', error);
-      }
-
-      let url: string;
-
-      if (body.isSubscribed && body.stripeSubscriptionId && customerId) {
-        const session = await stripe.billingPortal.sessions.create({
-          customer: customerId,
-          return_url: `${baseUrl}/dashboard`,
-        });
-
-        if (!session.url) {
-          throw new Error('Failed to create billing portal session');
         }
-        url = session.url;
-      } else {
-        const session = await stripe.checkout.sessions.create({
-          success_url: `${baseUrl}/dashboard`,
-          cancel_url: `${baseUrl}/dashboard`,
-          payment_method_types: ['card'],
-          mode: 'subscription',
-          billing_address_collection: 'auto',
-          customer: customerId,
-          subscription_data: {
+
+        let url: string;
+
+        if (body.isSubscribed && body.stripeSubscriptionId && customerId) {
+          const session = await stripe.billingPortal.sessions.create({
+            customer: customerId,
+            return_url: `${baseUrl}/dashboard`,
+          });
+
+          if (!session.url) {
+            throw new Error('Failed to create billing portal session');
+          }
+          url = session.url;
+        } else {
+          const session = await stripe.checkout.sessions.create({
+            success_url: `${baseUrl}/dashboard`,
+            cancel_url: `${baseUrl}/dashboard`,
+            payment_method_types: ['card'],
+            mode: 'subscription',
+            billing_address_collection: 'auto',
+            customer: customerId,
+            subscription_data: {
+              metadata: {
+                userId: userId,
+              },
+            },
+            line_items: [
+              {
+                price: body.stripePriceId,
+                quantity: 1,
+              },
+            ],
             metadata: {
               userId: userId,
             },
-          },
-          line_items: [
-            {
-              price: body.stripePriceId,
-              quantity: 1,
-            },
-          ],
-          metadata: {
-            userId: userId,
-          },
-        });
+          });
 
-        if (!session.url) {
-          throw new Error('Failed to create checkout session');
+          if (!session.url) {
+            throw new Error('Failed to create checkout session');
+          }
+          url = session.url;
         }
-        url = session.url;
-      }
 
-      return NextResponse.json({ url });
-    } catch (stripeError) {
-      console.error('Stripe API error:', stripeError);
-      return NextResponse.json(
-        { error: stripeError instanceof Error ? stripeError.message : 'Failed to process subscription' },
-        { status: 400 }
+        return NextResponse.json({ url });
+      } catch (stripeError) {
+        console.error('Stripe API error:', stripeError);
+        return NextResponse.json(
+          { error: stripeError instanceof Error ? stripeError.message : 'Failed to process subscription' },
+          { status: 400 }
       );
     }
   } catch (error) {

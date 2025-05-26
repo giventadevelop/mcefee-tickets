@@ -1,56 +1,41 @@
-import type { NextApiRequest, NextApiResponse } from "next";
-import { getCachedApiJwt } from "@/lib/api/jwt";
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+import { NextApiRequest, NextApiResponse } from 'next';
+import { getJwtToken } from '@/lib/api/jwt';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (!API_BASE_URL) {
-    res.status(500).json({ error: "API base URL not configured" });
-    return;
-  }
-  const token = await getCachedApiJwt();
-  const { method, query, body } = req;
-  const slugArr = Array.isArray(query.slug) ? query.slug : [query.slug];
-  if (slugArr.length === 1 && slugArr[0]) {
-    const mediaId = slugArr[0];
-    const apiUrl = `${API_BASE_URL}/api/event-medias/${mediaId}`;
-    const fetch = (await import("node-fetch")).default;
-    switch (method) {
-      case "GET": {
-        const apiRes = await fetch(apiUrl, {
-          method: "GET",
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const data = await apiRes.text();
-        res.status(apiRes.status).send(data);
-        return;
+  try {
+    const token = await getJwtToken();
+    const { slug } = req.query;
+    const path = Array.isArray(slug) ? slug.join('/') : slug;
+
+    // Build query string from all query parameters
+    const queryParams = new URLSearchParams();
+    Object.entries(req.query).forEach(([key, value]) => {
+      if (key !== 'slug' && value) {
+        queryParams.append(key, Array.isArray(value) ? value[0] : value);
       }
-      case "PUT": {
-        const apiRes = await fetch(apiUrl, {
-          method: "PUT",
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`
-          },
-          body: JSON.stringify(body),
-        });
-        const data = await apiRes.text();
-        res.status(apiRes.status).send(data);
-        return;
+    });
+    const queryString = queryParams.toString();
+
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/api/event-medias/${path}${queryString ? `?${queryString}` : ''}`,
+      {
+        method: req.method,
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: req.method !== 'GET' ? JSON.stringify(req.body) : undefined,
       }
-      case "DELETE": {
-        const apiRes = await fetch(apiUrl, {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const data = await apiRes.text();
-        res.status(apiRes.status).send(data);
-        return;
-      }
-      default:
-        res.status(405).json({ error: "Method not allowed" });
-        return;
+    );
+
+    if (!response.ok) {
+      throw new Error(`API responded with status: ${response.status}`);
     }
+
+    const data = await response.json();
+    res.status(200).json(data);
+  } catch (error) {
+    console.error('Error in event-medias proxy:', error);
+    res.status(500).json({ error: 'Failed to fetch event media' });
   }
-  res.status(404).json({ error: "Not found" });
 }
