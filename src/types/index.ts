@@ -127,3 +127,20 @@ export interface EventWithMedia extends EventDTO {
   startTime?: string;
   endTime?: string;
 }
+
+/**
+ * DTO for ticket type data exchanged with the backend.
+ * Matches backend OpenAPI schema.
+ */
+export interface TicketTypeDTO {
+  id: number;
+  name: string;
+  code: string;
+  price: number;
+  createdAt: string; // ISO date-time string
+  updatedAt: string; // ISO date-time string
+  availableQuantity?: number;
+  isActive?: boolean;
+  description?: string;
+  event?: EventDTO;
+}

@@ -68,6 +68,7 @@ export default function Page() {
   threeMonthsFromNow.setMonth(today.getMonth() + 3);
 
   let heroImageUrl = "/images/side_images/chilanka_2025.webp"; // default image
+  let nextEvent: EventWithMedia | null = null;
 
   if (events && events.length > 0) {
     // Find the next event with startDate >= today
@@ -80,10 +81,11 @@ export default function Page() {
       });
 
     if (upcomingEvents.length > 0) {
-      const nextEvent = upcomingEvents[0];
-      const eventDate = nextEvent.startDate ? new Date(nextEvent.startDate) : null;
-      if (eventDate && eventDate <= threeMonthsFromNow && nextEvent.thumbnailUrl) {
-        heroImageUrl = nextEvent.thumbnailUrl;
+      const event = upcomingEvents[0];
+      const eventDate = event.startDate ? new Date(event.startDate) : null;
+      if (eventDate && eventDate <= threeMonthsFromNow && event.thumbnailUrl) {
+        heroImageUrl = event.thumbnailUrl;
+        nextEvent = event;
       }
     }
   }
@@ -202,11 +204,46 @@ export default function Page() {
                     <a href="#vision-section" className="link-text">Mission and Vision</a>
                   </div> */}
           </div>
-          <div className="feature-box flex-1 w-full min-h-[180px]" style={{ backgroundImage: "url('/images/lady_dance.jpeg')", backgroundSize: '55%', backgroundRepeat: 'no-repeat', backgroundPosition: 'center', padding: '40px' }}>
-            <div>
-              <h4>cultural events, educational programs, and community gatherings</h4>
-              <a href="/events" className="link-text">Upcoming events</a>
-            </div>
+          <div className="feature-box flex-1 w-full min-h-[180px]" style={
+            nextEvent
+              ? { background: '#fff', padding: '40px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }
+              : { backgroundImage: "url('/images/lady_dance.jpeg')", backgroundSize: '55%', backgroundRepeat: 'no-repeat', backgroundPosition: 'center', padding: '40px' }
+          }>
+            {nextEvent ? (
+              <div className="flex flex-col md:flex-row items-center gap-4">
+                {/* Minimized event image */}
+                {nextEvent.thumbnailUrl && (
+                  <img
+                    src={nextEvent.thumbnailUrl}
+                    alt={nextEvent.title}
+                    className="w-24 h-24 object-cover rounded shadow-md mb-2 md:mb-0"
+                    style={{ minWidth: 72, minHeight: 72 }}
+                  />
+                )}
+                <div className="flex-1">
+                  <h4 className="text-xl font-bold mb-1 text-gray-900">{nextEvent.title}</h4>
+                  <div className="text-sm text-gray-600 mb-1">
+                    {nextEvent.startDate ? new Date(nextEvent.startDate).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) : ''}
+                  </div>
+                  {nextEvent.description && (
+                    <div className="text-gray-700 text-sm mb-2 line-clamp-3">{nextEvent.description}</div>
+                  )}
+                  {nextEvent.admissionType === 'ticketed' && (
+                    <a
+                      href={`/events/${nextEvent.id}`}
+                      className="button bg-yellow-400 text-gray-900 px-4 py-2 rounded font-semibold text-sm shadow hover:bg-yellow-300 transition mt-2 inline-block"
+                    >
+                      Buy Tickets
+                    </a>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div>
+                <h4>cultural events, educational programs, and community gatherings</h4>
+                <a href="/events" className="link-text">Upcoming events</a>
+              </div>
+            )}
           </div>
         </section>
 

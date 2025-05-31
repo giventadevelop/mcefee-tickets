@@ -215,9 +215,9 @@ export function EventForm({ event, eventTypes, onSubmit, loading }: EventFormPro
         <input type="checkbox" name="isActive" checked={form.isActive} onChange={e => setForm(f => ({ ...f, isActive: e.target.checked }))} />
         <label className="font-medium">Active</label>
       </div>
-      <div className="flex gap-2">
-        <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded" disabled={loading}>{loading ? 'Saving...' : 'Save Event'}</button>
-        <button type="button" className="bg-gray-400 text-white px-4 py-2 rounded" onClick={handleReset} disabled={loading}>Reset</button>
+      <div className="flex gap-2 mt-4">
+        <button type="submit" className="px-4 py-2 bg-green-600 text-white rounded" disabled={loading}>Save Event</button>
+        <button type="button" className="px-4 py-2 bg-gray-300 rounded" onClick={handleReset}>Reset</button>
       </div>
     </form>
   );

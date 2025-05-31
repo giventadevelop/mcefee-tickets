@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import type { EventDTO, EventTypeDTO, CalendarEventDTO } from '@/types';
 import { FaEdit, FaTrashAlt, FaUpload, FaCalendarDay, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import { TicketTypeManager } from './TicketTypeManager';
+import { Modal } from './Modal';
 
 interface EventListProps {
   events: EventDTO[];
@@ -19,6 +21,8 @@ export function EventList({ events, eventTypes: eventTypesProp, onEdit, onCancel
   const [hoveredEventId, setHoveredEventId] = useState<number | undefined>(undefined);
   const [calendarEvents, setCalendarEvents] = useState<CalendarEventDTO[]>([]);
   const [eventTypes, setEventTypes] = useState<EventTypeDTO[]>(eventTypesProp || []);
+  const [showTicketTypeModal, setShowTicketTypeModal] = useState(false);
+  const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
 
   useEffect(() => {
     // Fetch all calendar events for quick lookup
@@ -70,6 +74,7 @@ export function EventList({ events, eventTypes: eventTypesProp, onEdit, onCancel
             <th className="p-2 border">Actions</th>
             <th className="p-2 border">Media</th>
             <th className="p-2 border">Calendar</th>
+            <th className="p-2 border">Tickets</th>
           </tr>
         </thead>
         <tbody>
@@ -127,6 +132,17 @@ export function EventList({ events, eventTypes: eventTypesProp, onEdit, onCancel
                     )}
                   </span>
                 </td>
+                <td className="p-2 border text-center align-middle">
+                  <button
+                    className="px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-700 text-xs"
+                    onClick={() => {
+                      setSelectedEventId(event.id);
+                      setShowTicketTypeModal(true);
+                    }}
+                  >
+                    Manage Ticket Types
+                  </button>
+                </td>
                 {showDetailsOnHover && hoveredEventId === event.id && (
                   <td
                     colSpan={8}
@@ -168,6 +184,15 @@ export function EventList({ events, eventTypes: eventTypesProp, onEdit, onCancel
           })}
         </tbody>
       </table>
+      {/* Modal for TicketTypeManager, rendered outside any form */}
+      {showTicketTypeModal && selectedEventId && (
+        <Modal open={showTicketTypeModal} onClose={() => setShowTicketTypeModal(false)}>
+          <div className="p-4">
+            <h2 className="text-lg font-bold mb-2">Manage Ticket Types</h2>
+            <TicketTypeManager eventId={selectedEventId} />
+          </div>
+        </Modal>
+      )}
       {/* Pagination controls if provided */}
       {(onPrevPage || onNextPage) && (
         <div className="flex justify-between items-center mt-4">
