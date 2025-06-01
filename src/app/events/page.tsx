@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import type { EventWithMedia } from "@/types";
+import type { EventWithMedia, EventDetailsDTO } from "@/types";
 
 const EVENTS_PAGE_SIZE = 10;
 
@@ -20,12 +20,12 @@ export default function EventsPage() {
       setLoading(true);
       try {
         // Fetch paginated events
-        const eventsRes = await fetch(`/api/proxy/events?sort=startDate,desc&page=${page}&size=${EVENTS_PAGE_SIZE}`);
-        const eventsData = await eventsRes.json();
-        let eventList = Array.isArray(eventsData.content) ? eventsData.content : eventsData;
+        const eventsRes = await fetch(`/api/proxy/event-details?sort=startDate,desc&page=${page}&size=${EVENTS_PAGE_SIZE}`);
+        const events: EventDetailsDTO[] = await eventsRes.json();
+        let eventList = Array.isArray(events) ? events : [events];
         // For each event, fetch its flyer
         const eventsWithMedia = await Promise.all(
-          eventList.map(async (event: EventWithMedia) => {
+          eventList.map(async (event: EventDetailsDTO) => {
             try {
               const mediaRes = await fetch(`/api/proxy/event-medias?eventId.equals=${event.id}&eventFlyer.equals=true`);
               const mediaData = await mediaRes.json();
@@ -40,7 +40,7 @@ export default function EventsPage() {
         );
         setEvents(eventsWithMedia);
         // Set total pages if available
-        if (eventsData.totalPages) setTotalPages(eventsData.totalPages);
+        if (events.totalPages) setTotalPages(events.totalPages);
         else setTotalPages(1);
 
         // Hero image logic: earliest upcoming event within 3 months

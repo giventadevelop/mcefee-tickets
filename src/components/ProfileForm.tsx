@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@clerk/nextjs";
+import { useAuth, useUser } from "@clerk/nextjs";
 import { UserProfileDTO } from "@/types";
+import { getTenantId } from '@/lib/env';
 
 const defaultFormData: Omit<UserProfileDTO, 'createdAt' | 'updatedAt'> = {
   userId: '',
@@ -50,6 +51,7 @@ function LoadingSkeleton() {
 export default function ProfileForm() {
   const router = useRouter();
   const { userId } = useAuth();
+  const { user } = useUser();
 
   // Add immediate console log for debugging
   console.log('DEBUG - Environment Check:', {
@@ -66,138 +68,108 @@ export default function ProfileForm() {
 
   useEffect(() => {
     const fetchProfile = async () => {
-      console.log('Current userId:', userId); // Changed to console.log
-
       if (!userId) {
-        console.log('No userId available, skipping profile fetch');
         return;
       }
-
+      setInitialLoading(true);
+      setError(null);
       try {
-        setInitialLoading(true);
-
-        // Log all environment variables (only in development)
-        if (process.env.NODE_ENV === 'development') {
-          console.log('Environment variables:', {
-            NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL,
-            NODE_ENV: process.env.NODE_ENV
-          });
-        }
-
         const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
-        console.log('API Base URL:', apiBaseUrl); // Changed to console.log
-
         if (!apiBaseUrl) {
-          console.error('API base URL is not configured');
           setError("API configuration error - please check environment variables");
           return;
         }
-
-        console.log('Fetching profile for userId:', userId);
-
-        // Use /by-user/:userId for single profile lookup
-        const url = `/api/proxy/user-profiles/by-user/${userId}`;
-        console.log('Full URL being fetched:', url); // Changed to console.log
-
-        try {
-          const response = await fetch(url, {
-            headers: {
-              'Content-Type': 'application/json',
-            },
-          });
-
-          console.log('Response status:', response.status);
-
-          if (!response.ok) {
-            if (response.status === 404) {
-              // No profile found, create full minimal profile object
-              const now = new Date().toISOString();
-              const minimalProfile: UserProfileDTO = {
-
-                userId: userId,
-                firstName: '',
-                lastName: '',
-                email: '',
-                phone: '',
-                addressLine1: '',
-                addressLine2: '',
-                city: '',
-                state: '',
-                zipCode: '',
-                country: '',
-                notes: '',
-                familyName: '',
-                cityTown: '',
-                district: '',
-                educationalInstitution: '',
-                profileImageUrl: '',
-                createdAt: now,
-                updatedAt: now,
-              };
-              const createRes = await fetch('/api/proxy/user-profiles', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(minimalProfile),
-              });
-              if (createRes.ok) {
-                const newProfile = await createRes.json();
-                setProfileId(newProfile.id);
-                setFormData(prev => ({ ...defaultFormData, ...newProfile }));
-                return;
-              } else {
-                let errorText = 'Failed to create minimal profile';
-                try {
-                  const errorData = await createRes.json();
-                  errorText = errorData.message || JSON.stringify(errorData);
-                } catch (e) {
-                  errorText = await createRes.text();
-                }
-                console.error('Profile creation error:', errorText);
-                setError(errorText);
-                throw new Error(errorText);
-              }
-            }
-            const errorData = await response.json().catch(async () => await response.text());
-            const errorMsg = errorData && errorData.message ? errorData.message : (typeof errorData === 'string' ? errorData : `HTTP error! status: ${response.status}`);
-            setError(errorMsg);
-            throw new Error(errorMsg);
-          }
-
+        // Try to fetch the profile
+        const url = `/api/proxy/user-profiles/by-user/${userId}?tenantId.equals=${getTenantId()}`;
+        const response = await fetch(url, { headers: { 'Content-Type': 'application/json' } });
+        if (response.ok) {
+          // Profile exists, set form state
           const data = await response.json();
-          console.log('Profile data received:', data);
-
-          // Since we're using userId.equals, we should get either an empty array or an array with one item
           const userProfile = Array.isArray(data) ? data[0] : data;
-
           if (userProfile) {
             setProfileId(userProfile.id);
-            // Filter out any null or undefined values to avoid spreading them
-            const cleanData = Object.fromEntries(
-              Object.entries(userProfile).filter(([_, value]) => value != null)
-            );
-            setFormData(prev => ({
+            setFormData({
               ...defaultFormData,
-              ...cleanData
-            }));
-            console.log('Profile data set:', cleanData);
+              ...Object.fromEntries(
+                Object.entries(userProfile ?? {}).map(([k, v]) => [k, v ?? ""])
+              )
+            });
+            setError(null);
           } else {
-            console.log('No profile data found in response');
+            setError('No profile data found in response.');
           }
-        } catch (fetchError) {
-          console.error('Fetch error:', fetchError);
-          const errorMessage = fetchError instanceof Error ? fetchError.message : 'Failed to fetch profile';
-          throw new Error(`Network error: ${errorMessage}`);
+        } else if (response.status === 404) {
+          // Not found, create minimal profile
+          const now = new Date().toISOString();
+          const minimalProfile: UserProfileDTO = {
+            userId: userId,
+            firstName: user?.firstName || "",
+            lastName: user?.lastName || "",
+            email: user?.primaryEmailAddress?.emailAddress || "",
+            phone: user?.phoneNumbers?.[0]?.phoneNumber || "",
+            addressLine1: '',
+            addressLine2: '',
+            city: '',
+            state: '',
+            zipCode: '',
+            country: '',
+            notes: '',
+            familyName: '',
+            cityTown: '',
+            district: '',
+            educationalInstitution: '',
+            profileImageUrl: '',
+            userRole: 'ROLE_USER',
+            userStatus: 'pending',
+            tenantId: getTenantId(),
+            createdAt: now,
+            updatedAt: now,
+          };
+          const createRes = await fetch('/api/proxy/user-profiles', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(minimalProfile),
+          });
+          if (createRes.ok) {
+            // After creation, fetch the profile again
+            const newProfileRes = await fetch(url, { headers: { 'Content-Type': 'application/json' } });
+            if (newProfileRes.ok) {
+              const newProfileData = await newProfileRes.json();
+              const newProfile = Array.isArray(newProfileData) ? newProfileData[0] : newProfileData;
+              setProfileId(newProfile.id);
+              setFormData({
+                ...defaultFormData,
+                ...Object.fromEntries(
+                  Object.entries(newProfile ?? {}).map(([k, v]) => [k, v ?? ""])
+                )
+              });
+              setError(null);
+            } else {
+              setError('Profile created but could not fetch new profile.');
+            }
+          } else {
+            let errorText = "We couldn't create your profile. Please try again or contact support.";
+            try {
+              const errorData = await createRes.json();
+              errorText = errorData.message || errorText;
+            } catch (e) { }
+            setError(errorText);
+          }
+        } else if (response.status === 500) {
+          setError('There was a problem loading your profile. Please try again later.');
+        } else {
+          const errorData = await response.json().catch(async () => await response.text());
+          const errorMsg = errorData && errorData.message ? errorData.message : (typeof errorData === 'string' ? errorData : `HTTP error! status: ${response.status}`);
+          setError(errorMsg);
         }
       } catch (error) {
-        console.error("Error fetching profile:", error);
         setError(error instanceof Error ? error.message : "Failed to fetch profile data");
       } finally {
         setInitialLoading(false);
       }
     };
-
     fetchProfile();
-  }, [userId]);
+  }, [userId, user]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -225,7 +197,7 @@ export default function ProfileForm() {
       console.debug('Checking if profile exists for userId:', userId);
 
       // First check if profile exists using /by-user/:userId
-      const checkResponse = await fetch(`/api/proxy/user-profiles/by-user/${userId}`, {
+      const checkResponse = await fetch(`/api/proxy/user-profiles/by-user/${userId}?tenantId.equals=${getTenantId()}`, {
         headers: {
           'Content-Type': 'application/json',
         },
@@ -264,6 +236,9 @@ export default function ProfileForm() {
         district: formData.district || '',
         educationalInstitution: formData.educationalInstitution || '',
         profileImageUrl: formData.profileImageUrl || '',
+        userRole: 'ROLE_USER',
+        userStatus: 'pending',
+        tenantId: getTenantId(),
         createdAt: existingProfile?.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
@@ -309,8 +284,15 @@ export default function ProfileForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-4 max-w-2xl mx-auto p-4">
       {error && (
-        <div className="bg-red-50 text-red-500 p-3 rounded-md mb-4">
-          {error}
+        <div className="bg-red-50 text-red-500 p-3 rounded-md mb-4 flex items-center">
+          <span>{error}</span>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="ml-4 bg-blue-100 text-blue-700 px-3 py-1 rounded hover:bg-blue-200"
+          >
+            Retry
+          </button>
         </div>
       )}
 

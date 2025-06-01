@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import type { EventDTO, TicketTypeDTO } from '@/types';
+import { getTenantId } from '@/lib/env';
 
 interface TicketTypeManagerProps {
   eventId: number;
@@ -23,7 +24,8 @@ export function TicketTypeManager({ eventId }: TicketTypeManagerProps) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/proxy/ticket-types?page=0&size=100&sort=createdAt,desc`);
+      const tenantId = getTenantId();
+      const res = await fetch(`/api/proxy/ticket-types?page=0&size=100&sort=createdAt,desc&tenantId.equals=${tenantId}`);
       if (!res.ok) throw new Error('Failed to fetch ticket types');
       const data = await res.json();
       // Filter by eventId

@@ -206,6 +206,10 @@
   .event-image {
     height: 8rem;
   }
+
+  .hero-section .hero-image-container {
+    left: 120px !important;
+  }
 }
 
 @keyframes ticker-marquee {

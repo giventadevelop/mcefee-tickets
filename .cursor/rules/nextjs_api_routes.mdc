@@ -191,6 +191,68 @@ alwaysApply: true
   - Remove outdated patterns
   - Cross-reference related rules
 
+- **Automated tenantId injection in DTOs**
+  - Always include the `tenantId` field in every DTO sent to the backend. The value must come from the environment variable `NEXT_PUBLIC_TENANT_ID`.
+  - Use a centralized helper to read the tenant ID (see `getTenantId` in `src/lib/env.ts`).
+  - Use the `withTenantId` utility (`src/lib/withTenantId.ts`) to inject the tenantId into any DTO before sending it to the backend. This ensures consistency and prevents missing tenant IDs.
+  - Never hardcode the tenantId or set it manually in multiple places.
+  - Example usage:
+    ```typescript
+    import { withTenantId } from '@/lib/withTenantId';
+    const payload = withTenantId({
+      ...formData,
+      // other fields
+    });
+    await fetch('/api/proxy/some-endpoint', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+      headers: { 'Content-Type': 'application/json' },
+    });
+    ```
+  - The environment variable must be set in `.env.local` as:
+    ```env
+    NEXT_PUBLIC_TENANT_ID=your-tenant-id
+    ```
+  - The helper must throw a clear error if the variable is missing, to prevent silent failures.
+  - This pattern is required for all multi-tenant API calls and DTOs.
+  - See also: `src/lib/env.ts`, `src/lib/withTenantId.ts` for implementation details.
+
+- **TenantId injection in all proxy API routes (cross-cutting enforcement)**
+  - All proxy API routes (e.g., /api/proxy/event-details, /api/proxy/ticket-types, etc.) must use the shared `createProxyHandler` from `src/lib/proxyHandler.ts`.
+  - This handler automatically injects `tenantId` into all DTOs for POST/PUT/PATCH requests using the `withTenantId` utility.
+  - Example usage:
+    ```typescript
+    import { createProxyHandler } from '@/lib/proxyHandler';
+    export default createProxyHandler({ backendPath: '/api/event-details' });
+    ```
+  - **Rationale:**
+    - Guarantees that every create/update request includes the correct tenantId, regardless of frontend implementation.
+    - Prevents accidental omission of tenantId in multi-tenant environments.
+    - Centralizes error handling, JWT logic, and query string forwarding.
+  - **Backend enforcement:**
+    - The backend (Rust API) should also validate that tenantId is present in every DTO and reject requests if missing.
+  - See also: `withTenantId` utility, Rust validation snippet below.
+
+- **Add `[...slug].ts` proxies for single resource operations using shared handler**
+  - For every backend resource that supports single-resource operations (e.g., GET/PUT/DELETE by ID), add a `[...slug].ts` file in the corresponding proxy API directory.
+  - The handler **must** use the shared `createProxyHandler` from `@/lib/proxyHandler`, passing the correct `backendPath` (e.g., `/api/event-details`).
+  - **Remove all custom logic and unused imports** from these handlers; the shared handler centralizes JWT, tenantId, error, and query param logic.
+  - **Examples:**
+    ```typescript
+    // src/pages/api/proxy/event-details/[...slug].ts
+    import { createProxyHandler } from '@/lib/proxyHandler';
+    export default createProxyHandler({ backendPath: '/api/event-details' });
+
+    // src/pages/api/proxy/event-medias/[...slug].ts
+    import { createProxyHandler } from '@/lib/proxyHandler';
+    export default createProxyHandler({ backendPath: '/api/event-medias' });
+    ```
+  - This ensures all single-resource proxy routes are DRY, secure, and multi-tenant aware by default.
+  - **Rationale:**
+    - Prevents code duplication and errors in per-route logic
+    - Guarantees tenantId injection and JWT handling for all resource operations
+    - Simplifies maintenance and onboarding for new resources
+
 
 
 

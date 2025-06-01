@@ -1,5 +1,5 @@
 'use client';
-import { EventDTO, EventTypeDTO, UserProfileDTO, CalendarEventDTO } from '@/types';
+import { EventDetailsDTO, EventTypeDetailsDTO, UserProfileDTO, EventCalendarEntryDTO } from '@/types';
 import React, { useState, useEffect } from 'react';
 import { EventForm, defaultEvent } from '@/components/EventForm';
 import { EventList } from '@/components/EventList';
@@ -7,20 +7,20 @@ import { useAuth } from "@clerk/nextjs";
 import { Modal } from '@/components/Modal';
 import { FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 
-async function fetchEvents(): Promise<EventDTO[]> {
-  const res = await fetch('/api/proxy/events');
+async function fetchEvents(): Promise<EventDetailsDTO[]> {
+  const res = await fetch('/api/proxy/event-details');
   if (!res.ok) throw new Error('Failed to fetch events');
   return await res.json();
 }
 
-async function fetchEventTypes(): Promise<EventTypeDTO[]> {
-  const res = await fetch('/api/proxy/event-types');
+async function fetchEventTypes(): Promise<EventTypeDetailsDTO[]> {
+  const res = await fetch('/api/proxy/event-type-details');
   if (!res.ok) throw new Error('Failed to fetch event types');
   return await res.json();
 }
 
 async function createEvent(event: any): Promise<any> {
-  const res = await fetch('/api/proxy/events', {
+  const res = await fetch('/api/proxy/event-details', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(event),
@@ -31,7 +31,7 @@ async function createEvent(event: any): Promise<any> {
 
 async function updateEvent(event: any): Promise<any> {
   if (!event.id) throw new Error('Event ID required for update');
-  const res = await fetch(`/api/proxy/events/${event.id}`, {
+  const res = await fetch(`/api/proxy/event-details/${event.id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(event),
@@ -40,9 +40,9 @@ async function updateEvent(event: any): Promise<any> {
   return await res.json();
 }
 
-async function cancelEvent(event: EventDTO): Promise<EventDTO> {
+async function cancelEvent(event: EventDetailsDTO): Promise<EventDetailsDTO> {
   if (!event.id) throw new Error('Event ID required for cancel');
-  const res = await fetch(`/api/proxy/events/${event.id}`, {
+  const res = await fetch(`/api/proxy/event-details/${event.id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ ...event, isActive: false }),
@@ -67,7 +67,7 @@ function toGoogleCalendarDate(date: string, time: string) {
   return `${year}${month}${day}T${String(h).padStart(2, '0')}${minute}00`;
 }
 
-async function createCalendarEvent(event: EventDTO, userProfile: UserProfileDTO) {
+async function createCalendarEvent(event: EventDetailsDTO, userProfile: UserProfileDTO) {
   const now = new Date().toISOString();
   // Use correct Google Calendar date format
   const start = toGoogleCalendarDate(event.startDate, event.startTime);
@@ -76,7 +76,7 @@ async function createCalendarEvent(event: EventDTO, userProfile: UserProfileDTO)
   const details = encodeURIComponent(event.description || '');
   const location = encodeURIComponent(event.location || '');
   const calendarLink = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${start}/${end}&details=${details}&location=${location}`;
-  const calendarEvent: CalendarEventDTO = {
+  const calendarEvent: EventCalendarEntryDTO = {
     calendarProvider: 'GOOGLE',
     calendarLink,
     createdAt: now,
@@ -84,7 +84,7 @@ async function createCalendarEvent(event: EventDTO, userProfile: UserProfileDTO)
     event,
     createdBy: userProfile,
   };
-  const res = await fetch('/api/proxy/calendar-events', {
+  const res = await fetch('/api/proxy/event-calendar-entries', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(calendarEvent),
@@ -96,15 +96,15 @@ async function createCalendarEvent(event: EventDTO, userProfile: UserProfileDTO)
   return await res.json();
 }
 
-async function findCalendarEventByEventId(eventId: number): Promise<CalendarEventDTO | null> {
-  const res = await fetch(`/api/proxy/calendar-events?size=1000`);
+async function findCalendarEventByEventId(eventId: number): Promise<EventCalendarEntryDTO | null> {
+  const res = await fetch(`/api/proxy/event-calendar-entries?size=1000`);
   if (!res.ok) return null;
   const data = await res.json();
   if (!Array.isArray(data)) return null;
-  return data.find((ce: CalendarEventDTO) => ce.event && ce.event.id === eventId) || null;
+  return data.find((ce: EventCalendarEntryDTO) => ce.event && ce.event.id === eventId) || null;
 }
 
-async function updateCalendarEventForEvent(event: EventDTO, userProfile: UserProfileDTO) {
+async function updateCalendarEventForEvent(event: EventDetailsDTO, userProfile: UserProfileDTO) {
   if (!event.id) return;
   const calendarEvent = await findCalendarEventByEventId(event.id);
   if (!calendarEvent || !calendarEvent.id) return;
@@ -116,14 +116,14 @@ async function updateCalendarEventForEvent(event: EventDTO, userProfile: UserPro
   const details = encodeURIComponent(event.description || '');
   const location = encodeURIComponent(event.location || '');
   const calendarLink = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${start}/${end}&details=${details}&location=${location}`;
-  const updatedCalendarEvent: CalendarEventDTO = {
+  const updatedCalendarEvent: EventCalendarEntryDTO = {
     ...calendarEvent,
     calendarLink,
     updatedAt: now,
     event,
     createdBy: userProfile,
   };
-  const res = await fetch(`/api/proxy/calendar-events/${calendarEvent.id}`, {
+  const res = await fetch(`/api/proxy/event-calendar-entries/${calendarEvent.id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(updatedCalendarEvent),
@@ -135,11 +135,11 @@ async function updateCalendarEventForEvent(event: EventDTO, userProfile: UserPro
   return await res.json();
 }
 
-async function deleteCalendarEventForEvent(event: EventDTO) {
+async function deleteCalendarEventForEvent(event: EventDetailsDTO) {
   if (!event.id) return;
   const calendarEvent = await findCalendarEventByEventId(event.id);
   if (!calendarEvent || !calendarEvent.id) return;
-  const res = await fetch(`/api/proxy/calendar-events/${calendarEvent.id}`, {
+  const res = await fetch(`/api/proxy/event-calendar-entries/${calendarEvent.id}`, {
     method: 'DELETE',
   });
   if (!res.ok) {
@@ -151,10 +151,10 @@ async function deleteCalendarEventForEvent(event: EventDTO) {
 export default function AdminPage() {
   const { userId } = useAuth();
   const [userProfile, setUserProfile] = useState<UserProfileDTO | null>(null);
-  const [events, setEvents] = useState<EventDTO[]>([]);
-  const [eventTypes, setEventTypes] = useState<EventTypeDTO[]>([]);
+  const [events, setEvents] = useState<EventDetailsDTO[]>([]);
+  const [eventTypes, setEventTypes] = useState<EventTypeDetailsDTO[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedEvent, setSelectedEvent] = useState<EventDTO | undefined>(undefined);
+  const [selectedEvent, setSelectedEvent] = useState<EventDetailsDTO | undefined>(undefined);
   const [formLoading, setFormLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(0);
@@ -165,7 +165,7 @@ export default function AdminPage() {
     setError(null);
     try {
       // Fetch events for the current page only
-      const res = await fetch(`/api/proxy/events?page=${pageNum}&size=${pageSize}&sort=startDate,desc`);
+      const res = await fetch(`/api/proxy/event-details?page=${pageNum}&size=${pageSize}&sort=startDate,desc`);
       if (!res.ok) throw new Error('Failed to fetch events');
       const evs = await res.json();
       const types = await fetchEventTypes();
@@ -221,7 +221,7 @@ export default function AdminPage() {
     setSelectedEvent(mappedEvent);
   }
 
-  async function handleCancel(event: EventDTO) {
+  async function handleCancel(event: EventDetailsDTO) {
     setFormLoading(true);
     setError(null);
     try {
@@ -239,7 +239,7 @@ export default function AdminPage() {
     }
   }
 
-  async function handleFormSubmit(event: EventDTO) {
+  async function handleFormSubmit(event: EventDetailsDTO) {
     setFormLoading(true);
     setError(null);
     if (!userProfile || !userProfile.id) {

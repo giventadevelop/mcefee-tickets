@@ -2,7 +2,7 @@
 import React, { useRef, useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { EventMediaDTO } from "@/types";
-import type { EventDTO } from "@/types";
+import type { EventDetailsDTO } from "@/types";
 import ReactDOM from "react-dom";
 
 export default function UploadMediaPage() {
@@ -26,7 +26,7 @@ export default function UploadMediaPage() {
   const hasNextMediaPage = (mediaPage + 1) * mediaPageSize < filteredMediaList.length;
   const [eventFlyer, setEventFlyer] = useState(false);
   const [isEventManagementOfficialDocument, setIsEventManagementOfficialDocument] = useState(false);
-  const [eventDetails, setEventDetails] = useState<EventDTO | null>(null);
+  const [eventDetails, setEventDetails] = useState<EventDetailsDTO | null>(null);
   const [loadingEvent, setLoadingEvent] = useState(false);
   // Official Documents state
   const [officialDocsList, setOfficialDocsList] = useState<EventMediaDTO[]>([]);
@@ -74,10 +74,10 @@ export default function UploadMediaPage() {
       if (!eventId) return;
       setLoadingEvent(true);
       try {
-        const res = await fetch(`/api/proxy/events/${eventId}`);
+        const res = await fetch(`/api/proxy/event-details/${eventId}`);
         if (!res.ok) throw new Error('Failed to fetch event');
-        const data = await res.json();
-        setEventDetails(data);
+        const event: EventDetailsDTO = await res.json();
+        setEventDetails(event);
       } catch {
         setEventDetails(null);
       } finally {

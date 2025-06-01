@@ -19,3 +19,15 @@ export function getApiJwtPass() {
     process.env.NEXT_PUBLIC_API_JWT_PASS
   );
 }
+
+/**
+ * Lazily loads tenant ID from environment variables (NEXT_PUBLIC_TENANT_ID).
+ * Throws an error if not set.
+ */
+export function getTenantId() {
+  const tenantId = process.env.NEXT_PUBLIC_TENANT_ID;
+  if (!tenantId) {
+    throw new Error('NEXT_PUBLIC_TENANT_ID is not set in environment variables');
+  }
+  return tenantId;
+}

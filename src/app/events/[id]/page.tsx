@@ -3,12 +3,12 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import type { EventWithMedia, EventMediaDTO } from "@/types";
+import type { EventWithMedia, EventMediaDTO, EventDetailsDTO } from "@/types";
 
 export default function EventDetailsPage() {
   const params = useParams();
   const eventId = params?.id;
-  const [event, setEvent] = useState<EventWithMedia | null>(null);
+  const [event, setEvent] = useState<EventDetailsDTO | null>(null);
   const [media, setMedia] = useState<EventMediaDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [mediaPage, setMediaPage] = useState(0);
@@ -20,8 +20,8 @@ export default function EventDetailsPage() {
       if (!eventId) return;
       setLoading(true);
       try {
-        const eventRes = await fetch(`/api/proxy/events/${eventId}`);
-        const eventData = await eventRes.json();
+        const eventRes = await fetch(`/api/proxy/event-details/${eventId}`);
+        const eventData: EventDetailsDTO = await eventRes.json();
         setEvent(eventData);
         // Use the same query as admin media page
         const mediaRes = await fetch(`/api/proxy/event-medias?eventId.equals=${eventId}&isEventManagementOfficialDocument.equals=false&sort=updatedAt,desc`);

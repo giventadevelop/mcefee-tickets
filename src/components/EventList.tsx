@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import type { EventDTO, EventTypeDTO, CalendarEventDTO } from '@/types';
+import type { EventDetailsDTO, EventTypeDetailsDTO, EventCalendarEntryDTO } from '@/types';
 import { FaEdit, FaTrashAlt, FaUpload, FaCalendarDay, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import { TicketTypeManager } from './TicketTypeManager';
 import { Modal } from './Modal';
+import { getTenantId } from '@/lib/env';
 
 interface EventListProps {
-  events: EventDTO[];
-  eventTypes: EventTypeDTO[];
-  onEdit: (event: EventDTO) => void;
-  onCancel: (event: EventDTO) => void;
+  events: EventDetailsDTO[];
+  eventTypes: EventTypeDetailsDTO[];
+  onEdit: (event: EventDetailsDTO) => void;
+  onCancel: (event: EventDetailsDTO) => void;
   loading?: boolean;
   showDetailsOnHover?: boolean;
   onPrevPage?: () => void;
@@ -19,21 +20,23 @@ interface EventListProps {
 
 export function EventList({ events, eventTypes: eventTypesProp, onEdit, onCancel, loading, showDetailsOnHover = false, onPrevPage, onNextPage, page, hasNextPage }: EventListProps) {
   const [hoveredEventId, setHoveredEventId] = useState<number | undefined>(undefined);
-  const [calendarEvents, setCalendarEvents] = useState<CalendarEventDTO[]>([]);
-  const [eventTypes, setEventTypes] = useState<EventTypeDTO[]>(eventTypesProp || []);
+  const [calendarEvents, setCalendarEvents] = useState<EventCalendarEntryDTO[]>([]);
+  const [eventTypes, setEventTypes] = useState<EventTypeDetailsDTO[]>(eventTypesProp || []);
   const [showTicketTypeModal, setShowTicketTypeModal] = useState(false);
   const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
 
   useEffect(() => {
     // Fetch all calendar events for quick lookup
-    fetch('/api/proxy/calendar-events?size=1000')
+    const tenantId = getTenantId();
+    fetch(`/api/proxy/event-calendar-entries?size=1000&tenantId.equals=${tenantId}`)
       .then(res => res.ok ? res.json() : [])
       .then(data => setCalendarEvents(Array.isArray(data) ? data : []));
   }, []);
 
   useEffect(() => {
+    const tenantId = getTenantId();
     if (!eventTypesProp || eventTypesProp.length === 0) {
-      fetch('/api/proxy/event-types')
+      fetch(`/api/proxy/event-type-details?tenantId.equals=${tenantId}`)
         .then(res => res.ok ? res.json() : [])
         .then(data => setEventTypes(Array.isArray(data) ? data : []));
     } else {
@@ -41,7 +44,7 @@ export function EventList({ events, eventTypes: eventTypesProp, onEdit, onCancel
     }
   }, [eventTypesProp]);
 
-  function getEventTypeName(event: EventDTO) {
+  function getEventTypeName(event: EventDetailsDTO) {
     if (event?.eventType?.name) return event.eventType.name;
     if (event?.eventType?.id != null) {
       const found = eventTypes.find(et => et.id === event.eventType?.id);

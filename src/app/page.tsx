@@ -1,66 +1,56 @@
-"use client";
 import Link from "next/link";
 import { UserRoleDisplay } from "@/components/UserRoleDisplay";
 import { ProfileBootstrapper } from "@/components/ProfileBootstrapper";
 import { EventCard } from "@/components/EventCard";
-import { EventWithMedia } from "@/types";
-import { useEffect, useState } from "react";
 import Image from "next/image";
+import type { EventDetailsDTO } from '@/types';
+import { TeamImage } from '@/components/TeamImage';
+import { getTenantId } from '@/lib/env';
 
-export default function Page() {
-  const [events, setEvents] = useState<EventWithMedia[]>([]);
-  const [loading, setLoading] = useState(true);
+// Add EventWithMedia type for local use
+interface EventWithMedia extends EventDetailsDTO {
+  thumbnailUrl?: string;
+}
 
-  useEffect(() => {
-    async function fetchEvents() {
+// Move all event fetching to the server component
+async function fetchEventsWithMedia(): Promise<EventWithMedia[]> {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  const tenantId = getTenantId();
+  const eventsResponse = await fetch(
+    `${baseUrl}/api/proxy/event-details?sort=startDate,desc&tenantId.equals=${tenantId}`,
+    { cache: 'no-store' }
+  );
+  if (!eventsResponse.ok) {
+    throw new Error('Failed to fetch events');
+  }
+  const eventsData: EventDetailsDTO[] = await eventsResponse.json();
+
+  // For each event, fetch its media (server-side)
+  const eventsWithMedia = await Promise.all(
+    eventsData.map(async (event: EventDetailsDTO) => {
       try {
-        // Fetch events with sorting by startDate in descending order
-        const eventsResponse = await fetch('/api/proxy/events?sort=startDate,desc');
-        if (!eventsResponse.ok) {
-          throw new Error('Failed to fetch events');
+        const mediaResponse = await fetch(`${baseUrl}/api/proxy/event-medias?eventId.equals=${event.id}&eventFlyer.equals=true&tenantId.equals=${tenantId}`, { cache: 'no-store' });
+        if (!mediaResponse.ok) {
+          return event;
         }
-        const eventsData = await eventsResponse.json();
-
-        // For each event, fetch its media
-        const eventsWithMedia = await Promise.all(
-          eventsData.map(async (event: EventWithMedia) => {
-            try {
-              const mediaResponse = await fetch(`/api/proxy/event-medias?eventId.equals=${event.id}&eventFlyer.equals=true`);
-              if (!mediaResponse.ok) {
-                console.warn(`Failed to fetch media for event ${event.id}`);
-                return event;
-              }
-              const mediaData = await mediaResponse.json();
-
-              if (mediaData && mediaData.length > 0) {
-                return {
-                  ...event,
-                  thumbnailUrl: mediaData[0].fileUrl
-                };
-              }
-              return event;
-            } catch (error) {
-              console.error(`Error fetching media for event ${event.id}:`, error);
-              return event;
-            }
-          })
-        );
-
-        // Filter for future events only
-        const futureEvents = eventsWithMedia
-          .filter(event => new Date(event.startDate) > new Date())
-          .slice(0, 6); // Show maximum 6 events (2 rows of 3)
-
-        setEvents(futureEvents);
-      } catch (error) {
-        console.error('Error fetching events:', error);
-      } finally {
-        setLoading(false);
+        const mediaData = await mediaResponse.json();
+        if (mediaData && mediaData.length > 0) {
+          return {
+            ...event,
+            thumbnailUrl: mediaData[0].fileUrl
+          };
+        }
+        return event;
+      } catch {
+        return event;
       }
-    }
+    })
+  );
+  return eventsWithMedia;
+}
 
-    fetchEvents();
-  }, []);
+export default async function Page() {
+  const events = await fetchEventsWithMedia();
 
   // Determine hero image based on upcoming events
   const today = new Date();
@@ -212,14 +202,7 @@ export default function Page() {
             {nextEvent ? (
               <div className="flex flex-col md:flex-row items-center gap-4">
                 {/* Minimized event image */}
-                {nextEvent.thumbnailUrl && (
-                  <img
-                    src={nextEvent.thumbnailUrl}
-                    alt={nextEvent.title}
-                    className="w-24 h-24 object-cover rounded shadow-md mb-2 md:mb-0"
-                    style={{ minWidth: 72, minHeight: 72 }}
-                  />
-                )}
+                <TeamImage src={nextEvent.thumbnailUrl} alt={nextEvent.title} className="w-24 h-24 object-cover rounded shadow-md mb-2 md:mb-0" style={{ minWidth: 72, minHeight: 72 }} />
                 <div className="flex-1">
                   <h4 className="text-xl font-bold mb-1 text-gray-900">{nextEvent.title}</h4>
                   <div className="text-sm text-gray-600 mb-1">
@@ -254,26 +237,18 @@ export default function Page() {
               <h3 className="text-4xl md:text-5xl font-bold mb-4 text-gray-900">Upcoming Events</h3>
               <div className="section-subtitle text-lg text-yellow-500 font-semibold mb-2">Join Our Celebrations</div>
             </div>
-            {loading ? (
-              <div className="flex justify-center items-center min-h-[400px]">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-400"></div>
+            <div className="flex justify-center">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl">
+                {events.map((event) => (
+                  <EventCard key={event.id} event={event} />
+                ))}
               </div>
-            ) : (
-              <>
-                <div className="flex justify-center">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl">
-                    {events.map((event) => (
-                      <EventCard key={event.id} event={event} />
-                    ))}
-                  </div>
-                </div>
-                <div className="text-center mt-8">
-                  <Link href="/events" className="inline-block bg-yellow-400 text-gray-900 px-8 py-3 rounded-lg font-semibold text-lg shadow hover:bg-yellow-300 transition">
-                    View All Events
-                  </Link>
-                </div>
-              </>
-            )}
+            </div>
+            <div className="text-center mt-8">
+              <Link href="/events" className="inline-block bg-yellow-400 text-gray-900 px-8 py-3 rounded-lg font-semibold text-lg shadow hover:bg-yellow-300 transition">
+                View All Events
+              </Link>
+            </div>
           </div>
         </section>
 
@@ -384,7 +359,7 @@ export default function Page() {
                 {/* Team members - use images from public/images/team_members/ */}
                 <div className="team-item flex flex-col items-center">
                   <div className="team-image w-48 h-48 rounded-full overflow-hidden mb-4 bg-gray-200 shadow-lg">
-                    <img src="/images/team_members/Manoj_Kizhakkoot.png" alt="Manoj_Kizhakkoot" className="object-cover w-full h-full" style={{ objectPosition: 'center 20%' }} onError={e => e.currentTarget.src = '/images/about-us.jpg'} />
+                    <TeamImage src="/images/team_members/Manoj_Kizhakkoot.png" alt="Manoj_Kizhakkoot" className="object-cover w-full h-full" />
                   </div>
                   <div className="team-content text-center">
                     <h5 className="team-title text-xl font-semibold mb-2">Manoj Kizhakkoot</h5>
@@ -393,7 +368,7 @@ export default function Page() {
                 </div>
                 <div className="team-item flex flex-col items-center">
                   <div className="team-image w-48 h-48 rounded-full overflow-hidden mb-4 bg-gray-200 shadow-lg">
-                    <img src="/images/team_members/srk.png" alt="SRK" className="object-cover w-full h-full" onError={e => e.currentTarget.src = '/images/about-us.jpg'} />
+                    <TeamImage src="/images/team_members/srk.png" alt="SRK" className="object-cover w-full h-full" />
                   </div>
                   <div className="team-content text-center">
                     <h5 className="team-title text-xl font-semibold mb-2">SRK</h5>
@@ -445,7 +420,7 @@ export default function Page() {
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 pb-8 border-b border-gray-700">
               <div className="footer-widget flex flex-col items-center md:items-start">
                 <div className="footer-logo mb-4">
-                  <img src="/images/side_images/malayalees_us_logo.avif" alt="Footer Logo" className="w-32 h-auto" onError={e => e.currentTarget.src = '/images/about-us.jpg'} />
+                  <TeamImage src="/images/side_images/malayalees_us_logo.avif" alt="Footer Logo" className="w-32 h-auto" />
                 </div>
                 <h6 className="footer-widget-title text-lg font-semibold mb-2">Follow us</h6>
                 <ul className="footer-socials flex gap-3">
@@ -479,13 +454,6 @@ export default function Page() {
           </div>
         </footer>
       </main>
-      <style jsx global>{`
-        @media (max-width: 768px) {
-          .hero-section .hero-image-container {
-            left: 120px !important;
-          }
-        }
-      `}</style>
     </div >
   );
 }
