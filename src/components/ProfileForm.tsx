@@ -79,27 +79,54 @@ export default function ProfileForm() {
           setError("API configuration error - please check environment variables");
           return;
         }
-        // Try to fetch the profile
+        // Try to fetch the profile by userId
         const url = `/api/proxy/user-profiles/by-user/${userId}?tenantId.equals=${getTenantId()}`;
-        const response = await fetch(url, { headers: { 'Content-Type': 'application/json' } });
+        let response = await fetch(url, { headers: { 'Content-Type': 'application/json' } });
+        let userProfile = null;
         if (response.ok) {
-          // Profile exists, set form state
           const data = await response.json();
-          const userProfile = Array.isArray(data) ? data[0] : data;
-          if (userProfile) {
-            setProfileId(userProfile.id);
-            setFormData({
-              ...defaultFormData,
-              ...Object.fromEntries(
-                Object.entries(userProfile ?? {}).map(([k, v]) => [k, v ?? ""])
-              )
-            });
-            setError(null);
-          } else {
-            setError('No profile data found in response.');
-          }
+          userProfile = Array.isArray(data) ? data[0] : data;
         } else if (response.status === 404) {
-          // Not found, create minimal profile
+          // Fallback: lookup by email
+          const email = user?.primaryEmailAddress?.emailAddress || "";
+          if (email) {
+            const emailUrl = `/api/proxy/user-profiles?email.equals=${encodeURIComponent(email)}&tenantId.equals=${getTenantId()}`;
+            const emailRes = await fetch(emailUrl, { headers: { 'Content-Type': 'application/json' } });
+            if (emailRes.ok) {
+              const profiles = await emailRes.json();
+              if (Array.isArray(profiles) && profiles.length > 0) {
+                userProfile = profiles[0];
+                // Update the found profile with the current userId and Clerk data
+                const now = new Date().toISOString();
+                const updatedProfile = {
+                  ...userProfile,
+                  userId,
+                  firstName: user?.firstName || userProfile.firstName || "",
+                  lastName: user?.lastName || userProfile.lastName || "",
+                  email,
+                  profileImageUrl: user?.imageUrl || userProfile.profileImageUrl || "",
+                  updatedAt: now,
+                };
+                await fetch(`/api/proxy/user-profiles/${userProfile.id}`, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(updatedProfile),
+                });
+              }
+            }
+          }
+        }
+        if (userProfile) {
+          setProfileId(userProfile.id);
+          setFormData({
+            ...defaultFormData,
+            ...Object.fromEntries(
+              Object.entries(userProfile ?? {}).map(([k, v]) => [k, v ?? ""])
+            )
+          });
+          setError(null);
+        } else if (response.status === 404) {
+          // Not found by userId or email, create minimal profile
           const now = new Date().toISOString();
           const minimalProfile: UserProfileDTO = {
             userId: userId,
@@ -157,7 +184,7 @@ export default function ProfileForm() {
           }
         } else if (response.status === 500) {
           setError('There was a problem loading your profile. Please try again later.');
-        } else {
+        } else if (!userProfile) {
           const errorData = await response.json().catch(async () => await response.text());
           const errorMsg = errorData && errorData.message ? errorData.message : (typeof errorData === 'string' ? errorData : `HTTP error! status: ${response.status}`);
           setError(errorMsg);
@@ -197,7 +224,7 @@ export default function ProfileForm() {
       console.debug('Checking if profile exists for userId:', userId);
 
       // First check if profile exists using /by-user/:userId
-      const checkResponse = await fetch(`/api/proxy/user-profiles/by-user/${userId}?tenantId.equals=${getTenantId()}`, {
+      let checkResponse = await fetch(`/api/proxy/user-profiles/by-user/${userId}?tenantId.equals=${getTenantId()}`, {
         headers: {
           'Content-Type': 'application/json',
         },
@@ -210,11 +237,35 @@ export default function ProfileForm() {
           existingProfile = null;
         }
       } else {
-        // If the GET fails (404), treat as no profile
-        existingProfile = null;
+        // Fallback: lookup by email
+        const email = formData.email || user?.primaryEmailAddress?.emailAddress || "";
+        if (email) {
+          const emailUrl = `/api/proxy/user-profiles?email.equals=${encodeURIComponent(email)}&tenantId.equals=${getTenantId()}`;
+          const emailRes = await fetch(emailUrl, { headers: { 'Content-Type': 'application/json' } });
+          if (emailRes.ok) {
+            const profiles = await emailRes.json();
+            if (Array.isArray(profiles) && profiles.length > 0) {
+              existingProfile = profiles[0];
+              // Update the found profile with the current userId and Clerk data
+              const now = new Date().toISOString();
+              const updatedProfile = {
+                ...existingProfile,
+                userId,
+                firstName: user?.firstName || formData.firstName || existingProfile.firstName || "",
+                lastName: user?.lastName || formData.lastName || existingProfile.lastName || "",
+                email,
+                profileImageUrl: user?.imageUrl || formData.profileImageUrl || existingProfile.profileImageUrl || "",
+                updatedAt: now,
+              };
+              await fetch(`/api/proxy/user-profiles/${existingProfile.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updatedProfile),
+              });
+            }
+          }
+        }
       }
-
-      console.debug('Existing profile check result:', existingProfile);
 
       // Only include id if updating
       const profileData: UserProfileDTO = {

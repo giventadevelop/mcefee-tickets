@@ -6,6 +6,7 @@ import { EventList } from '@/components/EventList';
 import { useAuth } from "@clerk/nextjs";
 import { Modal } from '@/components/Modal';
 import { FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import Link from 'next/link';
 
 async function fetchEvents(): Promise<EventDetailsDTO[]> {
   const res = await fetch('/api/proxy/event-details');
@@ -300,6 +301,11 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen p-8">
       <h1 className="text-3xl font-bold text-gray-900 mb-8">Admin Event Management</h1>
+      <div className="mb-6 flex justify-end">
+        <Link href="/admin/manage-usage" className="inline-block bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold shadow hover:bg-blue-700 transition">
+          Manage Usage (Users)
+        </Link>
+      </div>
       {error && <div className="bg-red-50 text-red-500 p-3 rounded mb-4">{error}</div>}
       <div className="mb-4 flex justify-end">
         <button

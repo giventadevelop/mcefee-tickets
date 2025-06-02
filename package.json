@@ -46,6 +46,7 @@
     "stripe": "^18.0.0",
     "superjson": "^2.2.2",
     "svix": "^1.64.1",
+    "xlsx": "^0.18.5",
     "zod": "^3.24.3"
   },
   "devDependencies": {

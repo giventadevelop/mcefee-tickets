@@ -99,25 +99,62 @@ export async function POST(request: Request) {
   try {
     switch (eventType) {
       case 'user.created': {
-        const { id, email_addresses, ...attributes } = evt.data;
-        console.log('User created:', { id, email: email_addresses[0]?.email_address });
+        const { id, email_addresses, first_name, last_name, image_url, ...attributes } = evt.data;
+        const email = email_addresses[0]?.email_address;
+        console.log('User created:', { id, email });
 
-        // Create user profile with required fields and additional values
-        const userProfile: UserProfileDTO = {
+        // 1. Lookup by email
+        const profileRes = await fetchWithJwtRetry(`${apiBaseUrl}/api/user-profiles?email.equals=${encodeURIComponent(email)}`, { method: 'GET' }, 'webhook-user-created-lookup');
+        let userProfile: UserProfileDTO | null = null;
+        if (profileRes.ok) {
+          const profiles = await profileRes.json();
+          if (Array.isArray(profiles) && profiles.length > 0) {
+            userProfile = profiles[0];
+          }
+        }
+
+        // Prepare DTO fields from Clerk
+        const now = new Date().toISOString();
+        const dtoFields: Partial<UserProfileDTO> = {
           userId: id,
-          email: email_addresses[0]?.email_address,
+          email,
+          firstName: first_name,
+          lastName: last_name,
+          profileImageUrl: image_url,
           userRole: 'ROLE_USER',
           userStatus: 'pending',
           tenantId: getTenantId(),
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          updatedAt: now,
         };
-        await fetchWithJwtRetry(`${apiBaseUrl}/api/user-profiles`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(withTenantId(userProfile)),
-        }, 'webhook-user-created-POST');
-        console.log('Created user profile record');
+
+        if (userProfile) {
+          // 2. Update existing profile
+          const updatedProfile: UserProfileDTO = {
+            ...userProfile,
+            ...dtoFields,
+            createdAt: userProfile.createdAt || now,
+            updatedAt: now,
+          };
+          await fetchWithJwtRetry(`${apiBaseUrl}/api/user-profiles/${userProfile.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(withTenantId(updatedProfile)),
+          }, 'webhook-user-created-UPDATE');
+          console.log('Updated existing user profile record');
+        } else {
+          // 3. Create new profile
+          const newProfile: UserProfileDTO = {
+            ...dtoFields,
+            createdAt: now,
+            updatedAt: now,
+          } as UserProfileDTO;
+          await fetchWithJwtRetry(`${apiBaseUrl}/api/user-profiles`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(withTenantId(newProfile)),
+          }, 'webhook-user-created-CREATE');
+          console.log('Created new user profile record');
+        }
         break;
       }
 

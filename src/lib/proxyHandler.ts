@@ -16,8 +16,20 @@ export function createProxyHandler({ injectTenantId = true, allowedMethods = ['G
       return;
     }
     const { method, query, body } = req;
-    const queryString = buildQueryString(query);
-    const apiUrl = `${API_BASE_URL}${backendPath}${queryString}`;
+    // Handle slug path segments for catch-all routes
+    let path = backendPath;
+    const slug = query.slug;
+    if (slug) {
+      if (Array.isArray(slug)) {
+        path += '/' + slug.map(encodeURIComponent).join('/');
+      } else if (typeof slug === 'string') {
+        path += '/' + encodeURIComponent(slug);
+      }
+    }
+    // Remove slug from query before building query string
+    const { slug: _omit, ...restQuery } = query;
+    const queryString = buildQueryString(restQuery);
+    const apiUrl = `${API_BASE_URL}${path}${queryString}`;
     if (!allowedMethods.includes(method!)) {
       res.setHeader('Allow', allowedMethods);
       res.status(405).end(`Method ${method} Not Allowed`);
@@ -25,9 +37,14 @@ export function createProxyHandler({ injectTenantId = true, allowedMethods = ['G
     }
     let payload = body;
     if (injectTenantId && ['POST', 'PUT', 'PATCH'].includes(method!)) {
-      payload = withTenantId(body);
+      if (Array.isArray(body)) {
+        payload = body.map(item => withTenantId(item));
+      } else {
+        payload = withTenantId(body);
+      }
     }
     try {
+      console.log('[PROXY OUTGOING] apiUrl:', apiUrl, 'method:', method, 'headers:', { 'Content-Type': 'application/json' }, 'payload:', payload, 'typeof payload:', typeof payload);
       const apiRes = await fetchWithJwtRetry(apiUrl, {
         method,
         headers: { 'Content-Type': 'application/json' },

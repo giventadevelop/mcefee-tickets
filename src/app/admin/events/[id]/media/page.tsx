@@ -78,6 +78,8 @@ export default function UploadMediaPage() {
         if (!res.ok) throw new Error('Failed to fetch event');
         const event: EventDetailsDTO = await res.json();
         setEventDetails(event);
+        console.log('eventDetails:', event);
+        console.log('eventDetails.id:', event?.id);
       } catch {
         setEventDetails(null);
       } finally {
@@ -281,16 +283,42 @@ export default function UploadMediaPage() {
           {loadingEvent ? (
             <span className="text-blue-700 text-base font-medium">Loading event details...</span>
           ) : eventDetails ? (
-            <>
-              <span className="flex items-center gap-2">
-                <span className="text-blue-700 font-bold">Event ID:</span>
-                <span className="font-mono text-xl text-blue-800 bg-blue-100 px-2 py-1 rounded">{eventDetails.id}</span>
-              </span>
-              <span className="flex items-center gap-2">
-                <span className="text-blue-700 font-bold">Title:</span>
-                <span className="text-xl font-bold text-blue-900 bg-blue-100 px-2 py-1 rounded">{eventDetails.title}</span>
-              </span>
-            </>
+            <div className="mt-2 w-full max-w-2xl">
+              <table className="min-w-full border border-blue-200 rounded bg-blue-50 text-xs md:text-sm">
+                <tbody>
+                  <tr>
+                    <td className="border border-blue-200 font-semibold text-blue-700 px-3 py-2 w-32">Event ID</td>
+                    <td className="border border-blue-200 px-3 py-2 font-mono text-blue-800 bg-blue-100">{eventDetails.id}</td>
+                  </tr>
+                  <tr>
+                    <td className="border border-blue-200 font-semibold text-blue-700 px-3 py-2">Title</td>
+                    <td className="border border-blue-200 px-3 py-2 text-blue-900 bg-blue-100 font-bold">{eventDetails.title}</td>
+                  </tr>
+                  <tr>
+                    <td className="border border-blue-200 font-semibold text-blue-700 px-3 py-2">Start Date</td>
+                    <td className="border border-blue-200 px-3 py-2">{eventDetails.startDate || 'N/A'}</td>
+                  </tr>
+                  <tr>
+                    <td className="border border-blue-200 font-semibold text-blue-700 px-3 py-2">End Date</td>
+                    <td className="border border-blue-200 px-3 py-2">{eventDetails.endDate || 'N/A'}</td>
+                  </tr>
+                  <tr>
+                    <td className="border border-blue-200 font-semibold text-blue-700 px-3 py-2">Start Time</td>
+                    <td className="border border-blue-200 px-3 py-2">{eventDetails.startTime || 'N/A'}</td>
+                  </tr>
+                  <tr>
+                    <td className="border border-blue-200 font-semibold text-blue-700 px-3 py-2">End Time</td>
+                    <td className="border border-blue-200 px-3 py-2">{eventDetails.endTime || 'N/A'}</td>
+                  </tr>
+                  {eventDetails.description && (
+                    <tr>
+                      <td className="border border-blue-200 font-semibold text-blue-700 px-3 py-2 align-top">Description</td>
+                      <td className="border border-blue-200 px-3 py-2 text-blue-800 bg-blue-100 whitespace-pre-line">{eventDetails.description}</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           ) : (
             <span className="text-red-600 text-base font-medium">Event not found</span>
           )}
