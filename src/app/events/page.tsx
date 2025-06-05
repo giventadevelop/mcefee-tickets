@@ -14,13 +14,16 @@ export default function EventsPage() {
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [heroImageUrl, setHeroImageUrl] = useState<string>("/images/side_images/chilanka_2025.webp");
+  const [fetchError, setFetchError] = useState(false);
 
   useEffect(() => {
     async function fetchEvents() {
       setLoading(true);
+      setFetchError(false);
       try {
         // Fetch paginated events
         const eventsRes = await fetch(`/api/proxy/event-details?sort=startDate,desc&page=${page}&size=${EVENTS_PAGE_SIZE}`);
+        if (!eventsRes.ok) throw new Error('Failed to fetch events');
         const events: EventDetailsDTO[] = await eventsRes.json();
         let eventList = Array.isArray(events) ? events : [events];
         // For each event, fetch its flyer
@@ -32,23 +35,22 @@ export default function EventsPage() {
               if (mediaData && mediaData.length > 0) {
                 return { ...event, thumbnailUrl: mediaData[0].fileUrl };
               }
-              return event;
+              return { ...event, thumbnailUrl: undefined };
             } catch {
-              return event;
+              return { ...event, thumbnailUrl: undefined };
             }
           })
         );
         setEvents(eventsWithMedia);
-        // Set total pages if available
-        if (events.totalPages) setTotalPages(events.totalPages);
-        else setTotalPages(1);
+        // Remove totalPages logic, since not present in array response
+        setTotalPages(1);
 
         // Hero image logic: earliest upcoming event within 3 months
         const today = new Date();
         const threeMonthsFromNow = new Date();
         threeMonthsFromNow.setMonth(today.getMonth() + 3);
         const upcoming = eventsWithMedia
-          .filter(e => e.startDate && new Date(e.startDate) >= today)
+          .filter(e => e.startDate && new Date(e.startDate) >= today && e.thumbnailUrl)
           .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
         if (upcoming.length > 0) {
           const nextEvent = upcoming[0];
@@ -58,6 +60,10 @@ export default function EventsPage() {
             return;
           }
         }
+        setHeroImageUrl("/images/side_images/chilanka_2025.webp");
+      } catch (err) {
+        setFetchError(true);
+        setEvents([]);
         setHeroImageUrl("/images/side_images/chilanka_2025.webp");
       } finally {
         setLoading(false);
@@ -180,6 +186,14 @@ export default function EventsPage() {
         {loading ? (
           <div className="flex justify-center items-center min-h-[200px]">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-400"></div>
+          </div>
+        ) : fetchError ? (
+          <div className="text-center text-red-600 font-bold py-8">
+            Sorry, we couldn't load events at this time. Please try again later.
+          </div>
+        ) : events.length === 0 ? (
+          <div className="text-center text-gray-500 py-8">
+            No events found.
           </div>
         ) : (
           <>

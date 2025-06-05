@@ -6,6 +6,7 @@ import Image from "next/image";
 import type { EventDetailsDTO } from '@/types';
 import { TeamImage } from '@/components/TeamImage';
 import { getTenantId } from '@/lib/env';
+import { formatDateLocal } from '@/lib/date';
 
 // Add EventWithMedia type for local use
 interface EventWithMedia extends EventDetailsDTO {
@@ -29,19 +30,24 @@ async function fetchEventsWithMedia(): Promise<EventWithMedia[]> {
   const eventsWithMedia = await Promise.all(
     eventsData.map(async (event: EventDetailsDTO) => {
       try {
+        console.log('Fetching media for event', event.id, 'tenantId', tenantId);
         const mediaResponse = await fetch(`${baseUrl}/api/proxy/event-medias?eventId.equals=${event.id}&eventFlyer.equals=true&tenantId.equals=${tenantId}`, { cache: 'no-store' });
         if (!mediaResponse.ok) {
+          console.warn('Media fetch failed for event', event.id, mediaResponse.status);
           return event;
         }
         const mediaData = await mediaResponse.json();
-        if (mediaData && mediaData.length > 0) {
+        console.log('Media data for event', event.id, mediaData);
+        const mediaArray = Array.isArray(mediaData) ? mediaData : (mediaData ? [mediaData] : []);
+        if (mediaArray.length > 0) {
           return {
             ...event,
-            thumbnailUrl: mediaData[0].fileUrl
+            thumbnailUrl: mediaArray[0].fileUrl
           };
         }
         return event;
-      } catch {
+      } catch (err) {
+        console.error('Error fetching media for event', event.id, err);
         return event;
       }
     })
@@ -50,7 +56,14 @@ async function fetchEventsWithMedia(): Promise<EventWithMedia[]> {
 }
 
 export default async function Page() {
-  const events = await fetchEventsWithMedia();
+  let events: EventWithMedia[] = [];
+  let fetchError = false;
+
+  try {
+    events = await fetchEventsWithMedia();
+  } catch (err) {
+    fetchError = true;
+  }
 
   // Determine hero image based on upcoming events
   const today = new Date();
@@ -60,7 +73,7 @@ export default async function Page() {
   let heroImageUrl = "/images/side_images/chilanka_2025.webp"; // default image
   let nextEvent: EventWithMedia | null = null;
 
-  if (events && events.length > 0) {
+  if (!fetchError && events && events.length > 0) {
     // Find the next event with startDate >= today
     const upcomingEvents = events
       .filter(event => event.startDate && new Date(event.startDate) >= today)
@@ -206,7 +219,7 @@ export default async function Page() {
                 <div className="flex-1">
                   <h4 className="text-xl font-bold mb-1 text-gray-900">{nextEvent.title}</h4>
                   <div className="text-sm text-gray-600 mb-1">
-                    {nextEvent.startDate ? new Date(nextEvent.startDate).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) : ''}
+                    {formatDateLocal(nextEvent.startDate)}
                   </div>
                   {nextEvent.description && (
                     <div className="text-gray-700 text-sm mb-2 line-clamp-3">{nextEvent.description}</div>
@@ -237,13 +250,23 @@ export default async function Page() {
               <h3 className="text-4xl md:text-5xl font-bold mb-4 text-gray-900">Upcoming Events</h3>
               <div className="section-subtitle text-lg text-yellow-500 font-semibold mb-2">Join Our Celebrations</div>
             </div>
-            <div className="flex justify-center">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl">
-                {events.map((event) => (
-                  <EventCard key={event.id} event={event} />
-                ))}
+            {fetchError ? (
+              <div className="text-center text-red-600 font-bold py-8">
+                Sorry, we couldn't load events at this time. Please try again later.
               </div>
-            </div>
+            ) : events.length === 0 ? (
+              <div className="text-center text-gray-500 py-8">
+                No events found.
+              </div>
+            ) : (
+              <div className="flex justify-center">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl">
+                  {events.map((event) => (
+                    <EventCard key={event.id} event={event} />
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="text-center mt-8">
               <Link href="/events" className="inline-block bg-yellow-400 text-gray-900 px-8 py-3 rounded-lg font-semibold text-lg shadow hover:bg-yellow-300 transition">
                 View All Events
@@ -413,46 +436,6 @@ export default async function Page() {
             </div>
           </div>
         </section>
-
-        {/* Footer Section */}
-        <footer className="bg-gray-900 text-gray-200 pt-10">
-          <div className="container mx-auto px-4">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 pb-8 border-b border-gray-700">
-              <div className="footer-widget flex flex-col items-center md:items-start">
-                <div className="footer-logo mb-4">
-                  <TeamImage src="/images/side_images/malayalees_us_logo.avif" alt="Footer Logo" className="w-32 h-auto" />
-                </div>
-                <h6 className="footer-widget-title text-lg font-semibold mb-2">Follow us</h6>
-                <ul className="footer-socials flex gap-3">
-                  <li><a href="https://www.facebook.com/profile.php?id=61573944338286" target="_blank" rel="noopener noreferrer" className="bg-gray-800 text-white rounded-full w-10 h-10 flex items-center justify-center hover:bg-yellow-400"><i className="fab fa-facebook-f"></i></a></li>
-                </ul>
-              </div>
-              <div className="footer-widget">
-                <h6 className="footer-widget-title text-lg font-semibold mb-2">Main menu</h6>
-                <ul className="footer-menu space-y-2">
-                  <li><a href="#" className="hover:text-yellow-400">Home</a></li>
-                  <li><a href="#about-us" className="hover:text-yellow-400">About</a></li>
-                  <li><a href="#events" className="hover:text-yellow-400">Events</a></li>
-                  <li><a href="#team-section" className="hover:text-yellow-400">Team</a></li>
-                  <li><a href="#contact" className="hover:text-yellow-400">Contact</a></li>
-                </ul>
-              </div>
-              <div className="footer-widget">
-                <h6 className="footer-widget-title text-lg font-semibold mb-2">Contacts</h6>
-                <div className="footer-contact text-sm">
-                  <p>Unite India<br />New Jersey, USA</p>
-                  <p><a href="tel:+16317088442" className="text-blue-400 hover:underline">+1 (631) 708-8442</a></p>
-                  <p><a href="mailto:Contactus@malyalees.org" className="text-blue-400 hover:underline"></a></p>
-                </div>
-              </div>
-            </div>
-            <div className="footer-wrapper py-6 flex flex-col items-center">
-              <div className="copyright text-yellow-400 text-center text-sm">
-                © {new Date().getFullYear()} United Team India
-              </div>
-            </div>
-          </div>
-        </footer>
       </main>
     </div >
   );

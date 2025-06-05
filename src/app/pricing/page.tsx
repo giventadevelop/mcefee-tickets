@@ -48,6 +48,11 @@ function nullToUndefined<T>(value: T | null | undefined): T | undefined {
 }
 
 export default async function PricingPage(props: any) {
+  let userProfile: UserProfileDTO | null = null;
+  let subscription: UserSubscriptionDTO | null = null;
+  let userProfileError = false;
+  let subscriptionError = false;
+
   try {
     // Await searchParams if it is a Promise (Next.js dynamic API)
     const searchParams = await Promise.resolve(props.searchParams);
@@ -62,66 +67,68 @@ export default async function PricingPage(props: any) {
     const clerkUser = await currentUser();
 
     if (!userId || !clerkUser?.emailAddresses?.[0]?.emailAddress) {
-      throw new Error("User information not found - Please update your profile");
+      // Only redirect if not signed in
+      redirect('/sign-in');
     }
 
     const email = clerkUser.emailAddresses[0].emailAddress;
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
     if (!baseUrl) {
-      throw new Error('API base URL not configured');
-    }
-
-    // Try to get existing user profile with proper no-store caching
-    let userProfile: UserProfileDTO | null = null;
-    try {
-      const response = await fetch(`${baseUrl}/api/proxy/user-profiles/by-user/${userId}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        cache: isReturnFromStripe ? 'no-store' : 'default',
-        next: { revalidate: 0 } // Ensure fresh data when needed
-      });
-
-      if (response.ok) {
-        userProfile = await response.json();
-      } else if (response.status !== 404) {
-        throw new Error(`Failed to fetch user profile: ${response.statusText}`);
-      }
-    } catch (error) {
-      console.error('Error fetching user profile:', error);
-    }
-
-    // Ensure userProfile exists and has a valid id before proceeding
-    if (!userProfile || !userProfile.id) {
-      redirect('/sign-in');
-    }
-
-    // Check for existing subscription for this user profile
-    let subscription: UserSubscriptionDTO | null = null;
-    try {
-      const response = await fetch(
-        `${baseUrl}/api/proxy/user-subscriptions/by-profile/${userProfile.id}`,
-        {
+      userProfileError = true;
+    } else {
+      // Try to get existing user profile with proper no-store caching
+      try {
+        const response = await fetch(`${baseUrl}/api/proxy/user-profiles/by-user/${userId}`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
           },
-          cache: 'no-store',
+          cache: isReturnFromStripe ? 'no-store' : 'default',
           next: { revalidate: 0 }
+        });
+        if (response.ok) {
+          userProfile = await response.json();
+        } else if (response.status !== 404) {
+          userProfileError = true;
         }
-      );
-      if (response.ok) {
-        const subscriptions: UserSubscriptionDTO[] = await response.json();
-        subscription = Array.isArray(subscriptions) ? subscriptions[0] : subscriptions;
+      } catch (error) {
+        userProfileError = true;
       }
-    } catch (error) {
-      console.error('Error fetching user subscription:', error);
     }
 
-    // Only POST to create a new subscription if none exists
-    if (!subscription) {
+    // If userProfile is missing, show error (don't redirect)
+    if (!userProfile || !userProfile.id) {
+      userProfileError = true;
+    }
+
+    // Check for existing subscription for this user profile
+    if (!userProfileError) {
+      try {
+        const response = await fetch(
+          `${baseUrl}/api/proxy/user-subscriptions/by-profile/${userProfile.id}`,
+          {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            cache: 'no-store',
+            next: { revalidate: 0 }
+          }
+        );
+        if (response.ok) {
+          const subscriptions: UserSubscriptionDTO[] = await response.json();
+          subscription = Array.isArray(subscriptions) ? subscriptions[0] : subscriptions;
+        } else {
+          subscriptionError = true;
+        }
+      } catch (error) {
+        subscriptionError = true;
+      }
+    }
+
+    // Only POST to create a new subscription if none exists and no errors
+    if (!subscription && !userProfileError && userProfile && !subscriptionError) {
       try {
         const newSubscription: UserSubscriptionDTO = {
           status: 'pending',
@@ -129,7 +136,7 @@ export default async function PricingPage(props: any) {
           stripeSubscriptionId: undefined,
           stripePriceId: undefined,
           stripeCurrentPeriodEnd: undefined,
-          userProfile: userProfile
+          userProfile: userProfile!,
         };
 
         const response = await fetch(`${baseUrl}/api/proxy/user-subscriptions`, {
@@ -141,24 +148,21 @@ export default async function PricingPage(props: any) {
         });
 
         if (!response.ok) {
-          const errorText = await response.text();
-          console.error('Failed to create subscription:', errorText);
-          throw new Error(`Failed to create subscription: ${response.statusText} - ${errorText}`);
+          subscriptionError = true;
+        } else {
+          const responseData = await response.json();
+          subscription = {
+            ...responseData,
+            stripeCustomerId: nullToUndefined(responseData.stripeCustomerId),
+            stripeSubscriptionId: nullToUndefined(responseData.stripeSubscriptionId),
+            stripePriceId: nullToUndefined(responseData.stripePriceId),
+            stripeCurrentPeriodEnd: nullToUndefined(responseData.stripeCurrentPeriodEnd)
+              ? new Date(responseData.stripeCurrentPeriodEnd)
+              : undefined,
+          };
         }
-
-        const responseData = await response.json();
-        subscription = {
-          ...responseData,
-          stripeCustomerId: nullToUndefined(responseData.stripeCustomerId),
-          stripeSubscriptionId: nullToUndefined(responseData.stripeSubscriptionId),
-          stripePriceId: nullToUndefined(responseData.stripePriceId),
-          stripeCurrentPeriodEnd: nullToUndefined(responseData.stripeCurrentPeriodEnd)
-            ? new Date(responseData.stripeCurrentPeriodEnd)
-            : undefined,
-        };
       } catch (error) {
-        console.error('Error creating subscription:', error);
-        throw new Error('Failed to create subscription');
+        subscriptionError = true;
       }
     }
 
@@ -172,13 +176,6 @@ export default async function PricingPage(props: any) {
       }
     }
 
-    // Log final subscription state
-    console.log('Final subscription state:', {
-      status: subscription?.status,
-      returnFromStripe: isReturnFromStripe,
-      message
-    });
-
     const messageConfig = message && Object.keys(messages).includes(message)
       ? messages[message as MessageType]
       : null;
@@ -186,6 +183,17 @@ export default async function PricingPage(props: any) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-white to-gray-50 py-20">
         <div className="container mx-auto px-4">
+          {userProfileError ? (
+            <div className="bg-red-50 p-4 rounded-md mb-8">
+              <h2 className="text-red-800">Error loading your profile</h2>
+              <p className="text-red-600">We couldn't load your profile. Please try again later or contact support.</p>
+            </div>
+          ) : subscriptionError ? (
+            <div className="bg-red-50 p-4 rounded-md mb-8">
+              <h2 className="text-red-800">Error loading your subscription</h2>
+              <p className="text-red-600">We couldn't load your subscription. Please try again later.</p>
+            </div>
+          ) : null}
           {messageConfig && (
             <div className={`mb-8 p-4 border rounded-lg text-center ${messageConfig.className}`}>
               <p>{messageConfig.text}</p>
@@ -199,7 +207,10 @@ export default async function PricingPage(props: any) {
               Choose the plan that best fits your needs
             </p>
           </div>
-          <PricingPlans currentSubscription={subscription} />
+          {/* Only show PricingPlans if no errors */}
+          {!userProfileError && !subscriptionError && (
+            <PricingPlans currentSubscription={subscription} />
+          )}
         </div>
       </div>
     );

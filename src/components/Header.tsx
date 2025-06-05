@@ -10,11 +10,16 @@ import { useUser } from "@clerk/nextjs";
 const menuItems = [
   { href: "/event", label: "Event" },
   { href: "/pricing", label: "Pricing" },
+  { href: "/events", label: "Events" },
 ];
 
 const ORG_NAME = "nextjs-template";
 
-export function Header() {
+type HeaderProps = {
+  hideMenuItems?: boolean;
+};
+
+export function Header({ hideMenuItems = false }: HeaderProps) {
   const pathname = usePathname();
   const { userId } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -42,9 +47,6 @@ export function Header() {
     }
     checkAdminInOrg();
   }, [user, userLoaded]);
-
-  // Skip rendering header on auth pages
-  if (pathname?.startsWith("/sign-")) return null;
 
   return (
     <header className="bg-transparent">

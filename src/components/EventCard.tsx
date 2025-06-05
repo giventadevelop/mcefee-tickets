@@ -1,6 +1,7 @@
 import { EventWithMedia } from '@/types';
 import Image from 'next/image';
 import Link from 'next/link';
+import { formatDateLocal } from '@/lib/date';
 
 interface EventCardProps {
   event: EventWithMedia;
@@ -44,7 +45,7 @@ export function EventCard({ event }: EventCardProps) {
           <h4 className="event-title text-xl font-semibold mb-2">{event.title}</h4>
           <p className="text-gray-600 mb-4 line-clamp-3">{event.description}</p>
           <div className="text-yellow-600 font-bold mb-2">
-            {formatDate(event.startDate)}
+            {formatDateLocal(event.startDate)}
           </div>
           <div className="text-gray-500 text-sm">
             {event.startTime} - {event.endTime}

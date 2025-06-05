@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { Pagination } from "./Pagination";
 import { useSearchParams } from "next/navigation";
-import { Task, UserSubscriptionDTO, UserProfileDTO } from "@/types";
+import { UserTaskDTO, UserSubscriptionDTO, UserProfileDTO } from "@/types";
 import React from "react";
 
 interface DashboardContentProps {
-  tasks: Task[];
+  tasks: UserTaskDTO[];
   stats: {
     total: number;
     completed: number;
@@ -17,13 +17,14 @@ interface DashboardContentProps {
   };
   subscription: UserSubscriptionDTO | null;
   pendingSubscription?: boolean;
+  errorBanner?: React.ReactNode;
 }
 
 const PAGE_SIZE = 3;
 
-export function DashboardContent({ tasks = [], stats, subscription, pendingSubscription = false }: DashboardContentProps) {
+export function DashboardContent({ tasks = [], stats, subscription, pendingSubscription = false, errorBanner }: DashboardContentProps) {
   const searchParams = useSearchParams();
-  const currentPage = searchParams.get("page") ? parseInt(searchParams.get("page")!) : 1;
+  const currentPage = searchParams?.get("page") ? parseInt(searchParams.get("page")!) : 1;
 
   const startIndex = (currentPage - 1) * PAGE_SIZE;
   const paginatedTasks = tasks.slice(startIndex, startIndex + PAGE_SIZE);
@@ -88,6 +89,8 @@ export function DashboardContent({ tasks = [], stats, subscription, pendingSubsc
 
   return (
     <div className="max-w-7xl mx-auto px-6 lg:px-8">
+      {/* Error Banner */}
+      {errorBanner}
       {/* Dashboard Content */}
       <div className="space-y-8 py-8">
         <div className="flex items-center justify-between">
@@ -182,7 +185,7 @@ export function DashboardContent({ tasks = [], stats, subscription, pendingSubsc
               </div>
             ) : (
               <>
-                {paginatedTasks.map((task: Task) => (
+                {paginatedTasks.map((task: UserTaskDTO) => (
                   <div key={task.id} className="flex items-center justify-between py-4">
                     <div className="flex items-center">
                       <input
@@ -219,7 +222,7 @@ export function DashboardContent({ tasks = [], stats, subscription, pendingSubsc
                         Edit
                       </Link>
                       <button
-                        onClick={() => handleDelete(task.id)}
+                        onClick={() => handleDelete(String(task.id))}
                         className="text-sm text-red-500 hover:text-red-700 flex items-center"
                       >
                         <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">

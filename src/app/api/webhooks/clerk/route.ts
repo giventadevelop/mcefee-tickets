@@ -121,7 +121,7 @@ export async function POST(request: Request) {
           firstName: first_name,
           lastName: last_name,
           profileImageUrl: image_url,
-          userRole: 'ROLE_USER',
+          userRole: 'MEMBER',
           userStatus: 'pending',
           tenantId: getTenantId(),
           updatedAt: now,

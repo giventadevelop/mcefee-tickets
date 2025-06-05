@@ -4,6 +4,8 @@ import { useParams } from "next/navigation";
 import { EventMediaDTO } from "@/types";
 import type { EventDetailsDTO } from "@/types";
 import ReactDOM from "react-dom";
+import { getTenantId } from '@/lib/env';
+import { formatDateLocal } from '@/lib/date';
 
 export default function UploadMediaPage() {
   const params = useParams();
@@ -141,9 +143,6 @@ export default function UploadMediaPage() {
     Array.from(files).forEach((file) => {
       formData.append("files", file);
     });
-    // Support multiple titles/descriptions if needed (currently using one for all files)
-    // If you want to support per-file titles/descriptions, collect them as arrays
-    // For now, use the same title/description for all files
     // Query params: eventId, titles, descriptions, isPublic
     const params = new URLSearchParams();
 
@@ -154,6 +153,8 @@ export default function UploadMediaPage() {
     params.append("descriptions", description); // If you want to support multiple, loop and append
     // Optionally add isPublic if you want
     // params.append("isPublic", "true");
+    // Only add tenantId as a query param
+    params.append("tenantId", getTenantId());
     const url = `/api/proxy/event-medias/upload-multiple?${params.toString()}`;
     try {
       const res = await fetch(url, {
@@ -296,11 +297,11 @@ export default function UploadMediaPage() {
                   </tr>
                   <tr>
                     <td className="border border-blue-200 font-semibold text-blue-700 px-3 py-2">Start Date</td>
-                    <td className="border border-blue-200 px-3 py-2">{eventDetails.startDate || 'N/A'}</td>
+                    <td className="border border-blue-200 px-3 py-2">{formatDateLocal(eventDetails.startDate) || 'N/A'}</td>
                   </tr>
                   <tr>
                     <td className="border border-blue-200 font-semibold text-blue-700 px-3 py-2">End Date</td>
-                    <td className="border border-blue-200 px-3 py-2">{eventDetails.endDate || 'N/A'}</td>
+                    <td className="border border-blue-200 px-3 py-2">{formatDateLocal(eventDetails.endDate) || 'N/A'}</td>
                   </tr>
                   <tr>
                     <td className="border border-blue-200 font-semibold text-blue-700 px-3 py-2">Start Time</td>

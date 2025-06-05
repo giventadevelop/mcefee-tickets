@@ -4,6 +4,7 @@ import { FaEdit, FaTrashAlt, FaUpload, FaCalendarDay, FaChevronLeft, FaChevronRi
 import { TicketTypeManager } from './TicketTypeManager';
 import { Modal } from './Modal';
 import { getTenantId } from '@/lib/env';
+import { formatDateLocal } from '@/lib/date';
 
 interface EventListProps {
   events: EventDetailsDTO[];
@@ -95,8 +96,8 @@ export function EventList({ events, eventTypes: eventTypesProp, onEdit, onCancel
               >
                 <td className="p-2 border font-medium align-middle">{event.title}</td>
                 <td className="p-2 border align-middle">{getEventTypeName(event) || <span className="text-gray-400 italic">Unknown</span>}</td>
-                <td className="p-2 border align-middle w-32">{event.startDate} {event.startTime}</td>
-                <td className="p-2 border align-middle w-32">{event.endDate} {event.endTime}</td>
+                <td className="p-2 border align-middle w-32">{formatDateLocal(event.startDate)} {event.startTime}</td>
+                <td className="p-2 border align-middle w-32">{formatDateLocal(event.endDate)} {event.endTime}</td>
                 <td className="p-2 border text-center align-middle">
                   <span className={`px-2 py-1 rounded text-xs font-bold ${isActive ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'}`}>{isActive ? 'Yes' : 'No'}</span>
                 </td>
@@ -165,8 +166,8 @@ export function EventList({ events, eventTypes: eventTypesProp, onEdit, onCancel
                           <tr className="border-b border-gray-200"><td className="font-bold pr-4 border-r border-gray-200">ID:</td><td>{event.id}</td></tr>
                           <tr className="border-b border-gray-200"><td className="font-bold pr-4 border-r border-gray-200">Title:</td><td>{event.title}</td></tr>
                           <tr className="border-b border-gray-200"><td className="font-bold pr-4 border-r border-gray-200">Type:</td><td>{getEventTypeName(event)}</td></tr>
-                          <tr className="border-b border-gray-200"><td className="font-bold pr-4 border-r border-gray-200">Start:</td><td>{event.startDate} {event.startTime}</td></tr>
-                          <tr className="border-b border-gray-200"><td className="font-bold pr-4 border-r border-gray-200">End:</td><td>{event.endDate} {event.endTime}</td></tr>
+                          <tr className="border-b border-gray-200"><td className="font-bold pr-4 border-r border-gray-200">Start:</td><td>{formatDateLocal(event.startDate)} {event.startTime}</td></tr>
+                          <tr className="border-b border-gray-200"><td className="font-bold pr-4 border-r border-gray-200">End:</td><td>{formatDateLocal(event.endDate)} {event.endTime}</td></tr>
                           <tr className="border-b border-gray-200"><td className="font-bold pr-4 border-r border-gray-200">Active:</td><td>{isActive ? 'Yes' : 'No'}</td></tr>
                           <tr className="border-b border-gray-200"><td className="font-bold pr-4 border-r border-gray-200">Caption:</td><td>{event.caption}</td></tr>
                           <tr className="border-b border-gray-200"><td className="font-bold pr-4 border-r border-gray-200">Description:</td><td>{event.description}</td></tr>

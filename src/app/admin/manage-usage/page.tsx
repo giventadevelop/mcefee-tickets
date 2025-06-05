@@ -362,7 +362,7 @@ export default function ManageUsagePage() {
           district: row.district || "",
           educationalInstitution: row.educationalInstitution || "",
           profileImageUrl: row.profileImageUrl || "",
-          userRole: row.userRole || "ROLE_USER",
+          userRole: row.userRole || "MEMBER",
           userStatus: row.userStatus || "pending",
           tenantId: getTenantId(),
         };
