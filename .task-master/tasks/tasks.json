@@ -4,225 +4,256 @@
     "version": "1.5.0",
     "source": ".task-master/PRD.txt",
     "description": "Tasks generated from PRD",
-    "totalTasksGenerated": 17,
-    "tasksIncluded": 17
+    "totalTasksGenerated": 20,
+    "tasksIncluded": 20
   },
   "tasks": [
     {
       "id": 1,
-      "title": "Set up project structure and authentication",
-      "description": "Initialize the project structure with Next.js and set up Clerk authentication for admin access control.",
+      "title": "Set up project infrastructure",
+      "description": "Initialize the project structure with Spring Boot backend, React/Next.js frontend, and PostgreSQL database configuration",
       "status": "done",
       "dependencies": [],
       "priority": "high",
-      "details": "- Initialize Next.js project\n- Configure Clerk authentication\n- Set up admin role and permissions\n- Create protected admin routes\n- Implement authentication middleware\n- Test admin authentication flow",
-      "testStrategy": "Verify that only authenticated admins can access protected routes and perform admin actions."
+      "details": "Create the initial project structure including:\n- Initialize Spring Boot project with JHipster\n- Set up PostgreSQL database with tenant isolation\n- Configure React/Next.js frontend\n- Set up Clerk authentication integration\n- Configure AWS S3 for media storage\n- Set up development environment",
+      "testStrategy": "Verify that the development environment can be started without errors and all components (frontend, backend, database) are properly connected."
     },
     {
       "id": 2,
-      "title": "Create database schema and models",
-      "description": "Design and implement database schema for events, media, tickets, polls, calendar, and tasks.",
+      "title": "Create database schema for user registration",
+      "description": "Implement database tables and entities for user registration workflow",
       "status": "done",
       "dependencies": [
         1
       ],
       "priority": "high",
-      "details": "- Create Event table (id, title, description, date, location, admission_type, active, etc.)\n- Create Media table (id, event_id, url, type, uploaded_by, etc.)\n- Create TicketType table (id, event_id, type, price, code, etc.)\n- Create Poll table (id, event_id, question, options, active, etc.)\n- Create PollVote table (id, poll_id, user_id, option, comment, etc.)\n- Create Calendar table (id, event_id, start, end, link, etc.)\n- Create UserTask table (id, event_id, user_id, task, status, etc.)\n- Set up database migrations\n- Implement data access methods",
-      "testStrategy": "Test database schema with sample data to ensure proper relationships and constraints."
+      "details": "Create the following database tables and entities:\n- user_registration_request\n- tenant_organization\n- user_profile\n- event_admin_audit_log\n\nImplement proper relationships and constraints between tables.",
+      "testStrategy": "Verify database schema with test data. Ensure proper tenant isolation and referential integrity."
     },
     {
       "id": 3,
-      "title": "Configure AWS S3 integration for media storage",
-      "description": "Set up AWS S3 bucket and create API routes for media upload and retrieval.",
-      "status": "pending",
+      "title": "Implement backend for user registration requests",
+      "description": "Create Spring Boot controllers, services, and repositories for user registration workflow",
+      "status": "done",
       "dependencies": [
-        1
+        2
       ],
       "priority": "high",
-      "details": "- Create AWS S3 bucket\n- Configure IAM permissions\n- Set up environment variables for AWS credentials\n- Create API route for media upload to S3\n- Implement file type validation and size restrictions\n- Create function to generate and store media URLs\n- Implement media deletion from S3",
-      "testStrategy": "Test uploading various file types and sizes to S3, verify URLs are correctly stored and accessible."
+      "details": "Implement the following components:\n- UserRegistrationController.java with endpoints for submitting, retrieving, approving, and rejecting registration requests\n- UserRegistrationRequestEntity.java\n- UserRegistrationRepository.java\n- UserRegistrationService.java with business logic for processing registrations",
+      "testStrategy": "Create unit tests for service layer and integration tests for API endpoints. Test all registration states (PENDING, UNDER_REVIEW, APPROVED, REJECTED)."
     },
     {
       "id": 4,
-      "title": "Implement admin event CRUD operations",
-      "description": "Create API routes and admin interface for creating, reading, updating, and deleting events.",
+      "title": "Create user registration request form",
+      "description": "Implement the frontend form for users to request registration to an organization",
       "status": "pending",
       "dependencies": [
-        1,
-        2,
         3
       ],
       "priority": "high",
-      "details": "- Create event form component with all required fields\n- Implement API routes for event CRUD operations\n- Add event cancellation functionality (setting active to false)\n- Implement form validation\n- Add date/time picker for event scheduling\n- Create event list view for admin dashboard\n- Add event detail view for editing",
-      "testStrategy": "Test creating, updating, retrieving, and deleting events. Verify form validation works correctly."
+      "details": "Create UserRegistrationRequestForm.tsx with:\n- Form fields for personal information (name, email, phone)\n- Address information fields\n- Optional fields for Indian-specific information\n- Profile image upload with AWS S3 integration\n- Request reason text area\n- Form validation\n- Submission handling",
+      "testStrategy": "Test form validation, submission, and error handling. Verify image upload functionality."
     },
     {
       "id": 5,
-      "title": "Implement media upload and management UI",
-      "description": "Create user interface for admins to upload and manage media files for events.",
+      "title": "Implement admin review interface",
+      "description": "Create admin dashboard for reviewing and processing user registration requests",
       "status": "pending",
       "dependencies": [
         3,
         4
       ],
       "priority": "high",
-      "details": "- Create media upload component with drag-and-drop functionality\n- Implement media type selection (flyer, gallery image, etc.)\n- Add media preview functionality\n- Create media management UI (list, delete)\n- Integrate media upload with event form\n- Add validation for required media types",
-      "testStrategy": "Test uploading, previewing, and deleting media files. Verify integration with event form."
+      "details": "Create the following components:\n- AdminReviewPanel.tsx for reviewing individual requests\n- BulkApprovalComponent.tsx for processing multiple requests\n- AdminReviewService.ts for API integration\n- Implement filtering and sorting of pending requests\n- Add approval/rejection functionality with comments",
+      "testStrategy": "Test approval and rejection workflows, bulk operations, and filtering functionality."
     },
     {
       "id": 6,
-      "title": "Develop homepage hero event display with slider",
-      "description": "Create homepage hero section that displays current event with image slider for multiple images.",
+      "title": "Implement notification system",
+      "description": "Create notification service for user registration status updates",
       "status": "pending",
       "dependencies": [
-        4,
-        5
-      ],
-      "priority": "high",
-      "details": "- Create hero section component\n- Implement image slider for multiple flyer images\n- Add logic to display current/upcoming event\n- Implement fallback for no active events\n- Add event details display (title, date, etc.)\n- Create auto-update mechanism for expired events",
-      "testStrategy": "Test hero display with different event scenarios (multiple images, no active events, etc.). Verify auto-update works correctly."
-    },
-    {
-      "id": 7,
-      "title": "Create event listing page",
-      "description": "Implement page to display current and past events with thumbnails and galleries.",
-      "status": "pending",
-      "dependencies": [
-        4,
+        3,
         5
       ],
       "priority": "medium",
-      "details": "- Create event listing page layout\n- Implement filtering for current/past events\n- Add event card component with thumbnail\n- Create event detail view with gallery/slider\n- Implement pagination for event list\n- Add sorting options (date, title, etc.)",
-      "testStrategy": "Test event listing with various filter and sort options. Verify pagination works correctly."
+      "details": "Implement NotificationService.ts for:\n- Email notifications for registration submission confirmation\n- Status update notifications (approval/rejection)\n- Admin notifications for new registration requests\n- Integration with email service provider",
+      "testStrategy": "Test email delivery, template rendering, and notification triggers for different scenarios."
+    },
+    {
+      "id": 7,
+      "title": "Create database schema for event management",
+      "description": "Implement database tables and entities for event registration and attendance",
+      "status": "pending",
+      "dependencies": [
+        2
+      ],
+      "priority": "high",
+      "details": "Create the following database tables and entities:\n- event_details\n- event_attendee\n- event_attendee_guest\n- event_guest_pricing\n- event_organizer\n- event_admin\n- qr_code_usage\n- bulk_operation_log\n\nImplement proper relationships and constraints between tables.",
+      "testStrategy": "Verify database schema with test data. Test relationships between events, attendees, and guests."
     },
     {
       "id": 8,
-      "title": "Implement ticket type management",
-      "description": "Create admin interface for managing ticket types and prices for events.",
+      "title": "Implement backend for event management",
+      "description": "Create Spring Boot controllers, services, and repositories for event registration and attendance",
       "status": "pending",
       "dependencies": [
-        4
+        7
       ],
       "priority": "high",
-      "details": "- Create ticket type form component\n- Implement API routes for ticket type CRUD\n- Add ticket type list to event form\n- Create validation for ticket prices and codes\n- Implement admission type selection (free/ticketed)\n- Add bulk ticket type operations",
-      "testStrategy": "Test creating, updating, and deleting ticket types. Verify validation works correctly."
+      "details": "Implement the following components:\n- Event registration endpoints (GET /api/events/public, POST /api/event-attendee/register, etc.)\n- Event management endpoints (GET /api/events/{id}/attendees, POST /api/events/{id}/check-in, etc.)\n- Services for event registration, attendee management, and check-in\n- Repositories for event-related entities",
+      "testStrategy": "Create unit tests for service layer and integration tests for API endpoints. Test all event registration states."
     },
     {
       "id": 9,
-      "title": "Develop ticket purchase UI",
-      "description": "Create user interface for purchasing tickets, including selection, quantity, and payment flow.",
+      "title": "Create event discovery page",
+      "description": "Implement frontend page for browsing available events",
       "status": "pending",
       "dependencies": [
         8
       ],
       "priority": "high",
-      "details": "- Create ticket selection UI with cards\n- Implement quantity selection\n- Add price calculation logic\n- Create checkout flow\n- Implement success page with ticket details\n- Add validation for ticket availability",
-      "testStrategy": "Test ticket selection, quantity changes, and checkout flow. Verify price calculations are correct."
+      "details": "Create EventDiscoveryPage.tsx with:\n- Event listing with filtering and sorting\n- Event details view\n- Calendar view integration\n- Search functionality\n- Responsive design for mobile and desktop",
+      "testStrategy": "Test filtering, sorting, and search functionality. Verify responsive design on different screen sizes."
     },
     {
       "id": 10,
-      "title": "Implement poll feature",
-      "description": "Create admin interface for managing polls and user interface for voting and commenting.",
+      "title": "Implement event registration form",
+      "description": "Create frontend form for registering to events",
       "status": "pending",
       "dependencies": [
-        4
+        8,
+        9
       ],
-      "priority": "medium",
-      "details": "- Create poll form component for admins\n- Implement API routes for poll CRUD\n- Add poll activation/deactivation functionality\n- Create voting UI for users\n- Implement comment functionality\n- Add results display\n- Create validation for one active poll at a time",
-      "testStrategy": "Test creating, activating, and deactivating polls. Test voting and commenting as a user."
+      "priority": "high",
+      "details": "Create EventRegistrationForm.tsx with:\n- Attendee type selection (MEMBER, GUEST, FAMILY)\n- Guest details form for adding guests\n- Special requirements fields\n- Emergency contact information\n- Event-specific fields (transportation, volunteer opportunities)\n- Form validation and submission",
+      "testStrategy": "Test form validation, guest addition functionality, and submission process."
     },
     {
       "id": 11,
-      "title": "Integrate calendar functionality",
-      "description": "Implement automatic calendar entry creation and add-to-calendar links for users.",
+      "title": "Create event organizer dashboard",
+      "description": "Implement dashboard for event organizers to manage events and attendees",
       "status": "pending",
       "dependencies": [
-        4
+        8
       ],
       "priority": "medium",
-      "details": "- Create calendar entry on event creation\n- Update calendar entry when event is updated\n- Delete calendar entry when event is deleted\n- Implement add-to-calendar button for users\n- Support multiple calendar formats (Google, Outlook, etc.)\n- Add calendar view for upcoming events",
-      "testStrategy": "Test calendar entry creation and updates. Verify add-to-calendar functionality works with different calendar services."
+      "details": "Create EventOrganizerDashboard.tsx with:\n- Event overview statistics\n- Attendee management panel\n- Check-in functionality\n- QR code generation\n- Bulk operations for attendees\n- Export functionality",
+      "testStrategy": "Test dashboard functionality, attendee management features, and export capabilities."
     },
     {
       "id": 12,
-      "title": "Implement user task assignment (optional)",
-      "description": "Create interface for assigning tasks to users for events and managing task status.",
+      "title": "Implement QR code system for check-in",
+      "description": "Create QR code generation and scanning system for event check-in",
       "status": "pending",
       "dependencies": [
-        4
+        8,
+        11
       ],
-      "priority": "low",
-      "details": "- Create task assignment form\n- Implement API routes for task CRUD\n- Add task list UI for events\n- Create task status management\n- Implement task notifications\n- Add task filtering and sorting",
-      "testStrategy": "Test creating, assigning, and updating tasks. Verify task status changes are reflected correctly."
+      "priority": "medium",
+      "details": "Implement:\n- QRCodeGenerator.tsx for creating attendee QR codes\n- QR code scanning interface for organizers\n- Backend API for validating and processing check-ins\n- Real-time check-in status updates\n- Offline check-in capability",
+      "testStrategy": "Test QR code generation, scanning functionality, and check-in process in both online and offline modes."
     },
     {
       "id": 13,
-      "title": "Implement audit logging for admin operations",
-      "description": "Create system to log all admin actions for auditing purposes.",
+      "title": "Create mobile-friendly check-in interface",
+      "description": "Implement responsive check-in interface for mobile devices",
       "status": "pending",
       "dependencies": [
-        1,
-        4
+        12
       ],
       "priority": "medium",
-      "details": "- Create audit log table in database\n- Implement logging middleware for admin actions\n- Log user, action, timestamp, and details\n- Create audit log viewer for admins\n- Add filtering and search for audit logs\n- Implement log retention policy",
-      "testStrategy": "Test that all admin actions are properly logged. Verify audit log viewer displays correct information."
+      "details": "Create CheckInInterface.tsx with:\n- Mobile-optimized UI for check-in process\n- Camera integration for QR scanning\n- Quick search for manual check-in\n- Offline mode with sync capability\n- Real-time attendee count updates",
+      "testStrategy": "Test on various mobile devices, verify offline functionality, and test synchronization when coming back online."
     },
     {
       "id": 14,
-      "title": "Create admin dashboard overview",
-      "description": "Develop main admin dashboard with overview of events, tickets, and polls.",
+      "title": "Implement analytics and reporting",
+      "description": "Create analytics dashboard and reporting tools for events",
+      "status": "pending",
+      "dependencies": [
+        8,
+        11
+      ],
+      "priority": "medium",
+      "details": "Create:\n- AnalyticsDashboard.tsx with event statistics and charts\n- AttendeeReportsPage.tsx for detailed attendee reports\n- ExportUtilities.ts for exporting data in various formats (CSV, Excel)\n- EventPollComponent.tsx for post-event surveys\n- Implement filtering and date range selection for reports",
+      "testStrategy": "Test report generation, data export functionality, and chart rendering with various data sets."
+    },
+    {
+      "id": 15,
+      "title": "Create database schema for analytics and audit logs",
+      "description": "Implement database tables for tracking user activities and event analytics",
+      "status": "pending",
+      "dependencies": [
+        7
+      ],
+      "priority": "medium",
+      "details": "Create the following database tables:\n- user_payment_transaction (for future paid events)\n- event_poll\n- event_poll_option\n- event_poll_response\n- Ensure proper audit logging across the system",
+      "testStrategy": "Verify database schema with test data. Ensure comprehensive audit logging for all operations."
+    },
+    {
+      "id": 16,
+      "title": "Implement event feedback and survey system",
+      "description": "Create system for collecting post-event feedback from attendees",
+      "status": "pending",
+      "dependencies": [
+        8,
+        15
+      ],
+      "priority": "low",
+      "details": "Implement:\n- Event poll creation interface for organizers\n- Survey distribution system (email, in-app)\n- Survey response collection and storage\n- Survey results analysis and reporting\n- Integration with analytics dashboard",
+      "testStrategy": "Test survey creation, distribution, response collection, and reporting functionality."
+    },
+    {
+      "id": 17,
+      "title": "Optimize for mobile devices",
+      "description": "Ensure responsive design and mobile optimization across all interfaces",
       "status": "pending",
       "dependencies": [
         4,
+        9,
+        10,
+        13
+      ],
+      "priority": "medium",
+      "details": "Implement:\n- Responsive design for all forms and pages\n- Mobile-specific UI optimizations\n- Touch-friendly controls\n- Progressive Web App features\n- Offline functionality where appropriate",
+      "testStrategy": "Test on various mobile devices and screen sizes. Verify offline capabilities and touch interactions."
+    },
+    {
+      "id": 18,
+      "title": "Implement waitlist functionality",
+      "description": "Create waitlist system for events that reach capacity",
+      "status": "pending",
+      "dependencies": [
         8,
         10
       ],
       "priority": "medium",
-      "details": "- Create dashboard layout\n- Add event summary cards\n- Implement ticket sales overview\n- Add poll participation metrics\n- Create quick action buttons\n- Implement filtering and date range selection",
-      "testStrategy": "Test dashboard displays correct information. Verify quick actions work as expected."
+      "details": "Implement:\n- Capacity management for events\n- Waitlist registration process\n- Automatic promotion from waitlist when spots open\n- Notification system for waitlist status changes\n- Admin interface for managing waitlists",
+      "testStrategy": "Test capacity limits, waitlist registration, promotion process, and notifications."
     },
     {
-      "id": 15,
-      "title": "Implement responsive design and UI polish",
-      "description": "Ensure all components are responsive and have consistent styling across devices.",
+      "id": 19,
+      "title": "Create bulk operations for attendee management",
+      "description": "Implement functionality for bulk actions on attendees",
       "status": "pending",
       "dependencies": [
-        6,
-        7,
-        9,
-        10,
-        14
-      ],
-      "priority": "medium",
-      "details": "- Test all components on mobile, tablet, and desktop\n- Implement responsive layouts\n- Create consistent styling across components\n- Add loading states and error handling\n- Implement animations and transitions\n- Ensure accessibility compliance",
-      "testStrategy": "Test on various device sizes and browsers. Verify accessibility using automated tools."
-    },
-    {
-      "id": 16,
-      "title": "Implement comprehensive testing",
-      "description": "Create unit, integration, and end-to-end tests for critical functionality.",
-      "status": "pending",
-      "dependencies": [
-        4,
-        5,
-        6,
-        7,
         8,
-        9,
-        10,
         11
       ],
-      "priority": "medium",
-      "details": "- Write unit tests for core components\n- Create integration tests for API routes\n- Implement end-to-end tests for critical user flows\n- Set up test automation\n- Create test fixtures and mocks\n- Document testing strategy",
-      "testStrategy": "Ensure test coverage for all critical paths. Verify tests pass in CI/CD pipeline."
+      "priority": "low",
+      "details": "Create BulkOperationsPanel.tsx with:\n- Bulk check-in functionality\n- Bulk email to attendees\n- Bulk status changes\n- Bulk export of attendee data\n- Logging of bulk operations",
+      "testStrategy": "Test bulk operations with various data sets, verify logging, and ensure performance with large attendee lists."
     },
     {
-      "id": 17,
-      "title": "Create documentation and user guides",
-      "description": "Develop documentation for both administrators and end users.",
+      "id": 20,
+      "title": "Implement comprehensive testing",
+      "description": "Create unit, integration, and end-to-end tests for the entire system",
       "status": "pending",
       "dependencies": [
+        1,
+        2,
+        3,
         4,
         5,
         6,
@@ -231,11 +262,18 @@
         9,
         10,
         11,
-        14
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19
       ],
-      "priority": "low",
-      "details": "- Create admin user guide\n- Develop end-user documentation\n- Add inline help and tooltips\n- Document API endpoints\n- Create troubleshooting guide\n- Add system architecture documentation",
-      "testStrategy": "Review documentation for accuracy and completeness. Test inline help functionality."
+      "priority": "high",
+      "details": "Implement:\n- Unit tests for all services and components\n- Integration tests for API endpoints\n- End-to-end tests for critical user flows\n- Performance testing for high-load scenarios\n- Security testing for authentication and authorization",
+      "testStrategy": "Achieve minimum 80% test coverage. Focus on critical paths for user registration, event registration, and check-in processes."
     }
   ]
 }

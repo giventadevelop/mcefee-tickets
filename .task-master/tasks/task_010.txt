@@ -1,17 +1,17 @@
 # Task ID: 10
-# Title: Implement poll feature
+# Title: Implement event registration form
 # Status: pending
-# Dependencies: 4 ⏱️
-# Priority: medium
-# Description: Create admin interface for managing polls and user interface for voting and commenting.
+# Dependencies: 8 ⏱️, 9 ⏱️
+# Priority: high
+# Description: Create frontend form for registering to events
 # Details:
-- Create poll form component for admins
-- Implement API routes for poll CRUD
-- Add poll activation/deactivation functionality
-- Create voting UI for users
-- Implement comment functionality
-- Add results display
-- Create validation for one active poll at a time
+Create EventRegistrationForm.tsx with:
+- Attendee type selection (MEMBER, GUEST, FAMILY)
+- Guest details form for adding guests
+- Special requirements fields
+- Emergency contact information
+- Event-specific fields (transportation, volunteer opportunities)
+- Form validation and submission
 
 # Test Strategy:
-Test creating, activating, and deactivating polls. Test voting and commenting as a user.
+Test form validation, guest addition functionality, and submission process.

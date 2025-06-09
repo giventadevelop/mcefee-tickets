@@ -1,16 +1,16 @@
 # Task ID: 12
-# Title: Implement user task assignment (optional)
+# Title: Implement QR code system for check-in
 # Status: pending
-# Dependencies: 4 ⏱️
-# Priority: low
-# Description: Create interface for assigning tasks to users for events and managing task status.
+# Dependencies: 8 ⏱️, 11 ⏱️
+# Priority: medium
+# Description: Create QR code generation and scanning system for event check-in
 # Details:
-- Create task assignment form
-- Implement API routes for task CRUD
-- Add task list UI for events
-- Create task status management
-- Implement task notifications
-- Add task filtering and sorting
+Implement:
+- QRCodeGenerator.tsx for creating attendee QR codes
+- QR code scanning interface for organizers
+- Backend API for validating and processing check-ins
+- Real-time check-in status updates
+- Offline check-in capability
 
 # Test Strategy:
-Test creating, assigning, and updating tasks. Verify task status changes are reflected correctly.
+Test QR code generation, scanning functionality, and check-in process in both online and offline modes.

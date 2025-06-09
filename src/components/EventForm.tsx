@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import type { EventDTO, EventTypeDTO } from '@/types';
+import type { EventDetailsDTO, EventTypeDetailsDTO } from '@/types';
 
 interface EventFormProps {
-  event?: EventDTO;
-  eventTypes: EventTypeDTO[];
-  onSubmit: (event: EventDTO) => void;
+  event?: EventDetailsDTO;
+  eventTypes: EventTypeDetailsDTO[];
+  onSubmit: (event: EventDetailsDTO) => void;
   loading?: boolean;
 }
 
-export const defaultEvent: EventDTO = {
+export const defaultEvent: EventDetailsDTO = {
   title: '',
   caption: '',
   description: '',
@@ -20,13 +20,15 @@ export const defaultEvent: EventDTO = {
   location: '',
   directionsToVenue: '',
   capacity: undefined,
-  admissionType: 'free',
+  admissionType: '',
   isActive: true,
   createdBy: undefined,
+  createdAt: '',
+  updatedAt: '',
 };
 
 export function EventForm({ event, eventTypes, onSubmit, loading }: EventFormProps) {
-  const [form, setForm] = useState<EventDTO>({ ...defaultEvent, ...event });
+  const [form, setForm] = useState<EventDetailsDTO>({ ...defaultEvent, ...event });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -122,12 +124,12 @@ export function EventForm({ event, eventTypes, onSubmit, loading }: EventFormPro
     if (name === 'eventType') {
       // Find the event type object by id
       const selectedType = eventTypes.find(et => String(et.id) === value);
-      setForm((f) => ({ ...f, eventType: selectedType }));
+      setForm((f: EventDetailsDTO) => ({ ...f, eventType: selectedType }));
     } else if (name === 'startTime' || name === 'endTime') {
       // Convert 24-hour value from <input type="time"> to 12-hour AM/PM string
-      setForm((f) => ({ ...f, [name]: to12HourFormat(value) }));
+      setForm((f: EventDetailsDTO) => ({ ...f, [name]: to12HourFormat(value) }));
     } else {
-      setForm((f) => ({ ...f, [name]: value }));
+      setForm((f: EventDetailsDTO) => ({ ...f, [name]: value }));
     }
   }
 
@@ -155,7 +157,7 @@ export function EventForm({ event, eventTypes, onSubmit, loading }: EventFormPro
       </div>
       <div>
         <label className="block font-medium">Description</label>
-        <textarea name="description" value={form.description} onChange={handleChange} className="w-full border rounded p-2" />
+        <textarea name="description" value={form.description ?? ""} onChange={handleChange} className="w-full border rounded p-2" />
       </div>
       <div>
         <label className="block font-medium">Event Type *</label>
@@ -197,7 +199,7 @@ export function EventForm({ event, eventTypes, onSubmit, loading }: EventFormPro
       </div>
       <div>
         <label className="block font-medium">Directions to Venue</label>
-        <textarea name="directionsToVenue" value={form.directionsToVenue} onChange={handleChange} className="w-full border rounded p-2" />
+        <textarea name="directionsToVenue" value={form.directionsToVenue ?? ""} onChange={handleChange} className="w-full border rounded p-2" />
       </div>
       <div>
         <label className="block font-medium">Capacity</label>
@@ -206,14 +208,41 @@ export function EventForm({ event, eventTypes, onSubmit, loading }: EventFormPro
       <div>
         <label className="block font-medium">Admission Type *</label>
         <select name="admissionType" value={form.admissionType} onChange={handleChange} className="w-full border rounded p-2">
+          <option value="">Select admission type</option>
           <option value="free">Free</option>
           <option value="ticketed">Ticketed</option>
         </select>
         {errors.admissionType && <div className="text-red-500 text-sm">{errors.admissionType}</div>}
       </div>
-      <div className="flex items-center gap-2">
-        <input type="checkbox" name="isActive" checked={form.isActive} onChange={e => setForm(f => ({ ...f, isActive: e.target.checked }))} />
-        <label className="font-medium">Active</label>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+        <div className="flex items-center gap-3">
+          <input type="checkbox" name="isActive" checked={form.isActive ?? false} onChange={e => setForm(f => ({ ...f, isActive: e.target.checked }))} className="w-6 h-6 accent-yellow-500" />
+          <label className="font-medium">Active</label>
+        </div>
+        <div className="flex items-center gap-3">
+          <input type="checkbox" name="allowGuests" checked={form.allowGuests ?? false} onChange={e => setForm(f => ({ ...f, allowGuests: e.target.checked }))} className="w-6 h-6 accent-yellow-500" />
+          <label className="font-medium">Allow Guests</label>
+        </div>
+        <div className="flex items-center gap-3">
+          <input type="checkbox" name="requireGuestApproval" checked={form.requireGuestApproval ?? false} onChange={e => setForm(f => ({ ...f, requireGuestApproval: e.target.checked }))} className="w-6 h-6 accent-yellow-500" />
+          <label className="font-medium">Require Guest Approval</label>
+        </div>
+        <div className="flex items-center gap-3">
+          <input type="checkbox" name="enableGuestPricing" checked={form.enableGuestPricing ?? false} onChange={e => setForm(f => ({ ...f, enableGuestPricing: e.target.checked }))} className="w-6 h-6 accent-yellow-500" />
+          <label className="font-medium">Enable Guest Pricing</label>
+        </div>
+        <div className="flex items-center gap-3">
+          <input type="checkbox" name="isRegistrationRequired" checked={form.isRegistrationRequired ?? false} onChange={e => setForm(f => ({ ...f, isRegistrationRequired: e.target.checked }))} className="w-6 h-6 accent-yellow-500" />
+          <label className="font-medium">Registration Required</label>
+        </div>
+        <div className="flex items-center gap-3">
+          <input type="checkbox" name="isSportsEvent" checked={form.isSportsEvent ?? false} onChange={e => setForm(f => ({ ...f, isSportsEvent: e.target.checked }))} className="w-6 h-6 accent-yellow-500" />
+          <label className="font-medium">Sports Event</label>
+        </div>
+        <div className="flex items-center gap-3">
+          <input type="checkbox" name="isLive" checked={form.isLive ?? false} onChange={e => setForm(f => ({ ...f, isLive: e.target.checked }))} className="w-6 h-6 accent-yellow-500" />
+          <label className="font-medium">Live Event</label>
+        </div>
       </div>
       <div className="flex gap-2 mt-4">
         <button type="submit" className="px-4 py-2 bg-green-600 text-white rounded" disabled={loading}>Save Event</button>

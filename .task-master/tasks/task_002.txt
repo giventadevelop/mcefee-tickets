@@ -1,19 +1,17 @@
 # Task ID: 2
-# Title: Create database schema and models
+# Title: Create database schema for user registration
 # Status: done
 # Dependencies: 1 ✅
 # Priority: high
-# Description: Design and implement database schema for events, media, tickets, polls, calendar, and tasks.
+# Description: Implement database tables and entities for user registration workflow
 # Details:
-- Create Event table (id, title, description, date, location, admission_type, active, etc.)
-- Create Media table (id, event_id, url, type, uploaded_by, etc.)
-- Create TicketType table (id, event_id, type, price, code, etc.)
-- Create Poll table (id, event_id, question, options, active, etc.)
-- Create PollVote table (id, poll_id, user_id, option, comment, etc.)
-- Create Calendar table (id, event_id, start, end, link, etc.)
-- Create UserTask table (id, event_id, user_id, task, status, etc.)
-- Set up database migrations
-- Implement data access methods
+Create the following database tables and entities:
+- user_registration_request
+- tenant_organization
+- user_profile
+- event_admin_audit_log
+
+Implement proper relationships and constraints between tables.
 
 # Test Strategy:
-Test database schema with sample data to ensure proper relationships and constraints.
+Verify database schema with test data. Ensure proper tenant isolation and referential integrity.

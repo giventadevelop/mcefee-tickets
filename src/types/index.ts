@@ -57,6 +57,7 @@ export interface UserSubscriptionDTO {
 
 /**
  * DTO for event data exchanged with the backend.
+ * Refactored to match the latest schema.
  */
 export interface EventDetailsDTO {
   id?: number;
@@ -73,10 +74,18 @@ export interface EventDetailsDTO {
   capacity?: number;
   admissionType: string;
   isActive?: boolean;
+  maxGuestsPerAttendee?: number;
+  allowGuests?: boolean;
+  requireGuestApproval?: boolean;
+  enableGuestPricing?: boolean;
+  isRegistrationRequired?: boolean;
+  isSportsEvent?: boolean;
+  isLive?: boolean;
   createdAt: string;
   updatedAt: string;
   createdBy?: UserProfileDTO;
   eventType?: EventTypeDetailsDTO;
+  discountCodes?: DiscountCodeDTO[];
 }
 
 /**
@@ -365,4 +374,22 @@ export interface UserRegistrationRequestDTO {
   createdAt: string;
   updatedAt: string;
   reviewedBy?: UserProfileDTO;
+}
+
+/**
+ * DTO for discount code data exchanged with the backend.
+ */
+export interface DiscountCodeDTO {
+  id?: number;
+  code: string;
+  description?: string;
+  discountType: string;
+  discountValue: number;
+  maxUses?: number;
+  usesCount?: number;
+  validFrom?: string;
+  validTo?: string;
+  isActive?: boolean;
+  createdAt: string;
+  updatedAt: string;
 }

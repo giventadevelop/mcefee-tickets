@@ -1,16 +1,16 @@
 # Task ID: 13
-# Title: Implement audit logging for admin operations
+# Title: Create mobile-friendly check-in interface
 # Status: pending
-# Dependencies: 1 ✅, 4 ⏱️
+# Dependencies: 12 ⏱️
 # Priority: medium
-# Description: Create system to log all admin actions for auditing purposes.
+# Description: Implement responsive check-in interface for mobile devices
 # Details:
-- Create audit log table in database
-- Implement logging middleware for admin actions
-- Log user, action, timestamp, and details
-- Create audit log viewer for admins
-- Add filtering and search for audit logs
-- Implement log retention policy
+Create CheckInInterface.tsx with:
+- Mobile-optimized UI for check-in process
+- Camera integration for QR scanning
+- Quick search for manual check-in
+- Offline mode with sync capability
+- Real-time attendee count updates
 
 # Test Strategy:
-Test that all admin actions are properly logged. Verify audit log viewer displays correct information.
+Test on various mobile devices, verify offline functionality, and test synchronization when coming back online.

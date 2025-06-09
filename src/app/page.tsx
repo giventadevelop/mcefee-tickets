@@ -17,27 +17,36 @@ interface EventWithMedia extends EventDetailsDTO {
 async function fetchEventsWithMedia(): Promise<EventWithMedia[]> {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
   const tenantId = getTenantId();
-  const eventsResponse = await fetch(
-    `${baseUrl}/api/proxy/event-details?sort=startDate,desc&tenantId.equals=${tenantId}`,
+
+  // Try ascending first
+  let eventsResponse = await fetch(
+    `${baseUrl}/api/proxy/event-details?sort=startDate,asc&tenantId.equals=${tenantId}`,
     { cache: 'no-store' }
   );
-  if (!eventsResponse.ok) {
-    throw new Error('Failed to fetch events');
+  let eventsData: EventDetailsDTO[] = [];
+  if (eventsResponse.ok) {
+    eventsData = await eventsResponse.json();
   }
-  const eventsData: EventDetailsDTO[] = await eventsResponse.json();
+  // If no data, try descending
+  if (!eventsData || eventsData.length === 0) {
+    eventsResponse = await fetch(
+      `${baseUrl}/api/proxy/event-details?sort=startDate,desc&tenantId.equals=${tenantId}`,
+      { cache: 'no-store' }
+    );
+    if (eventsResponse.ok) {
+      eventsData = await eventsResponse.json();
+    }
+  }
 
   // For each event, fetch its media (server-side)
   const eventsWithMedia = await Promise.all(
     eventsData.map(async (event: EventDetailsDTO) => {
       try {
-        console.log('Fetching media for event', event.id, 'tenantId', tenantId);
         const mediaResponse = await fetch(`${baseUrl}/api/proxy/event-medias?eventId.equals=${event.id}&eventFlyer.equals=true&tenantId.equals=${tenantId}`, { cache: 'no-store' });
         if (!mediaResponse.ok) {
-          console.warn('Media fetch failed for event', event.id, mediaResponse.status);
           return event;
         }
         const mediaData = await mediaResponse.json();
-        console.log('Media data for event', event.id, mediaData);
         const mediaArray = Array.isArray(mediaData) ? mediaData : (mediaData ? [mediaData] : []);
         if (mediaArray.length > 0) {
           return {
@@ -47,7 +56,6 @@ async function fetchEventsWithMedia(): Promise<EventWithMedia[]> {
         }
         return event;
       } catch (err) {
-        console.error('Error fetching media for event', event.id, err);
         return event;
       }
     })

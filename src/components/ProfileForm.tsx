@@ -147,7 +147,7 @@ export default function ProfileForm() {
             educationalInstitution: '',
             profileImageUrl: '',
             userRole: 'MEMBER',
-            userStatus: 'pending',
+            userStatus: 'PENDING_APPROVAL',
             tenantId: getTenantId(),
             createdAt: now,
             updatedAt: now,
@@ -288,7 +288,7 @@ export default function ProfileForm() {
         educationalInstitution: formData.educationalInstitution || '',
         profileImageUrl: formData.profileImageUrl || '',
         userRole: 'MEMBER',
-        userStatus: 'pending',
+        userStatus: 'PENDING_APPROVAL',
         tenantId: getTenantId(),
         createdAt: existingProfile?.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString()

@@ -1,16 +1,16 @@
 # Task ID: 9
-# Title: Develop ticket purchase UI
+# Title: Create event discovery page
 # Status: pending
 # Dependencies: 8 ⏱️
 # Priority: high
-# Description: Create user interface for purchasing tickets, including selection, quantity, and payment flow.
+# Description: Implement frontend page for browsing available events
 # Details:
-- Create ticket selection UI with cards
-- Implement quantity selection
-- Add price calculation logic
-- Create checkout flow
-- Implement success page with ticket details
-- Add validation for ticket availability
+Create EventDiscoveryPage.tsx with:
+- Event listing with filtering and sorting
+- Event details view
+- Calendar view integration
+- Search functionality
+- Responsive design for mobile and desktop
 
 # Test Strategy:
-Test ticket selection, quantity changes, and checkout flow. Verify price calculations are correct.
+Test filtering, sorting, and search functionality. Verify responsive design on different screen sizes.

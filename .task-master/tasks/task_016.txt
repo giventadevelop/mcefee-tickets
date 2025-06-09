@@ -1,16 +1,16 @@
 # Task ID: 16
-# Title: Implement comprehensive testing
+# Title: Implement event feedback and survey system
 # Status: pending
-# Dependencies: 4 ⏱️, 5 ⏱️, 6 ⏱️, 7 ⏱️, 8 ⏱️, 9 ⏱️, 10 ⏱️, 11 ⏱️
-# Priority: medium
-# Description: Create unit, integration, and end-to-end tests for critical functionality.
+# Dependencies: 8 ⏱️, 15 ⏱️
+# Priority: low
+# Description: Create system for collecting post-event feedback from attendees
 # Details:
-- Write unit tests for core components
-- Create integration tests for API routes
-- Implement end-to-end tests for critical user flows
-- Set up test automation
-- Create test fixtures and mocks
-- Document testing strategy
+Implement:
+- Event poll creation interface for organizers
+- Survey distribution system (email, in-app)
+- Survey response collection and storage
+- Survey results analysis and reporting
+- Integration with analytics dashboard
 
 # Test Strategy:
-Ensure test coverage for all critical paths. Verify tests pass in CI/CD pipeline.
+Test survey creation, distribution, response collection, and reporting functionality.

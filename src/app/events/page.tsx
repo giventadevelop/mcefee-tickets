@@ -22,7 +22,7 @@ export default function EventsPage() {
       setFetchError(false);
       try {
         // Fetch paginated events
-        const eventsRes = await fetch(`/api/proxy/event-details?sort=startDate,desc&page=${page}&size=${EVENTS_PAGE_SIZE}`);
+        const eventsRes = await fetch(`/api/proxy/event-details?sort=startDate,asc&page=${page}&size=${EVENTS_PAGE_SIZE}`);
         if (!eventsRes.ok) throw new Error('Failed to fetch events');
         const events: EventDetailsDTO[] = await eventsRes.json();
         let eventList = Array.isArray(events) ? events : [events];

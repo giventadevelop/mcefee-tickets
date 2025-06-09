@@ -1,0 +1,241 @@
+{
+  "meta": {
+    "projectName": "nextjs-template",
+    "version": "1.5.0",
+    "source": ".task-master/PRD.txt",
+    "description": "Tasks generated from PRD",
+    "totalTasksGenerated": 17,
+    "tasksIncluded": 17
+  },
+  "tasks": [
+    {
+      "id": 1,
+      "title": "Set up project structure and authentication",
+      "description": "Initialize the project structure with Next.js and set up Clerk authentication for admin access control.",
+      "status": "done",
+      "dependencies": [],
+      "priority": "high",
+      "details": "- Initialize Next.js project\n- Configure Clerk authentication\n- Set up admin role and permissions\n- Create protected admin routes\n- Implement authentication middleware\n- Test admin authentication flow",
+      "testStrategy": "Verify that only authenticated admins can access protected routes and perform admin actions."
+    },
+    {
+      "id": 2,
+      "title": "Create database schema and models",
+      "description": "Design and implement database schema for events, media, tickets, polls, calendar, and tasks.",
+      "status": "done",
+      "dependencies": [
+        1
+      ],
+      "priority": "high",
+      "details": "- Create Event table (id, title, description, date, location, admission_type, active, etc.)\n- Create Media table (id, event_id, url, type, uploaded_by, etc.)\n- Create TicketType table (id, event_id, type, price, code, etc.)\n- Create Poll table (id, event_id, question, options, active, etc.)\n- Create PollVote table (id, poll_id, user_id, option, comment, etc.)\n- Create Calendar table (id, event_id, start, end, link, etc.)\n- Create UserTask table (id, event_id, user_id, task, status, etc.)\n- Set up database migrations\n- Implement data access methods",
+      "testStrategy": "Test database schema with sample data to ensure proper relationships and constraints."
+    },
+    {
+      "id": 3,
+      "title": "Configure AWS S3 integration for media storage",
+      "description": "Set up AWS S3 bucket and create API routes for media upload and retrieval.",
+      "status": "pending",
+      "dependencies": [
+        1
+      ],
+      "priority": "high",
+      "details": "- Create AWS S3 bucket\n- Configure IAM permissions\n- Set up environment variables for AWS credentials\n- Create API route for media upload to S3\n- Implement file type validation and size restrictions\n- Create function to generate and store media URLs\n- Implement media deletion from S3",
+      "testStrategy": "Test uploading various file types and sizes to S3, verify URLs are correctly stored and accessible."
+    },
+    {
+      "id": 4,
+      "title": "Implement admin event CRUD operations",
+      "description": "Create API routes and admin interface for creating, reading, updating, and deleting events.",
+      "status": "pending",
+      "dependencies": [
+        1,
+        2,
+        3
+      ],
+      "priority": "high",
+      "details": "- Create event form component with all required fields\n- Implement API routes for event CRUD operations\n- Add event cancellation functionality (setting active to false)\n- Implement form validation\n- Add date/time picker for event scheduling\n- Create event list view for admin dashboard\n- Add event detail view for editing",
+      "testStrategy": "Test creating, updating, retrieving, and deleting events. Verify form validation works correctly."
+    },
+    {
+      "id": 5,
+      "title": "Implement media upload and management UI",
+      "description": "Create user interface for admins to upload and manage media files for events.",
+      "status": "pending",
+      "dependencies": [
+        3,
+        4
+      ],
+      "priority": "high",
+      "details": "- Create media upload component with drag-and-drop functionality\n- Implement media type selection (flyer, gallery image, etc.)\n- Add media preview functionality\n- Create media management UI (list, delete)\n- Integrate media upload with event form\n- Add validation for required media types",
+      "testStrategy": "Test uploading, previewing, and deleting media files. Verify integration with event form."
+    },
+    {
+      "id": 6,
+      "title": "Develop homepage hero event display with slider",
+      "description": "Create homepage hero section that displays current event with image slider for multiple images.",
+      "status": "pending",
+      "dependencies": [
+        4,
+        5
+      ],
+      "priority": "high",
+      "details": "- Create hero section component\n- Implement image slider for multiple flyer images\n- Add logic to display current/upcoming event\n- Implement fallback for no active events\n- Add event details display (title, date, etc.)\n- Create auto-update mechanism for expired events",
+      "testStrategy": "Test hero display with different event scenarios (multiple images, no active events, etc.). Verify auto-update works correctly."
+    },
+    {
+      "id": 7,
+      "title": "Create event listing page",
+      "description": "Implement page to display current and past events with thumbnails and galleries.",
+      "status": "pending",
+      "dependencies": [
+        4,
+        5
+      ],
+      "priority": "medium",
+      "details": "- Create event listing page layout\n- Implement filtering for current/past events\n- Add event card component with thumbnail\n- Create event detail view with gallery/slider\n- Implement pagination for event list\n- Add sorting options (date, title, etc.)",
+      "testStrategy": "Test event listing with various filter and sort options. Verify pagination works correctly."
+    },
+    {
+      "id": 8,
+      "title": "Implement ticket type management",
+      "description": "Create admin interface for managing ticket types and prices for events.",
+      "status": "pending",
+      "dependencies": [
+        4
+      ],
+      "priority": "high",
+      "details": "- Create ticket type form component\n- Implement API routes for ticket type CRUD\n- Add ticket type list to event form\n- Create validation for ticket prices and codes\n- Implement admission type selection (free/ticketed)\n- Add bulk ticket type operations",
+      "testStrategy": "Test creating, updating, and deleting ticket types. Verify validation works correctly."
+    },
+    {
+      "id": 9,
+      "title": "Develop ticket purchase UI",
+      "description": "Create user interface for purchasing tickets, including selection, quantity, and payment flow.",
+      "status": "pending",
+      "dependencies": [
+        8
+      ],
+      "priority": "high",
+      "details": "- Create ticket selection UI with cards\n- Implement quantity selection\n- Add price calculation logic\n- Create checkout flow\n- Implement success page with ticket details\n- Add validation for ticket availability",
+      "testStrategy": "Test ticket selection, quantity changes, and checkout flow. Verify price calculations are correct."
+    },
+    {
+      "id": 10,
+      "title": "Implement poll feature",
+      "description": "Create admin interface for managing polls and user interface for voting and commenting.",
+      "status": "pending",
+      "dependencies": [
+        4
+      ],
+      "priority": "medium",
+      "details": "- Create poll form component for admins\n- Implement API routes for poll CRUD\n- Add poll activation/deactivation functionality\n- Create voting UI for users\n- Implement comment functionality\n- Add results display\n- Create validation for one active poll at a time",
+      "testStrategy": "Test creating, activating, and deactivating polls. Test voting and commenting as a user."
+    },
+    {
+      "id": 11,
+      "title": "Integrate calendar functionality",
+      "description": "Implement automatic calendar entry creation and add-to-calendar links for users.",
+      "status": "pending",
+      "dependencies": [
+        4
+      ],
+      "priority": "medium",
+      "details": "- Create calendar entry on event creation\n- Update calendar entry when event is updated\n- Delete calendar entry when event is deleted\n- Implement add-to-calendar button for users\n- Support multiple calendar formats (Google, Outlook, etc.)\n- Add calendar view for upcoming events",
+      "testStrategy": "Test calendar entry creation and updates. Verify add-to-calendar functionality works with different calendar services."
+    },
+    {
+      "id": 12,
+      "title": "Implement user task assignment (optional)",
+      "description": "Create interface for assigning tasks to users for events and managing task status.",
+      "status": "pending",
+      "dependencies": [
+        4
+      ],
+      "priority": "low",
+      "details": "- Create task assignment form\n- Implement API routes for task CRUD\n- Add task list UI for events\n- Create task status management\n- Implement task notifications\n- Add task filtering and sorting",
+      "testStrategy": "Test creating, assigning, and updating tasks. Verify task status changes are reflected correctly."
+    },
+    {
+      "id": 13,
+      "title": "Implement audit logging for admin operations",
+      "description": "Create system to log all admin actions for auditing purposes.",
+      "status": "pending",
+      "dependencies": [
+        1,
+        4
+      ],
+      "priority": "medium",
+      "details": "- Create audit log table in database\n- Implement logging middleware for admin actions\n- Log user, action, timestamp, and details\n- Create audit log viewer for admins\n- Add filtering and search for audit logs\n- Implement log retention policy",
+      "testStrategy": "Test that all admin actions are properly logged. Verify audit log viewer displays correct information."
+    },
+    {
+      "id": 14,
+      "title": "Create admin dashboard overview",
+      "description": "Develop main admin dashboard with overview of events, tickets, and polls.",
+      "status": "pending",
+      "dependencies": [
+        4,
+        8,
+        10
+      ],
+      "priority": "medium",
+      "details": "- Create dashboard layout\n- Add event summary cards\n- Implement ticket sales overview\n- Add poll participation metrics\n- Create quick action buttons\n- Implement filtering and date range selection",
+      "testStrategy": "Test dashboard displays correct information. Verify quick actions work as expected."
+    },
+    {
+      "id": 15,
+      "title": "Implement responsive design and UI polish",
+      "description": "Ensure all components are responsive and have consistent styling across devices.",
+      "status": "pending",
+      "dependencies": [
+        6,
+        7,
+        9,
+        10,
+        14
+      ],
+      "priority": "medium",
+      "details": "- Test all components on mobile, tablet, and desktop\n- Implement responsive layouts\n- Create consistent styling across components\n- Add loading states and error handling\n- Implement animations and transitions\n- Ensure accessibility compliance",
+      "testStrategy": "Test on various device sizes and browsers. Verify accessibility using automated tools."
+    },
+    {
+      "id": 16,
+      "title": "Implement comprehensive testing",
+      "description": "Create unit, integration, and end-to-end tests for critical functionality.",
+      "status": "pending",
+      "dependencies": [
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11
+      ],
+      "priority": "medium",
+      "details": "- Write unit tests for core components\n- Create integration tests for API routes\n- Implement end-to-end tests for critical user flows\n- Set up test automation\n- Create test fixtures and mocks\n- Document testing strategy",
+      "testStrategy": "Ensure test coverage for all critical paths. Verify tests pass in CI/CD pipeline."
+    },
+    {
+      "id": 17,
+      "title": "Create documentation and user guides",
+      "description": "Develop documentation for both administrators and end users.",
+      "status": "pending",
+      "dependencies": [
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        14
+      ],
+      "priority": "low",
+      "details": "- Create admin user guide\n- Develop end-user documentation\n- Add inline help and tooltips\n- Document API endpoints\n- Create troubleshooting guide\n- Add system architecture documentation",
+      "testStrategy": "Review documentation for accuracy and completeness. Test inline help functionality."
+    }
+  ]
+}

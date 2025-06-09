@@ -7,6 +7,7 @@ import { useAuth } from "@clerk/nextjs";
 import { Modal } from '@/components/Modal';
 import { FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 async function fetchEvents(): Promise<EventDetailsDTO[]> {
   const res = await fetch('/api/proxy/event-details');
@@ -151,11 +152,11 @@ async function deleteCalendarEventForEvent(event: EventDetailsDTO) {
 
 export default function AdminPage() {
   const { userId } = useAuth();
+  const router = useRouter();
   const [userProfile, setUserProfile] = useState<UserProfileDTO | null>(null);
   const [events, setEvents] = useState<EventDetailsDTO[]>([]);
   const [eventTypes, setEventTypes] = useState<EventTypeDetailsDTO[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedEvent, setSelectedEvent] = useState<EventDetailsDTO | undefined>(undefined);
   const [formLoading, setFormLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(0);
@@ -166,7 +167,7 @@ export default function AdminPage() {
     setError(null);
     try {
       // Fetch events for the current page only
-      const res = await fetch(`/api/proxy/event-details?page=${pageNum}&size=${pageSize}&sort=startDate,desc`);
+      const res = await fetch(`/api/proxy/event-details?page=${pageNum}&size=${pageSize}&sort=startDate,asc`);
       if (!res.ok) throw new Error('Failed to fetch events');
       const evs = await res.json();
       const types = await fetchEventTypes();
@@ -196,32 +197,6 @@ export default function AdminPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, userId]);
 
-  function handleEdit(event: any) {
-    // Map backend fields to frontend fields for the form
-    const mappedEvent = {
-      ...event,
-      eventType: event.eventType
-        ? { id: event.eventType.id, name: event.eventType.name }
-        : event.eventTypeId
-          ? eventTypes.find(et => et.id === Number(event.eventTypeId))
-          : undefined,
-      startDate: event.startDate,
-      endDate: event.endDate,
-      startTime: event.startTime, // string, e.g. '06:00 PM'
-      endTime: event.endTime,     // string, e.g. '08:00 PM'
-      admissionType: event.admissionType,
-      isActive: event.isActive,
-      createdBy: event.createdBy,
-      caption: event.caption,
-      description: event.description,
-      location: event.location,
-      directionsToVenue: event.directionsToVenue,
-      capacity: event.capacity,
-      id: event.id,
-    };
-    setSelectedEvent(mappedEvent);
-  }
-
   async function handleCancel(event: EventDetailsDTO) {
     setFormLoading(true);
     setError(null);
@@ -235,56 +210,6 @@ export default function AdminPage() {
       await loadAll(page);
     } catch (e: any) {
       setError(e.message || 'Failed to cancel event');
-    } finally {
-      setFormLoading(false);
-    }
-  }
-
-  async function handleFormSubmit(event: EventDetailsDTO) {
-    setFormLoading(true);
-    setError(null);
-    if (!userProfile || !userProfile.id) {
-      setError('User profile not loaded. Please refresh and try again.');
-      setFormLoading(false);
-      return;
-    }
-    try {
-      // Find the full eventType object by id
-      const foundType = eventTypes.find(et => et.id === Number(event.eventType?.id));
-      if (!foundType) throw new Error('Event type not found');
-      const eventType = { id: foundType.id, name: foundType.name };
-
-      const createdBy = userProfile;
-      const now = new Date().toISOString();
-
-      const eventToSend = {
-        ...event,
-        eventType,
-        createdBy,
-        isActive: event.isActive ?? true,
-        createdAt: event.createdAt ?? now,
-        updatedAt: now,
-      };
-
-      if (event.id) {
-        await updateEvent(eventToSend as any);
-        try {
-          await updateCalendarEventForEvent(eventToSend as any, userProfile);
-        } catch (calendarErr) {
-          setError((prev) => (prev ? prev + '\n' : '') + (calendarErr instanceof Error ? calendarErr.message : String(calendarErr)));
-        }
-      } else {
-        const createdEvent = await createEvent(eventToSend as any);
-        try {
-          await createCalendarEvent(createdEvent, userProfile);
-        } catch (calendarErr) {
-          setError((prev) => (prev ? prev + '\n' : '') + (calendarErr instanceof Error ? calendarErr.message : String(calendarErr)));
-        }
-      }
-      setSelectedEvent(undefined);
-      await loadAll(page);
-    } catch (e: any) {
-      setError(e.message || 'Failed to save event');
     } finally {
       setFormLoading(false);
     }
@@ -308,12 +233,12 @@ export default function AdminPage() {
       </div>
       {error && <div className="bg-red-50 text-red-500 p-3 rounded mb-4">{error}</div>}
       <div className="mb-4 flex justify-end">
-        <button
+        <Link
+          href="/admin/events/new"
           className="bg-blue-600 text-white px-4 py-2 rounded shadow font-bold flex items-center gap-2"
-          onClick={() => setSelectedEvent({ ...defaultEvent })}
         >
           Create Event
-        </button>
+        </Link>
       </div>
       <div>
         <h2 className="text-xl font-semibold mb-4">All Events</h2>
@@ -321,7 +246,7 @@ export default function AdminPage() {
           <EventList
             events={events}
             eventTypes={eventTypes}
-            onEdit={handleEdit}
+            onEdit={event => router.push(`/admin/events/${event.id}/edit`)}
             onCancel={handleCancel}
             loading={loading}
             showDetailsOnHover={true}
@@ -332,17 +257,6 @@ export default function AdminPage() {
           />
         </div>
       </div>
-      <Modal open={!!selectedEvent} onClose={() => setSelectedEvent(undefined)}>
-        <h2 className="text-xl font-semibold mb-4">{selectedEvent?.id ? 'Edit Event' : 'Create Event'}</h2>
-        <div className="border rounded p-4 bg-gray-50 shadow-sm min-h-[200px]">
-          <EventForm
-            event={selectedEvent}
-            eventTypes={eventTypes}
-            onSubmit={handleFormSubmit}
-            loading={formLoading}
-          />
-        </div>
-      </Modal>
     </div>
   );
 }

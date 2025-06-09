@@ -1,16 +1,16 @@
 # Task ID: 15
-# Title: Implement responsive design and UI polish
+# Title: Create database schema for analytics and audit logs
 # Status: pending
-# Dependencies: 6 ⏱️, 7 ⏱️, 9 ⏱️, 10 ⏱️, 14 ⏱️
+# Dependencies: 7 ⏱️
 # Priority: medium
-# Description: Ensure all components are responsive and have consistent styling across devices.
+# Description: Implement database tables for tracking user activities and event analytics
 # Details:
-- Test all components on mobile, tablet, and desktop
-- Implement responsive layouts
-- Create consistent styling across components
-- Add loading states and error handling
-- Implement animations and transitions
-- Ensure accessibility compliance
+Create the following database tables:
+- user_payment_transaction (for future paid events)
+- event_poll
+- event_poll_option
+- event_poll_response
+- Ensure proper audit logging across the system
 
 # Test Strategy:
-Test on various device sizes and browsers. Verify accessibility using automated tools.
+Verify database schema with test data. Ensure comprehensive audit logging for all operations.
