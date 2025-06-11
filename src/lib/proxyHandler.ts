@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getCachedApiJwt, generateApiJwt } from '@/lib/api/jwt';
 import { withTenantId } from '@/lib/withTenantId';
+import { getRawBody } from '@/lib/getRawBody';
 
 interface ProxyHandlerOptions {
   injectTenantId?: boolean;
@@ -36,19 +37,66 @@ export function createProxyHandler({ injectTenantId = true, allowedMethods = ['G
       return;
     }
     let payload = body;
+    // If bodyParser is false, parse the raw body for non-GET/DELETE
     if (injectTenantId && ['POST', 'PUT', 'PATCH'].includes(method!)) {
-      if (Array.isArray(body)) {
-        payload = body.map(item => withTenantId(item));
+      let parsedBody = body;
+      // If body is empty and content-type is JSON, parse raw body
+      if (req.headers['content-type']?.includes('application/json') && (!body || Object.keys(body).length === 0)) {
+        const rawBody = (await getRawBody(req)).toString('utf-8');
+        try {
+          parsedBody = JSON.parse(rawBody);
+        } catch {
+          parsedBody = {};
+        }
+      }
+      if (Array.isArray(parsedBody)) {
+        payload = parsedBody.map(item => withTenantId(item));
       } else {
-        payload = withTenantId(body);
+        payload = withTenantId(parsedBody);
       }
     }
     try {
-      console.log('[PROXY OUTGOING] apiUrl:', apiUrl, 'method:', method, 'headers:', { 'Content-Type': 'application/json' }, 'payload:', payload, 'typeof payload:', typeof payload);
+      // Determine Content-Type header
+      let contentType = 'application/json';
+      if (method === 'PATCH' && req.headers['content-type']) {
+        contentType = req.headers['content-type'];
+      }
+      let bodyToSend: any = undefined;
+      let extraHeaders: Record<string, string> = {};
+      if (method === 'PATCH') {
+        // Read the raw body as text, parse, inject tenantId, and re-stringify
+        const rawBody = (await getRawBody(req)).toString('utf-8');
+        let json: any;
+        try {
+          json = JSON.parse(rawBody);
+        } catch (e) {
+          json = {};
+        }
+        if (injectTenantId) {
+          json = withTenantId(json);
+        }
+        bodyToSend = JSON.stringify(json);
+        // Use merge-patch+json if not explicitly set
+        if (!req.headers['content-type']) {
+          extraHeaders['Content-Type'] = 'application/merge-patch+json';
+        }
+        console.log('[PROXY OUTGOING] PATCH payload:', json);
+      } else if (method !== 'GET' && method !== 'DELETE') {
+        bodyToSend = JSON.stringify(payload);
+      }
+      // Log the outgoing payload for all non-GET/DELETE
+      if (method !== 'GET' && method !== 'DELETE') {
+        try {
+          const parsed = JSON.parse(bodyToSend);
+          console.log('[PROXY OUTGOING] apiUrl:', apiUrl, 'method:', method, 'headers:', { 'Content-Type': contentType, ...extraHeaders }, 'payload:', parsed, 'typeof payload:', typeof bodyToSend);
+        } catch {
+          console.log('[PROXY OUTGOING] apiUrl:', apiUrl, 'method:', method, 'headers:', { 'Content-Type': contentType, ...extraHeaders }, 'payload:', bodyToSend, 'typeof payload:', typeof bodyToSend);
+        }
+      }
       const apiRes = await fetchWithJwtRetry(apiUrl, {
         method,
-        headers: { 'Content-Type': 'application/json' },
-        ...(method === 'GET' || method === 'DELETE' ? {} : { body: JSON.stringify(payload) }),
+        headers: { 'Content-Type': contentType, ...extraHeaders },
+        ...(bodyToSend ? { body: bodyToSend } : {}),
       }, `proxy-${backendPath}-${method}`);
       const data = await apiRes.text();
       res.status(apiRes.status).send(data);

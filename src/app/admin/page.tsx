@@ -232,7 +232,13 @@ export default function AdminPage() {
         </Link>
       </div>
       {error && <div className="bg-red-50 text-red-500 p-3 rounded mb-4">{error}</div>}
-      <div className="mb-4 flex justify-end">
+      <div className="mb-4 flex justify-end gap-4">
+        <Link
+          href="/admin/media"
+          className="bg-yellow-500 text-gray-900 px-4 py-2 rounded shadow font-bold flex items-center gap-2 hover:bg-yellow-400 transition"
+        >
+          Manage Media Files
+        </Link>
         <Link
           href="/admin/events/new"
           className="bg-blue-600 text-white px-4 py-2 rounded shadow font-bold flex items-center gap-2"

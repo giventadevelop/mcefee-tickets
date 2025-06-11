@@ -79,6 +79,9 @@ export default async function Page() {
   threeMonthsFromNow.setMonth(today.getMonth() + 3);
 
   let heroImageUrl = "/images/side_images/chilanka_2025.webp"; // default image
+  // Add cache-busting query string to default image so it is never cached
+  const defaultHeroImageUrl = `/images/side_images/chilanka_2025.webp?v=${Date.now()}`;
+
   let nextEvent: EventWithMedia | null = null;
 
   if (!fetchError && events && events.length > 0) {
@@ -98,6 +101,31 @@ export default async function Page() {
         heroImageUrl = event.thumbnailUrl;
         nextEvent = event;
       }
+    }
+  }
+
+  // Fallback: If heroImageUrl is still default, try to fetch a hero image from event media
+  if (!heroImageUrl || heroImageUrl === "/images/side_images/chilanka_2025.webp") {
+    // Find an event in the next 3 months
+    const candidateEvent = events.find(event => {
+      const eventDate = event.startDate ? new Date(event.startDate) : null;
+      return eventDate && eventDate >= today && eventDate <= threeMonthsFromNow;
+    });
+    if (candidateEvent) {
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+      const tenantId = getTenantId();
+      const mediaRes = await fetch(`${baseUrl}/api/proxy/event-medias?eventId.equals=${candidateEvent.id}&isHeroImage.equals=true&isActiveHeroImage.equals=true&tenantId.equals=${tenantId}`);
+      if (mediaRes.ok) {
+        const mediaData = await mediaRes.json();
+        const mediaArray = Array.isArray(mediaData) ? mediaData : (mediaData ? [mediaData] : []);
+        if (mediaArray.length > 0 && mediaArray[0].fileUrl) {
+          heroImageUrl = mediaArray[0].fileUrl;
+        }
+      }
+    }
+    // If still default, use cache-busting version
+    if (!heroImageUrl || heroImageUrl === "/images/side_images/chilanka_2025.webp") {
+      heroImageUrl = defaultHeroImageUrl;
     }
   }
 

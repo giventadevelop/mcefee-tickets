@@ -6,6 +6,8 @@ import type { EventDetailsDTO } from "@/types";
 import ReactDOM from "react-dom";
 import { getTenantId } from '@/lib/env';
 import { formatDateLocal } from '@/lib/date';
+import { useAuth } from "@clerk/nextjs";
+import type { UserProfileDTO } from "@/types";
 
 export default function UploadMediaPage() {
   const params = useParams();
@@ -29,7 +31,7 @@ export default function UploadMediaPage() {
   const [eventFlyer, setEventFlyer] = useState(false);
   const [isEventManagementOfficialDocument, setIsEventManagementOfficialDocument] = useState(false);
   const [eventDetails, setEventDetails] = useState<EventDetailsDTO | null>(null);
-  const [loadingEvent, setLoadingEvent] = useState(false);
+  const [loadingEvent, setLoadingEvent] = useState(true);
   // Official Documents state
   const [officialDocsList, setOfficialDocsList] = useState<EventMediaDTO[]>([]);
   const [loadingOfficialDocs, setLoadingOfficialDocs] = useState(false);
@@ -45,6 +47,33 @@ export default function UploadMediaPage() {
   const [hoveredUploadedMediaId, setHoveredUploadedMediaId] = useState<string | number | null>(null);
   const [popoverUploadedMediaAnchor, setPopoverUploadedMediaAnchor] = useState<DOMRect | null>(null);
   const [popoverUploadedMediaMedia, setPopoverUploadedMediaMedia] = useState<EventMediaDTO | null>(null);
+
+  const [isHeroImage, setIsHeroImage] = useState(false);
+  const [isActiveHeroImage, setIsActiveHeroImage] = useState(false);
+  const [isFeatured, setIsFeatured] = useState(false);
+  const [isPublic, setIsPublic] = useState(true);
+  const [altText, setAltText] = useState("");
+  const [displayOrder, setDisplayOrder] = useState<number | undefined>(undefined);
+  // Add state for user profile id
+  const [userProfileId, setUserProfileId] = useState<number | null>(null);
+  const { userId } = useAuth();
+
+  // Fetch current user's profile id
+  useEffect(() => {
+    async function fetchProfile() {
+      if (!userId) return;
+      try {
+        const res = await fetch(`/api/proxy/user-profiles/by-user/${userId}`);
+        if (res.ok) {
+          const profile: UserProfileDTO = await res.json();
+          setUserProfileId(profile.id ?? null);
+        }
+      } catch {
+        setUserProfileId(null);
+      }
+    }
+    fetchProfile();
+  }, [userId]);
 
   // Fetch uploaded media list
   useEffect(() => {
@@ -148,13 +177,19 @@ export default function UploadMediaPage() {
 
     params.append("eventFlyer", String(eventFlyer));
     params.append("isEventManagementOfficialDocument", String(isEventManagementOfficialDocument));
+    params.append("isHeroImage", String(isHeroImage));
+    params.append("isActiveHeroImage", String(isActiveHeroImage));
+    params.append("isFeatured", String(isFeatured));
+    params.append("isPublic", String(isPublic));
+    params.append("altText", altText);
+    if (displayOrder !== undefined) params.append("displayOrder", String(displayOrder));
     params.append("eventId", String(eventId));
     params.append("titles", title); // If you want to support multiple, loop and append
     params.append("descriptions", description); // If you want to support multiple, loop and append
-    // Optionally add isPublic if you want
-    // params.append("isPublic", "true");
     // Only add tenantId as a query param
     params.append("tenantId", getTenantId());
+    // Add upLoadedById if available (case sensitive for backend)
+    if (userProfileId) params.append("upLoadedById", String(userProfileId));
     const url = `/api/proxy/event-medias/upload-multiple?${params.toString()}`;
     try {
       const res = await fetch(url, {
@@ -356,7 +391,7 @@ export default function UploadMediaPage() {
             required
           />
         </div>
-        <div className="flex gap-4">
+        <div className="flex flex-wrap gap-4 mt-2">
           <label className="flex items-center gap-2">
             <input
               type="checkbox"
@@ -373,6 +408,60 @@ export default function UploadMediaPage() {
             />
             <span className="font-medium">Event Management Official Document</span>
           </label>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={isHeroImage}
+              onChange={e => setIsHeroImage(e.target.checked)}
+            />
+            <span className="font-medium">Hero Image</span>
+          </label>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={isActiveHeroImage}
+              onChange={e => setIsActiveHeroImage(e.target.checked)}
+            />
+            <span className="font-medium">Active Hero Image</span>
+          </label>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={isFeatured}
+              onChange={e => setIsFeatured(e.target.checked)}
+            />
+            <span className="font-medium">Featured</span>
+          </label>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={isPublic}
+              onChange={e => setIsPublic(e.target.checked)}
+            />
+            <span className="font-medium">Public</span>
+          </label>
+        </div>
+        <div className="flex gap-4 mt-2">
+          <div className="flex-1">
+            <label className="block font-semibold mb-1">Alt Text</label>
+            <input
+              type="text"
+              className="w-full border rounded px-3 py-2"
+              value={altText}
+              onChange={e => setAltText(e.target.value)}
+              maxLength={500}
+            />
+          </div>
+          <div className="flex-1">
+            <label className="block font-semibold mb-1">Display Order</label>
+            <input
+              type="number"
+              className="w-full border rounded px-3 py-2"
+              value={displayOrder ?? ''}
+              onChange={e => setDisplayOrder(e.target.value === '' ? undefined : Number(e.target.value))}
+              min={0}
+            />
+          </div>
         </div>
         <button
           type="submit"

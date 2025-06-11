@@ -83,6 +83,13 @@ export function EventForm({ event, eventTypes, onSubmit, loading }: EventFormPro
       }
     }
 
+    // Custom validation: If guests are allowed, maxGuestsPerAttendee must be > 0
+    if (form.allowGuests) {
+      if (!form.maxGuestsPerAttendee || Number(form.maxGuestsPerAttendee) <= 0) {
+        errs.maxGuestsPerAttendee = 'When guests are allowed, max_guests_per_attendee must be greater than 0';
+      }
+    }
+
     setErrors(errs);
     return Object.keys(errs).length === 0;
   }
@@ -243,6 +250,11 @@ export function EventForm({ event, eventTypes, onSubmit, loading }: EventFormPro
           <input type="checkbox" name="isLive" checked={form.isLive ?? false} onChange={e => setForm(f => ({ ...f, isLive: e.target.checked }))} className="w-6 h-6 accent-yellow-500" />
           <label className="font-medium">Live Event</label>
         </div>
+      </div>
+      <div>
+        <label className="block font-medium">Max Guests Per Attendee</label>
+        <input type="number" name="maxGuestsPerAttendee" value={form.maxGuestsPerAttendee ?? ''} onChange={handleChange} className="w-full border rounded p-2" min={0} />
+        {errors.maxGuestsPerAttendee && <div className="text-red-500 text-sm">{errors.maxGuestsPerAttendee}</div>}
       </div>
       <div className="flex gap-2 mt-4">
         <button type="submit" className="px-4 py-2 bg-green-600 text-white rounded" disabled={loading}>Save Event</button>

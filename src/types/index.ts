@@ -100,6 +100,10 @@ export interface EventTypeDetailsDTO {
   updatedAt: string;
 }
 
+/**
+ * DTO for event media data exchanged with the backend.
+ * Matches backend OpenAPI schema.
+ */
 export interface EventMediaDTO {
   id?: number;
   tenantId?: string;
@@ -108,18 +112,25 @@ export interface EventMediaDTO {
   eventMediaType: string;
   storageType: string;
   fileUrl?: string;
-  preSignedUrl?: string;
-  fileData?: string[];
+  fileData?: string | null; // base64 string or null
   fileDataContentType?: string;
   contentType?: string;
   fileSize?: number;
   isPublic?: boolean;
   eventFlyer?: boolean;
   isEventManagementOfficialDocument?: boolean;
-  createdAt: string;
-  updatedAt: string;
-  event?: EventDetailsDTO;
-  uploadedBy?: UserProfileDTO;
+  preSignedUrl?: string;
+  preSignedUrlExpiresAt?: string; // ISO string with offset
+  altText?: string;
+  displayOrder?: number;
+  downloadCount?: number;
+  isFeatured?: boolean;
+  isHeroImage?: boolean;
+  isActiveHeroImage?: boolean;
+  eventId?: number;
+  uploadedById?: number;
+  createdAt: string; // ISO string with offset
+  updatedAt: string; // ISO string with offset
 }
 
 export interface EventCalendarEntryDTO {
