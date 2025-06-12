@@ -221,35 +221,38 @@ export function EventForm({ event, eventTypes, onSubmit, loading }: EventFormPro
         </select>
         {errors.admissionType && <div className="text-red-500 text-sm">{errors.admissionType}</div>}
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-        <div className="flex items-center gap-3">
-          <input type="checkbox" name="isActive" checked={form.isActive ?? false} onChange={e => setForm(f => ({ ...f, isActive: e.target.checked }))} className="w-6 h-6 accent-yellow-500" />
-          <label className="font-medium">Active</label>
-        </div>
-        <div className="flex items-center gap-3">
-          <input type="checkbox" name="allowGuests" checked={form.allowGuests ?? false} onChange={e => setForm(f => ({ ...f, allowGuests: e.target.checked }))} className="w-6 h-6 accent-yellow-500" />
-          <label className="font-medium">Allow Guests</label>
-        </div>
-        <div className="flex items-center gap-3">
-          <input type="checkbox" name="requireGuestApproval" checked={form.requireGuestApproval ?? false} onChange={e => setForm(f => ({ ...f, requireGuestApproval: e.target.checked }))} className="w-6 h-6 accent-yellow-500" />
-          <label className="font-medium">Require Guest Approval</label>
-        </div>
-        <div className="flex items-center gap-3">
-          <input type="checkbox" name="enableGuestPricing" checked={form.enableGuestPricing ?? false} onChange={e => setForm(f => ({ ...f, enableGuestPricing: e.target.checked }))} className="w-6 h-6 accent-yellow-500" />
-          <label className="font-medium">Enable Guest Pricing</label>
-        </div>
-        <div className="flex items-center gap-3">
-          <input type="checkbox" name="isRegistrationRequired" checked={form.isRegistrationRequired ?? false} onChange={e => setForm(f => ({ ...f, isRegistrationRequired: e.target.checked }))} className="w-6 h-6 accent-yellow-500" />
-          <label className="font-medium">Registration Required</label>
-        </div>
-        <div className="flex items-center gap-3">
-          <input type="checkbox" name="isSportsEvent" checked={form.isSportsEvent ?? false} onChange={e => setForm(f => ({ ...f, isSportsEvent: e.target.checked }))} className="w-6 h-6 accent-yellow-500" />
-          <label className="font-medium">Sports Event</label>
-        </div>
-        <div className="flex items-center gap-3">
-          <input type="checkbox" name="isLive" checked={form.isLive ?? false} onChange={e => setForm(f => ({ ...f, isLive: e.target.checked }))} className="w-6 h-6 accent-yellow-500" />
-          <label className="font-medium">Live Event</label>
-        </div>
+      <div className="custom-grid-table mt-4">
+        {[
+          { name: 'isActive', label: 'Active', checked: form.isActive ?? false },
+          { name: 'allowGuests', label: 'Allow Guests', checked: form.allowGuests ?? false },
+          { name: 'requireGuestApproval', label: 'Require Guest Approval', checked: form.requireGuestApproval ?? false },
+          { name: 'enableGuestPricing', label: 'Enable Guest Pricing', checked: form.enableGuestPricing ?? false },
+          { name: 'isRegistrationRequired', label: 'Registration Required', checked: form.isRegistrationRequired ?? false },
+          { name: 'isSportsEvent', label: 'Sports Event', checked: form.isSportsEvent ?? false },
+          { name: 'isLive', label: 'Live Event', checked: form.isLive ?? false },
+        ].map(({ name, label, checked }) => (
+          <div key={name} className="custom-grid-cell">
+            <label className="flex flex-col items-center">
+              <span className="relative flex items-center justify-center">
+                <input
+                  type="checkbox"
+                  name={name}
+                  checked={checked}
+                  onChange={e => setForm(f => ({ ...f, [name]: e.target.checked }))}
+                  className="custom-checkbox"
+                />
+                <span className="custom-checkbox-tick">
+                  {checked && (
+                    <svg className="w-6 h-6 text-black" fill="none" stroke="currentColor" strokeWidth="4" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l5 5L19 7" />
+                    </svg>
+                  )}
+                </span>
+              </span>
+              <span className="mt-2 text-xs text-center select-none break-words max-w-[6rem]">{label}</span>
+            </label>
+          </div>
+        ))}
       </div>
       <div>
         <label className="block font-medium">Max Guests Per Attendee</label>

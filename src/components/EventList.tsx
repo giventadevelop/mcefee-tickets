@@ -20,7 +20,7 @@ interface EventListProps {
 }
 
 export function EventList({ events, eventTypes: eventTypesProp, onEdit, onCancel, loading, showDetailsOnHover = false, onPrevPage, onNextPage, page, hasNextPage }: EventListProps) {
-  const [hoveredEventId, setHoveredEventId] = useState<number | undefined>(undefined);
+  const [hoveredEventId, setHoveredEventId] = useState<number | null>(null);
   const [calendarEvents, setCalendarEvents] = useState<EventCalendarEntryDTO[]>([]);
   const [eventTypes, setEventTypes] = useState<EventTypeDetailsDTO[]>(eventTypesProp || []);
   const [showTicketTypeModal, setShowTicketTypeModal] = useState(false);
@@ -64,9 +64,11 @@ export function EventList({ events, eventTypes: eventTypesProp, onEdit, onCancel
 
   return (
     <>
+      <div className="mb-2 text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded px-4 py-2">
+        Mouse over the first 3 columns to see the full details about the event. Use the × button to close the tooltip once you have viewed the details.
+      </div>
       <table
         className="w-full border text-sm relative bg-white rounded shadow-md"
-        onMouseLeave={() => setHoveredEventId(undefined)}
       >
         <thead>
           <tr className="bg-blue-100 font-bold border-b-2 border-blue-300">
@@ -90,13 +92,26 @@ export function EventList({ events, eventTypes: eventTypesProp, onEdit, onCancel
               <tr
                 key={event.id}
                 className={`${rowBg} transition-colors duration-150 border-b border-gray-300`}
-                onMouseEnter={() => showDetailsOnHover && setHoveredEventId(event.id)}
-                onMouseLeave={() => setHoveredEventId(undefined)}
                 style={{ position: 'relative' }}
               >
-                <td className="p-2 border font-medium align-middle">{event.title}</td>
-                <td className="p-2 border align-middle">{getEventTypeName(event) || <span className="text-gray-400 italic">Unknown</span>}</td>
-                <td className="p-2 border align-middle w-32">{formatDateLocal(event.startDate)} {event.startTime}</td>
+                <td
+                  className="p-2 border font-medium align-middle"
+                  onMouseEnter={() => showDetailsOnHover && setHoveredEventId(event.id ?? null)}
+                >
+                  {event.title}
+                </td>
+                <td
+                  className="p-2 border align-middle"
+                  onMouseEnter={() => showDetailsOnHover && setHoveredEventId(event.id ?? null)}
+                >
+                  {getEventTypeName(event) || <span className="text-gray-400 italic">Unknown</span>}
+                </td>
+                <td
+                  className="p-2 border align-middle w-32"
+                  onMouseEnter={() => showDetailsOnHover && setHoveredEventId(event.id ?? null)}
+                >
+                  {formatDateLocal(event.startDate)} {event.startTime}
+                </td>
                 <td className="p-2 border align-middle w-32">{formatDateLocal(event.endDate)} {event.endTime}</td>
                 <td className="p-2 border text-center align-middle">
                   <span className={`px-2 py-1 rounded text-xs font-bold ${isActive ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'}`}>{isActive ? 'Yes' : 'No'}</span>
@@ -140,7 +155,7 @@ export function EventList({ events, eventTypes: eventTypesProp, onEdit, onCancel
                   <button
                     className="px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-700 text-xs"
                     onClick={() => {
-                      setSelectedEventId(event.id);
+                      setSelectedEventId(event.id ?? null);
                       setShowTicketTypeModal(true);
                     }}
                   >
@@ -151,33 +166,33 @@ export function EventList({ events, eventTypes: eventTypesProp, onEdit, onCancel
                   <td
                     colSpan={8}
                     style={{ position: 'absolute', left: 10, top: '100%', zIndex: 10, width: '100%' }}
-                    onMouseLeave={() => setHoveredEventId(undefined)}
                   >
-                    <div className="bg-white border rounded shadow-lg p-6 text-xs w-max max-w-2xl mx-auto mt-2 relative">
+                    <div className="bg-white border rounded shadow-lg p-6 text-xs w-max max-w-2xl mx-auto mt-2 relative max-h-96 overflow-auto">
                       <button
                         className="absolute top-2 right-2 text-gray-400 hover:text-red-500 text-lg font-bold focus:outline-none"
-                        onClick={() => setHoveredEventId(undefined)}
+                        onClick={() => setHoveredEventId(null)}
                         aria-label="Close tooltip"
                       >
                         &times;
                       </button>
                       <table className="w-full text-sm border border-gray-300">
                         <tbody>
-                          <tr className="border-b border-gray-200"><td className="font-bold pr-4 border-r border-gray-200">ID:</td><td>{event.id}</td></tr>
-                          <tr className="border-b border-gray-200"><td className="font-bold pr-4 border-r border-gray-200">Title:</td><td>{event.title}</td></tr>
-                          <tr className="border-b border-gray-200"><td className="font-bold pr-4 border-r border-gray-200">Type:</td><td>{getEventTypeName(event)}</td></tr>
-                          <tr className="border-b border-gray-200"><td className="font-bold pr-4 border-r border-gray-200">Start:</td><td>{formatDateLocal(event.startDate)} {event.startTime}</td></tr>
-                          <tr className="border-b border-gray-200"><td className="font-bold pr-4 border-r border-gray-200">End:</td><td>{formatDateLocal(event.endDate)} {event.endTime}</td></tr>
-                          <tr className="border-b border-gray-200"><td className="font-bold pr-4 border-r border-gray-200">Active:</td><td>{isActive ? 'Yes' : 'No'}</td></tr>
-                          <tr className="border-b border-gray-200"><td className="font-bold pr-4 border-r border-gray-200">Caption:</td><td>{event.caption}</td></tr>
-                          <tr className="border-b border-gray-200"><td className="font-bold pr-4 border-r border-gray-200">Description:</td><td>{event.description}</td></tr>
-                          <tr className="border-b border-gray-200"><td className="font-bold pr-4 border-r border-gray-200">Location:</td><td>{event.location}</td></tr>
-                          <tr className="border-b border-gray-200"><td className="font-bold pr-4 border-r border-gray-200">Directions:</td><td>{event.directionsToVenue}</td></tr>
-                          <tr className="border-b border-gray-200"><td className="font-bold pr-4 border-r border-gray-200">Capacity:</td><td>{event.capacity}</td></tr>
-                          <tr className="border-b border-gray-200"><td className="font-bold pr-4 border-r border-gray-200">Admission Type:</td><td>{event.admissionType}</td></tr>
-                          <tr className="border-b border-gray-200"><td className="font-bold pr-4 border-r border-gray-200">Created At:</td><td>{event.createdAt}</td></tr>
-                          <tr className="border-b border-gray-200"><td className="font-bold pr-4 border-r border-gray-200">Updated At:</td><td>{event.updatedAt}</td></tr>
-                          <tr><td className="font-bold pr-4 border-r border-gray-200">Created By:</td><td>{event.createdBy?.userId}</td></tr>
+                          {Object.entries(event).map(([key, value]) => {
+                            let displayValue: string | number = '';
+                            if ((key === 'createdBy' || key === 'eventType') && value && typeof value === 'object' && 'id' in value) {
+                              displayValue = value.id;
+                            } else if (typeof value === 'object' && value !== null) {
+                              displayValue = JSON.stringify(value);
+                            } else {
+                              displayValue = String(value);
+                            }
+                            return (
+                              <tr key={key} className="border-b border-gray-200">
+                                <td className="font-bold pr-4 border-r border-gray-200 align-top">{key}:</td>
+                                <td className="align-top break-all">{displayValue}</td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>

@@ -11,6 +11,7 @@ import { formatDateLocal } from '@/lib/date';
 // Add EventWithMedia type for local use
 interface EventWithMedia extends EventDetailsDTO {
   thumbnailUrl?: string;
+  placeholderText?: string;
 }
 
 // Move all event fetching to the server component
@@ -42,21 +43,38 @@ async function fetchEventsWithMedia(): Promise<EventWithMedia[]> {
   const eventsWithMedia = await Promise.all(
     eventsData.map(async (event: EventDetailsDTO) => {
       try {
-        const mediaResponse = await fetch(`${baseUrl}/api/proxy/event-medias?eventId.equals=${event.id}&eventFlyer.equals=true&tenantId.equals=${tenantId}`, { cache: 'no-store' });
-        if (!mediaResponse.ok) {
-          return event;
+        const flyerRes = await fetch(`${baseUrl}/api/proxy/event-medias?eventId.equals=${event.id}&eventFlyer.equals=true&tenantId.equals=${tenantId}`, { cache: 'no-store' });
+        let mediaArray: any[] = [];
+        if (flyerRes.ok) {
+          const flyerData = await flyerRes.json();
+          mediaArray = Array.isArray(flyerData) ? flyerData : (flyerData ? [flyerData] : []);
         }
-        const mediaData = await mediaResponse.json();
-        const mediaArray = Array.isArray(mediaData) ? mediaData : (mediaData ? [mediaData] : []);
+        // If no flyer, try isFeatured
+        if (!mediaArray.length) {
+          const featuredRes = await fetch(`${baseUrl}/api/proxy/event-medias?eventId.equals=${event.id}&isFeatured.equals=true&tenantId.equals=${tenantId}`, { cache: 'no-store' });
+          if (featuredRes.ok) {
+            const featuredData = await featuredRes.json();
+            mediaArray = Array.isArray(featuredData) ? featuredData : (featuredData ? [featuredData] : []);
+          }
+        }
         if (mediaArray.length > 0) {
           return {
             ...event,
             thumbnailUrl: mediaArray[0].fileUrl
           };
         }
-        return event;
+        // No image found, pass title for placeholder
+        return {
+          ...event,
+          thumbnailUrl: undefined,
+          placeholderText: event.title || 'No image available',
+        };
       } catch (err) {
-        return event;
+        return {
+          ...event,
+          thumbnailUrl: undefined,
+          placeholderText: event.title || 'No image available',
+        };
       }
     })
   );
@@ -83,6 +101,7 @@ export default async function Page() {
   const defaultHeroImageUrl = `/images/side_images/chilanka_2025.webp?v=${Date.now()}`;
 
   let nextEvent: EventWithMedia | null = null;
+  let mediaFetchError = false;
 
   if (!fetchError && events && events.length > 0) {
     // Find the next event with startDate >= today
@@ -114,13 +133,19 @@ export default async function Page() {
     if (candidateEvent) {
       const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
       const tenantId = getTenantId();
-      const mediaRes = await fetch(`${baseUrl}/api/proxy/event-medias?eventId.equals=${candidateEvent.id}&isHeroImage.equals=true&isActiveHeroImage.equals=true&tenantId.equals=${tenantId}`);
-      if (mediaRes.ok) {
-        const mediaData = await mediaRes.json();
-        const mediaArray = Array.isArray(mediaData) ? mediaData : (mediaData ? [mediaData] : []);
-        if (mediaArray.length > 0 && mediaArray[0].fileUrl) {
-          heroImageUrl = mediaArray[0].fileUrl;
+      try {
+        const mediaRes = await fetch(`${baseUrl}/api/proxy/event-medias?eventId.equals=${candidateEvent.id}&isHeroImage.equals=true&isActiveHeroImage.equals=true&tenantId.equals=${tenantId}`);
+        if (mediaRes.ok) {
+          const mediaData = await mediaRes.json();
+          const mediaArray = Array.isArray(mediaData) ? mediaData : (mediaData ? [mediaData] : []);
+          if (mediaArray.length > 0 && mediaArray[0].fileUrl) {
+            heroImageUrl = mediaArray[0].fileUrl;
+          }
+        } else {
+          mediaFetchError = true;
         }
+      } catch {
+        mediaFetchError = true;
       }
     }
     // If still default, use cache-busting version
@@ -286,6 +311,11 @@ export default async function Page() {
               <h3 className="text-4xl md:text-5xl font-bold mb-4 text-gray-900">Upcoming Events</h3>
               <div className="section-subtitle text-lg text-yellow-500 font-semibold mb-2">Join Our Celebrations</div>
             </div>
+            {mediaFetchError && (
+              <div className="text-center text-red-600 font-bold py-8">
+                Event media fetch failed.
+              </div>
+            )}
             {fetchError ? (
               <div className="text-center text-red-600 font-bold py-8">
                 Sorry, we couldn't load events at this time. Please try again later.
@@ -295,10 +325,16 @@ export default async function Page() {
                 No events found.
               </div>
             ) : (
-              <div className="flex justify-center">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl">
+              <div className="flex justify-center w-full">
+                <div className="flex flex-wrap justify-center gap-8 max-w-6xl w-full">
                   {events.map((event) => (
-                    <EventCard key={event.id} event={event} />
+                    <div
+                      key={event.id}
+                      className="flex justify-center"
+                      style={{ flex: "1 0 320px", maxWidth: 350, minWidth: 280 }}
+                    >
+                      <EventCard event={event} placeholderText={event.placeholderText} />
+                    </div>
                   ))}
                 </div>
               </div>

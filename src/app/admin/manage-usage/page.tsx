@@ -47,14 +47,14 @@ function UserDetailsTooltip({ user, anchorRect, onClose }: { user: UserProfileDT
       onMouseEnter={e => e.stopPropagation()}
       onMouseLeave={onClose}
       tabIndex={-1}
-      className="user-details-tooltip"
+      className="admin-tooltip"
     >
-      <table className="w-full text-sm border border-gray-300">
+      <table className="admin-tooltip-table">
         <tbody>
           {entries.map(([key, value]) => (
             <tr key={key}>
-              <td className="font-bold pr-4 border-r border-gray-200 align-top whitespace-nowrap">{key}:</td>
-              <td className="break-all">{value === null || value === undefined || value === '' ? <span className="text-gray-400 italic">(empty)</span> : String(value)}</td>
+              <th>{key}</th>
+              <td>{value === null || value === undefined || value === '' ? <span className="text-gray-400 italic">(empty)</span> : String(value)}</td>
             </tr>
           ))}
         </tbody>
@@ -175,19 +175,19 @@ function EditUserModal({ user, open, onClose, onSave }: {
               <label className="block font-semibold mb-1">Role</label>
               <select className="w-full border rounded px-3 py-2" value={form.userRole || ''} onChange={e => setForm(f => ({ ...f, userRole: e.target.value }))}>
                 <option value="">Select Role</option>
-                <option value="admin">Admin</option>
-                <option value="user">User</option>
-                <option value="moderator">Moderator</option>
+                <option value="ADMIN">Admin</option>
+                <option value="MEMBER">Member</option>
+                <option value="ORGANIZER">Organizer</option>
               </select>
             </div>
             <div>
               <label className="block font-semibold mb-1">Status</label>
               <select className="w-full border rounded px-3 py-2" value={form.userStatus || ''} onChange={e => setForm(f => ({ ...f, userStatus: e.target.value }))}>
                 <option value="">Select Status</option>
-                <option value="active">Active</option>
-                <option value="pending">Pending</option>
-                <option value="rejected">Rejected</option>
-                <option value="approved">Approved</option>
+                <option value="ACTIVE">Active</option>
+                <option value="PENDING_APPROVAL">Pending Approval</option>
+                <option value="REJECTED">Rejected</option>
+                <option value="APPROVED">Approved</option>
               </select>
             </div>
           </div>
@@ -206,6 +206,7 @@ export default function ManageUsagePage() {
   const { userId } = useAuth();
   const [adminProfile, setAdminProfile] = useState<UserProfileDTO | null>(null);
   const [users, setUsers] = useState<UserProfileDTO[]>([]);
+  const [totalUsers, setTotalUsers] = useState(0);
   const [search, setSearch] = useState('');
   const [searchField, setSearchField] = useState('firstName');
   const [status, setStatus] = useState('');
@@ -222,6 +223,8 @@ export default function ManageUsagePage() {
   const [bulkLoading, setBulkLoading] = useState(false);
   const [bulkMessage, setBulkMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [page, setPage] = useState(1); // 1-indexed for UI
+  const pageSize = 20;
 
   // Fetch current admin's user profile
   useEffect(() => {
@@ -236,7 +239,7 @@ export default function ManageUsagePage() {
     fetchAdminProfile();
   }, [userId]);
 
-  // Fetch users (moved to function for reuse)
+  // Fetch users (paginated)
   async function fetchUsers() {
     setLoading(true);
     const params = new URLSearchParams();
@@ -245,11 +248,26 @@ export default function ManageUsagePage() {
     }
     if (status) params.append('userStatus.equals', status);
     if (role) params.append('userRole.equals', role);
+    params.append('page', String(page - 1)); // backend expects 0-indexed
+    params.append('size', String(pageSize));
+    params.append('tenantId.equals', getTenantId()); // Use .equals for JHipster filter
     const res = await fetch(`/api/proxy/user-profiles?${params.toString()}`);
     if (res.ok) {
-      setUsers(await res.json());
+      const data = await res.json();
+      // Support both pageable and array fallback
+      if (Array.isArray(data)) {
+        setUsers(data);
+        setTotalUsers(data.length);
+      } else if (data && Array.isArray(data.content)) {
+        setUsers(data.content);
+        setTotalUsers(data.totalElements || data.total || 0);
+      } else {
+        setUsers([]);
+        setTotalUsers(0);
+      }
     } else {
       setUsers([]);
+      setTotalUsers(0);
     }
     setLoading(false);
   }
@@ -257,7 +275,7 @@ export default function ManageUsagePage() {
   useEffect(() => {
     fetchUsers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, searchField, status, role]);
+  }, [search, searchField, status, role, page]);
 
   async function handleApprove(user: UserProfileDTO) {
     if (!user.id || !adminProfile?.id) return;
@@ -268,14 +286,21 @@ export default function ManageUsagePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...user,
-          userStatus: 'approved',
+          userStatus: 'APPROVED',
           reviewedByAdminId: adminProfile.id,
           reviewedByAdminAt: new Date().toISOString(),
         }),
       });
       if (res.ok) {
-        setUsers(users => users.map(u => u.id === user.id ? { ...u, userStatus: 'approved', reviewedByAdminId: adminProfile.id, reviewedByAdminAt: new Date().toISOString() } : u));
+        setUsers(users => users.map(u => u.id === user.id ? { ...u, userStatus: 'APPROVED', reviewedByAdminId: adminProfile.id, reviewedByAdminAt: new Date().toISOString() } : u));
+      } else {
+        const err = await res.text();
+        setBulkMessage('Approve failed: ' + err);
+        setTimeout(() => setBulkMessage(null), 4000);
       }
+    } catch (err: any) {
+      setBulkMessage('Approve error: ' + (err?.message || err));
+      setTimeout(() => setBulkMessage(null), 4000);
     } finally {
       setApprovingId(null);
     }
@@ -290,14 +315,21 @@ export default function ManageUsagePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...user,
-          userStatus: 'rejected',
+          userStatus: 'REJECTED',
           reviewedByAdminId: adminProfile.id,
           reviewedByAdminAt: new Date().toISOString(),
         }),
       });
       if (res.ok) {
-        setUsers(users => users.map(u => u.id === user.id ? { ...u, userStatus: 'rejected', reviewedByAdminId: adminProfile.id, reviewedByAdminAt: new Date().toISOString() } : u));
+        setUsers(users => users.map(u => u.id === user.id ? { ...u, userStatus: 'REJECTED', reviewedByAdminId: adminProfile.id, reviewedByAdminAt: new Date().toISOString() } : u));
+      } else {
+        const err = await res.text();
+        setBulkMessage('Reject failed: ' + err);
+        setTimeout(() => setBulkMessage(null), 4000);
       }
+    } catch (err: any) {
+      setBulkMessage('Reject error: ' + (err?.message || err));
+      setTimeout(() => setBulkMessage(null), 4000);
     } finally {
       setRejectingId(null);
     }
@@ -440,20 +472,122 @@ export default function ManageUsagePage() {
         />
         <select className="border px-3 py-2 rounded" value={status} onChange={e => setStatus(e.target.value)}>
           <option value="">All Statuses</option>
-          <option value="active">Active</option>
-          <option value="pending">Pending</option>
-          <option value="rejected">Rejected</option>
-          <option value="approved">Approved</option>
+          <option value="ACTIVE">Active</option>
+          <option value="PENDING_APPROVAL">Pending Approval</option>
+          <option value="REJECTED">Rejected</option>
+          <option value="APPROVED">Approved</option>
         </select>
         <select className="border px-3 py-2 rounded" value={role} onChange={e => setRole(e.target.value)}>
           <option value="">All Roles</option>
-          <option value="admin">Admin</option>
-          <option value="user">User</option>
-          <option value="moderator">Moderator</option>
+          <option value="ADMIN">Admin</option>
+          <option value="MEMBER">Member</option>
+          <option value="ORGANIZER">Organizer</option>
         </select>
       </div>
+      <div className="mb-4">
+        <div className="flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 shadow-sm">
+          <div className="flex-shrink-0 pt-1">
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 20a8 8 0 100-16 8 8 0 000 16z" />
+            </svg>
+          </div>
+          <div className="flex-1 text-blue-900 text-sm md:text-base leading-relaxed">
+            <span className="font-semibold">Tip:</span> Hover your mouse over the <b>First Name</b>, <b>Last Name</b>, <b>Email</b> columns, or the <b>View</b> link in any row to see the full details for that user.<br className="hidden md:block" />
+            <span className="block md:inline">On mobile, tap the card or the <b>View</b> link to view details.</span>
+          </div>
+        </div>
+      </div>
       <div className="overflow-x-auto">
-        <table className="min-w-full border border-gray-300 bg-white rounded shadow text-sm">
+        {/* Responsive user list: cards on mobile, table on md+ */}
+        <div className="block md:hidden">
+          <div className="space-y-4">
+            {loading ? (
+              <div className="text-center py-8">Loading...</div>
+            ) : users.length === 0 ? (
+              <div className="text-center py-8">No users found.</div>
+            ) : users.map(user => (
+              <div
+                key={user.id}
+                className="border rounded-lg shadow bg-white p-4 relative"
+                onClick={e => {
+                  setHoveredUserId(user.id!);
+                  setPopoverUser(user);
+                  setPopoverAnchor((e.currentTarget as HTMLElement).getBoundingClientRect());
+                }}
+                onMouseLeave={() => {
+                  tooltipTimer.current = setTimeout(() => {
+                    setHoveredUserId(null);
+                    setPopoverUser(null);
+                    setPopoverAnchor(null);
+                  }, 200);
+                }}
+              >
+                <div className="flex flex-wrap gap-2 items-center justify-between">
+                  <div>
+                    <span className="font-bold">{user.firstName}</span> <span className="text-gray-500">{user.lastName}</span>
+                  </div>
+                  <span className="text-xs text-gray-500">{user.email}</span>
+                </div>
+                <div className="mt-2 flex flex-wrap gap-2 text-sm">
+                  <span className="bg-blue-100 text-blue-700 rounded px-2 py-1">{user.userStatus}</span>
+                  <span className="bg-gray-100 text-gray-700 rounded px-2 py-1">{user.userRole}</span>
+                </div>
+                <div className="mt-2 flex gap-2">
+                  <button
+                    type="button"
+                    tabIndex={0}
+                    className="flex items-center gap-1 text-blue-600 hover:underline bg-transparent border-none p-0 m-0 cursor-pointer focus:outline-none"
+                    style={{ background: 'none' }}
+                    onClick={e => { e.preventDefault(); setHoveredUserId(user.id!); setPopoverUser(user); setPopoverAnchor((e.currentTarget as HTMLElement).getBoundingClientRect()); }}
+                  >
+                    <FaEye className="inline-block" /> <span>View</span>
+                  </button>
+                  <button
+                    className="flex items-center gap-1 text-green-600 hover:underline disabled:opacity-50"
+                    disabled={approvingId === user.id || user.userStatus === 'approved'}
+                    onClick={() => handleApprove(user)}
+                  >
+                    <FaCheck className="inline-block" />
+                    <span>{approvingId === user.id ? 'Approving...' : 'Approve'}</span>
+                  </button>
+                  <button className="flex items-center gap-1 text-yellow-600 hover:underline"
+                    onClick={() => setEditUser(user)}>
+                    <FaEdit className="inline-block" /> <span>Edit</span>
+                  </button>
+                  <button
+                    className="flex items-center gap-1 text-red-600 hover:underline disabled:opacity-50"
+                    disabled={rejectingId === user.id || user.userStatus === 'rejected'}
+                    onClick={() => handleReject(user)}
+                  >
+                    <FaTimes className="inline-block" />
+                    <span>{rejectingId === user.id ? 'Rejecting...' : 'Reject'}</span>
+                  </button>
+                </div>
+                {popoverUser && hoveredUserId === user.id && (
+                  <div
+                    onMouseEnter={() => {
+                      if (tooltipTimer.current) clearTimeout(tooltipTimer.current);
+                    }}
+                    onMouseLeave={() => {
+                      tooltipTimer.current = setTimeout(() => {
+                        setHoveredUserId(null);
+                        setPopoverUser(null);
+                        setPopoverAnchor(null);
+                      }, 200);
+                    }}
+                  >
+                    <UserDetailsTooltip user={popoverUser} anchorRect={popoverAnchor} onClose={() => {
+                      setHoveredUserId(null);
+                      setPopoverUser(null);
+                      setPopoverAnchor(null);
+                    }} />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+        <table className="min-w-full border border-gray-300 bg-white rounded shadow text-sm hidden md:table">
           <thead>
             <tr className="bg-blue-100">
               <th className="border px-3 py-2">First Name</th>
@@ -471,9 +605,55 @@ export default function ManageUsagePage() {
               <tr><td colSpan={6} className="text-center py-8">No users found.</td></tr>
             ) : users.map(user => (
               <tr key={user.id} className="hover:bg-blue-50">
-                <td className="border px-3 py-2">{user.firstName}</td>
-                <td className="border px-3 py-2">{user.lastName}</td>
-                <td className="border px-3 py-2">{user.email}</td>
+                {/* Tooltip on first three columns */}
+                <td
+                  className="border px-3 py-2 cursor-pointer"
+                  onMouseEnter={e => {
+                    if (tooltipTimer.current) clearTimeout(tooltipTimer.current);
+                    setHoveredUserId(user.id!);
+                    setPopoverUser(user);
+                    setPopoverAnchor((e.currentTarget as HTMLElement).getBoundingClientRect());
+                  }}
+                  onMouseLeave={() => {
+                    tooltipTimer.current = setTimeout(() => {
+                      setHoveredUserId(null);
+                      setPopoverUser(null);
+                      setPopoverAnchor(null);
+                    }, 200);
+                  }}
+                >{user.firstName}</td>
+                <td
+                  className="border px-3 py-2 cursor-pointer"
+                  onMouseEnter={e => {
+                    if (tooltipTimer.current) clearTimeout(tooltipTimer.current);
+                    setHoveredUserId(user.id!);
+                    setPopoverUser(user);
+                    setPopoverAnchor((e.currentTarget as HTMLElement).getBoundingClientRect());
+                  }}
+                  onMouseLeave={() => {
+                    tooltipTimer.current = setTimeout(() => {
+                      setHoveredUserId(null);
+                      setPopoverUser(null);
+                      setPopoverAnchor(null);
+                    }, 200);
+                  }}
+                >{user.lastName}</td>
+                <td
+                  className="border px-3 py-2 cursor-pointer"
+                  onMouseEnter={e => {
+                    if (tooltipTimer.current) clearTimeout(tooltipTimer.current);
+                    setHoveredUserId(user.id!);
+                    setPopoverUser(user);
+                    setPopoverAnchor((e.currentTarget as HTMLElement).getBoundingClientRect());
+                  }}
+                  onMouseLeave={() => {
+                    tooltipTimer.current = setTimeout(() => {
+                      setHoveredUserId(null);
+                      setPopoverUser(null);
+                      setPopoverAnchor(null);
+                    }, 200);
+                  }}
+                >{user.email}</td>
                 <td className="border px-3 py-2">{user.userStatus}</td>
                 <td className="border px-3 py-2">{user.userRole}</td>
                 <td className="border px-3 py-2 flex gap-2 items-center">
@@ -527,6 +707,26 @@ export default function ManageUsagePage() {
             ))}
           </tbody>
         </table>
+        {/* Pagination controls */}
+        <div className="flex justify-between items-center mt-6">
+          <button
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            disabled={page === 1}
+            className="px-4 py-2 rounded bg-gray-200 text-gray-700 font-semibold disabled:opacity-50"
+          >
+            Previous
+          </button>
+          <span className="font-bold">
+            Page {page} of {Math.max(1, Math.ceil(totalUsers / pageSize))} &mdash; Showing {users.length} of {totalUsers} users
+          </span>
+          <button
+            onClick={() => setPage(p => (p < Math.ceil(totalUsers / pageSize) ? p + 1 : p))}
+            disabled={page >= Math.ceil(totalUsers / pageSize)}
+            className="px-4 py-2 rounded bg-gray-200 text-gray-700 font-semibold disabled:opacity-50"
+          >
+            Next
+          </button>
+        </div>
         {popoverUser && hoveredUserId === popoverUser.id && (
           <div
             onMouseEnter={() => {

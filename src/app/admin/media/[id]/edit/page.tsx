@@ -122,19 +122,57 @@ export default function EditMediaPage() {
 
   return (
     <div className="max-w-xl mx-auto p-8 bg-white rounded shadow">
-      <div className="flex justify-between items-center mb-2">
-        <div className="text-gray-700 text-sm font-semibold">Media File ID: <span className="font-mono text-blue-700">{media.id}</span></div>
-        <button className="text-blue-600 underline" onClick={() => router.push("/admin/media")}>Back to Media List</button>
+      <div className="flex justify-end items-center mb-2">
+        <button
+          type="button"
+          className="bg-green-600 hover:bg-green-700 text-white font-semibold px-4 py-2 rounded shadow-sm border border-green-700 transition-colors flex items-center gap-2"
+          onClick={() => router.push("/admin/media")}
+        >
+          <span className="flex items-center mr-2">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 19l-7-7 7-7" />
+            </svg>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6 ml-[-6px]">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M17 19l-7-7 7-7" />
+            </svg>
+          </span>
+          Back to Media List
+        </button>
       </div>
-      <div className="mb-4 text-xs text-gray-500">
-        <span className="mr-4">Type: <span className="font-semibold text-gray-800">{media.eventMediaType}</span></span>
-        <span className="mr-4">Created: <span className="font-mono">{media.createdAt ? new Date(media.createdAt).toLocaleString() : ''}</span></span>
-        <span>Updated: <span className="font-mono">{media.updatedAt ? new Date(media.updatedAt).toLocaleString() : ''}</span></span>
+      {/* Header details table */}
+      <div className="mb-4 overflow-x-auto">
+        <table className="min-w-full border border-gray-300 rounded text-sm bg-blue-50">
+          <tbody>
+            <tr>
+              <td className="border px-2 py-1 font-semibold bg-blue-100">Media File ID</td>
+              <td className="border px-2 py-1 font-mono text-blue-700">{media.id}</td>
+              <td className="border px-2 py-1 font-semibold bg-blue-100">Event ID</td>
+              <td className="border px-2 py-1 font-mono text-blue-700">{media.eventId}</td>
+            </tr>
+            <tr>
+              <td className="border px-2 py-1 font-semibold bg-blue-100">Media Type</td>
+              <td className="border px-2 py-1">{media.eventMediaType}</td>
+              <td className="border px-2 py-1 font-semibold bg-blue-100">Storage Type</td>
+              <td className="border px-2 py-1">{media.storageType}</td>
+            </tr>
+            <tr>
+              <td className="border px-2 py-1 font-semibold bg-blue-100">File Size</td>
+              <td className="border px-2 py-1">{media.fileSize}</td>
+              <td className="border px-2 py-1 font-semibold bg-blue-100">Created At</td>
+              <td className="border px-2 py-1">{media.createdAt ? new Date(media.createdAt).toLocaleString() : ''}</td>
+            </tr>
+            <tr>
+              <td className="border px-2 py-1 font-semibold bg-blue-100">Updated At</td>
+              <td className="border px-2 py-1" colSpan={3}>{media.updatedAt ? new Date(media.updatedAt).toLocaleString() : ''}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-      <h1 className="text-2xl font-bold mb-4">Edit Media File</h1>
+      <div className="flex justify-center">
+        <h1 className="text-2xl font-bold mb-6 text-white bg-blue-600 rounded px-6 py-3 w-full text-center">Edit Media File</h1>
+      </div>
       {error && <div className="bg-red-50 text-red-500 p-3 rounded mb-4">{error}</div>}
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Hidden fields for eventId and uploadedById */}
         <input type="hidden" name="eventId" value={media.eventId ?? ''} />
         <input type="hidden" name="uploadedById" value={media.uploadedById ?? ''} />
         <div>
@@ -153,34 +191,41 @@ export default function EditMediaPage() {
           <label className="block font-semibold mb-1">Display Order</label>
           <input type="number" name="displayOrder" value={media.displayOrder ?? ''} onChange={handleChange} className="w-full border rounded px-3 py-2" min={0} />
         </div>
-        <div className="grid grid-cols-2 gap-4 mt-2">
-          <label className="flex items-center gap-3">
-            <input type="checkbox" name="isPublic" checked={media.isPublic ?? false} onChange={handleChange} className="w-6 h-6 accent-yellow-500" />
-            <span className="font-medium">Public</span>
-          </label>
-          <label className="flex items-center gap-3">
-            <input type="checkbox" name="isHeroImage" checked={media.isHeroImage ?? false} onChange={handleChange} className="w-6 h-6 accent-yellow-500" />
-            <span className="font-medium">Hero Image</span>
-          </label>
-          <label className="flex items-center gap-3">
-            <input type="checkbox" name="isActiveHeroImage" checked={media.isActiveHeroImage ?? false} onChange={handleChange} className="w-6 h-6 accent-yellow-500" />
-            <span className="font-medium">Active Hero Image</span>
-          </label>
-          <label className="flex items-center gap-3">
-            <input type="checkbox" name="isFeatured" checked={media.isFeatured ?? false} onChange={handleChange} className="w-6 h-6 accent-yellow-500" />
-            <span className="font-medium">Featured</span>
-          </label>
-          <label className="flex items-center gap-3">
-            <input type="checkbox" name="eventFlyer" checked={media.eventFlyer ?? false} onChange={handleChange} className="w-6 h-6 accent-yellow-500" />
-            <span className="font-medium">Event Flyer</span>
-          </label>
-          <label className="flex items-center gap-3">
-            <input type="checkbox" name="isEventManagementOfficialDocument" checked={media.isEventManagementOfficialDocument ?? false} onChange={handleChange} className="w-6 h-6 accent-yellow-500" />
-            <span className="font-medium">Official Document</span>
-          </label>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-0 mb-4 border border-gray-300 rounded overflow-hidden">
+          {[
+            { name: 'eventFlyer', label: 'Event Flyer', checked: media.eventFlyer ?? false, id: 'eventFlyer' },
+            { name: 'isEventManagementOfficialDocument', label: 'Event Management Official Document', checked: media.isEventManagementOfficialDocument ?? false, id: 'isEventManagementOfficialDocument' },
+            { name: 'isHeroImage', label: 'Hero Image', checked: media.isHeroImage ?? false, id: 'isHeroImage' },
+            { name: 'isActiveHeroImage', label: 'Active Hero Image', checked: media.isActiveHeroImage ?? false, id: 'isActiveHeroImage' },
+            { name: 'isFeatured', label: 'Featured Image', checked: media.isFeatured ?? false, id: 'isFeatured' },
+            { name: 'isPublic', label: 'Public', checked: media.isPublic ?? false, id: 'isPublic' },
+          ].map(({ name, label, checked, id }) => (
+            <div key={id} className="border border-gray-300 flex flex-col items-center justify-center px-3 py-2">
+              <label htmlFor={id} className="flex flex-col items-center">
+                <span className="relative flex items-center justify-center">
+                  <input
+                    type="checkbox"
+                    name={name}
+                    checked={checked}
+                    onChange={handleChange}
+                    className="custom-checkbox"
+                    id={id}
+                  />
+                  <span className="custom-checkbox-tick">
+                    {checked && (
+                      <svg className="w-6 h-6 text-black" fill="none" stroke="currentColor" strokeWidth="4" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l5 5L19 7" />
+                      </svg>
+                    )}
+                  </span>
+                </span>
+                <span className="mt-2 text-xs text-center select-none break-words max-w-[6rem]">{label}</span>
+              </label>
+            </div>
+          ))}
         </div>
         <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50" disabled={saving}>
-          {saving ? "Saving..." : "Save Changes (PUT)"}
+          {saving ? "Saving..." : "Save Changes"}
         </button>
       </form>
     </div>

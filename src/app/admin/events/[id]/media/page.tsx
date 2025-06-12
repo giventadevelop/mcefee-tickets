@@ -8,6 +8,7 @@ import { getTenantId } from '@/lib/env';
 import { formatDateLocal } from '@/lib/date';
 import { useAuth } from "@clerk/nextjs";
 import type { UserProfileDTO } from "@/types";
+import { FaEdit, FaTrashAlt, FaUpload } from 'react-icons/fa';
 
 export default function UploadMediaPage() {
   const params = useParams();
@@ -57,6 +58,12 @@ export default function UploadMediaPage() {
   // Add state for user profile id
   const [userProfileId, setUserProfileId] = useState<number | null>(null);
   const { userId } = useAuth();
+
+  // Add a ref for the upload form container (div) for scrolling
+  const uploadFormDivRef = useRef<HTMLDivElement>(null);
+
+  // Tooltip close timer for flicker prevention
+  const tooltipTimer = useRef<NodeJS.Timeout | null>(null);
 
   // Fetch current user's profile id
   useEffect(() => {
@@ -258,33 +265,36 @@ export default function UploadMediaPage() {
     if (!anchorRect) return null;
     // Default: below
     let top = anchorRect.top + window.scrollY + anchorRect.height + 8;
+    const tooltipMaxHeight = window.innerHeight * 0.6; // 60vh
     if (position === 'above') {
       // Estimate popover height (fixed, or could use ref for dynamic)
-      const popoverHeight = 200;
+      const popoverHeight = tooltipMaxHeight;
       top = anchorRect.top + window.scrollY - popoverHeight - 8;
-      if (top < 0) top = 8; // Prevent offscreen
+      if (top < 8) top = 8; // Prevent offscreen
+    }
+    // Ensure tooltip does not overflow bottom of viewport
+    const minPadding = 16;
+    if (top + tooltipMaxHeight + minPadding > window.scrollY + window.innerHeight) {
+      top = window.scrollY + window.innerHeight - tooltipMaxHeight - minPadding;
+      if (top < 8) top = 8;
     }
     const style: React.CSSProperties = {
       position: 'fixed',
       top,
       left: anchorRect.left + window.scrollX + 16,
       zIndex: 9999,
-      background: 'white',
-      border: '1px solid #cbd5e1',
-      borderRadius: 8,
-      boxShadow: '0 4px 24px rgba(0,0,0,0.15)',
-      padding: 16,
-      minWidth: 320,
-      maxWidth: 400,
-      fontSize: 14,
+      maxHeight: '60vh',
+      overflowY: 'auto',
     };
+    // Render all fields of EventMediaDTO except fileUrl and preSignedUrl
+    const entries = Object.entries(media).filter(([key]) => key !== 'fileUrl' && key !== 'preSignedUrl');
     return ReactDOM.createPortal(
       <div
         style={style}
         onMouseLeave={onClose}
         onMouseEnter={e => e.stopPropagation()}
         tabIndex={-1}
-        className="media-details-popover"
+        className="admin-tooltip"
       >
         <button
           className="absolute top-2 right-2 text-gray-400 hover:text-red-500 text-lg font-bold focus:outline-none"
@@ -294,16 +304,19 @@ export default function UploadMediaPage() {
         >
           &times;
         </button>
-        <table className="w-full text-sm border border-gray-300">
+        <table className="admin-tooltip-table">
           <tbody>
-            <tr className="border-b border-gray-200"><td className="font-bold pr-4 border-r border-gray-200">Title:</td><td>{media.title}</td></tr>
-            <tr className="border-b border-gray-200"><td className="font-bold pr-4 border-r border-gray-200">File Type:</td><td>{media.eventMediaType || media.contentType}</td></tr>
-            <tr className="border-b border-gray-200"><td className="font-bold pr-4 border-r border-gray-200">File Name:</td><td>{getFileName(media.fileUrl)}</td></tr>
-            <tr className="border-b border-gray-200"><td className="font-bold pr-4 border-r border-gray-200">File Size:</td><td>{media.fileSize ? `${(media.fileSize / 1024).toFixed(2)} KB` : 'Unknown'}</td></tr>
-            {position === 'above' && (
-              <tr className="border-b border-gray-200"><td className="font-bold pr-4 border-r border-gray-200">Event Flyer:</td><td>{media.eventFlyer ? 'Yes' : 'No'}</td></tr>
-            )}
-            <tr><td className="font-bold pr-4 border-r border-gray-200">Description:</td><td>{media.description}</td></tr>
+            {entries.map(([key, value]) => (
+              <tr key={key}>
+                <th>{key}</th>
+                <td>{
+                  typeof value === 'boolean' ? (value ? 'Yes' : 'No') :
+                    value instanceof Date ? value.toLocaleString() :
+                      (key.toLowerCase().includes('date') || key.toLowerCase().includes('at')) && value ? new Date(value).toLocaleString() :
+                        value === null || value === undefined || value === '' ? <span className="text-gray-400 italic">(empty)</span> : String(value)
+                }</td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>,
@@ -312,7 +325,18 @@ export default function UploadMediaPage() {
   }
 
   return (
-    <div className="p-8 max-w-xl mx-auto bg-white rounded shadow">
+    <div className="p-8 max-w-4xl mx-auto bg-white rounded shadow">
+      {/* Upload Files button at the top */}
+      <div className="flex justify-end mb-4">
+        <button
+          type="button"
+          className="bg-green-600 hover:bg-green-700 text-white font-semibold px-4 py-2 rounded shadow-sm border border-green-700 transition-colors flex items-center gap-2"
+          onClick={() => uploadFormDivRef.current?.scrollIntoView({ behavior: 'smooth' })}
+        >
+          <FaUpload className="w-5 h-5 mr-1" />
+          Upload Files
+        </button>
+      </div>
       <h1 className="text-2xl font-bold mb-4">
         Upload Media Files for Event
         <div className="mt-3 mb-2 flex items-center gap-4 bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 shadow-sm text-lg font-semibold text-blue-900">
@@ -360,128 +384,6 @@ export default function UploadMediaPage() {
           )}
         </div>
       </h1>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block font-semibold mb-1">Title</label>
-          <input
-            type="text"
-            className="w-full border rounded px-3 py-2"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            required
-          />
-        </div>
-        <div>
-          <label className="block font-semibold mb-1">Description</label>
-          <textarea
-            className="w-full border rounded px-3 py-2"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            rows={3}
-          />
-        </div>
-        <div>
-          <label className="block font-semibold mb-1">Select Files</label>
-          <input
-            type="file"
-            multiple
-            ref={fileInputRef}
-            className="w-full border rounded px-3 py-2"
-            onChange={handleFileChange}
-            required
-          />
-        </div>
-        <div className="flex flex-wrap gap-4 mt-2">
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={eventFlyer}
-              onChange={e => setEventFlyer(e.target.checked)}
-            />
-            <span className="font-medium">Event Flyer</span>
-          </label>
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={isEventManagementOfficialDocument}
-              onChange={e => setIsEventManagementOfficialDocument(e.target.checked)}
-            />
-            <span className="font-medium">Event Management Official Document</span>
-          </label>
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={isHeroImage}
-              onChange={e => setIsHeroImage(e.target.checked)}
-            />
-            <span className="font-medium">Hero Image</span>
-          </label>
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={isActiveHeroImage}
-              onChange={e => setIsActiveHeroImage(e.target.checked)}
-            />
-            <span className="font-medium">Active Hero Image</span>
-          </label>
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={isFeatured}
-              onChange={e => setIsFeatured(e.target.checked)}
-            />
-            <span className="font-medium">Featured</span>
-          </label>
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={isPublic}
-              onChange={e => setIsPublic(e.target.checked)}
-            />
-            <span className="font-medium">Public</span>
-          </label>
-        </div>
-        <div className="flex gap-4 mt-2">
-          <div className="flex-1">
-            <label className="block font-semibold mb-1">Alt Text</label>
-            <input
-              type="text"
-              className="w-full border rounded px-3 py-2"
-              value={altText}
-              onChange={e => setAltText(e.target.value)}
-              maxLength={500}
-            />
-          </div>
-          <div className="flex-1">
-            <label className="block font-semibold mb-1">Display Order</label>
-            <input
-              type="number"
-              className="w-full border rounded px-3 py-2"
-              value={displayOrder ?? ''}
-              onChange={e => setDisplayOrder(e.target.value === '' ? undefined : Number(e.target.value))}
-              min={0}
-            />
-          </div>
-        </div>
-        <button
-          type="submit"
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
-          disabled={uploading}
-        >
-          {uploading ? "Uploading..." : "Upload"}
-        </button>
-        {progress > 0 && (
-          <div className="w-full bg-gray-200 rounded h-2 mt-2">
-            <div
-              className="bg-blue-500 h-2 rounded"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-        )}
-        {message && (
-          <div className={`mt-2 ${message.startsWith("Upload successful") ? "text-green-600" : "text-red-600"}`}>{message}</div>
-        )}
-      </form>
       <div className="mt-8">
         <h2 className="text-lg font-semibold mb-2">Official Documents</h2>
         {loadingOfficialDocs ? (
@@ -505,12 +407,12 @@ export default function UploadMediaPage() {
                   <tr
                     key={media.id}
                     className="border-b border-gray-300 hover:bg-blue-50 relative"
-                    onMouseEnter={e => {
+                    onMouseEnter={(e: React.MouseEvent<HTMLTableRowElement>) => {
                       setHoveredOfficialDocId(media.id!);
                       setPopoverOfficialDocMedia(media);
                       setPopoverOfficialDocAnchor((e.currentTarget as HTMLElement).getBoundingClientRect());
                     }}
-                    onMouseLeave={() => {
+                    onMouseLeave={(e: React.MouseEvent<HTMLTableRowElement>) => {
                       setHoveredOfficialDocId(null);
                       setPopoverOfficialDocMedia(null);
                       setPopoverOfficialDocAnchor(null);
@@ -537,12 +439,24 @@ export default function UploadMediaPage() {
                     </td>
                     <td className="p-2 border align-middle">{media.createdAt ? new Date(media.createdAt).toLocaleString() : ''}</td>
                     <td className="p-2 border align-middle text-center">
-                      <button
-                        className="text-red-600 hover:text-red-800 px-2 py-1 rounded"
-                        onClick={() => handleDelete(media.id!)}
-                      >
-                        Delete
-                      </button>
+                      <div className="flex flex-col items-center gap-2">
+                        <button
+                          className="icon-btn icon-btn-edit"
+                          onClick={() => window.location.href = `/admin/media/${media.id}/edit`}
+                          title="Edit Media"
+                        >
+                          <FaEdit />
+                          <span className="text-xs mt-1">Edit</span>
+                        </button>
+                        <button
+                          className="icon-btn icon-btn-delete"
+                          onClick={() => handleDelete(media.id!)}
+                          title="Delete Media"
+                        >
+                          <FaTrashAlt />
+                          <span className="text-xs mt-1">Delete</span>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -571,6 +485,9 @@ export default function UploadMediaPage() {
           </div>
         )}
         <h2 className="text-lg font-semibold mb-2">Uploaded Media</h2>
+        <div className="mb-2 text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded px-4 py-2">
+          Mouse over the first 3 columns to see the full details about the media file. Use the × button to close the tooltip once you have viewed the details.
+        </div>
         <div className="flex items-center mb-2">
           <label className="flex items-center gap-2 font-medium">
             <input
@@ -605,20 +522,59 @@ export default function UploadMediaPage() {
                   <tr
                     key={media.id}
                     className="border-b border-gray-300 hover:bg-blue-50 relative"
-                    onMouseEnter={e => {
-                      setHoveredUploadedMediaId(media.id!);
-                      setPopoverUploadedMediaMedia(media);
-                      setPopoverUploadedMediaAnchor((e.currentTarget as HTMLElement).getBoundingClientRect());
-                    }}
-                    onMouseLeave={() => {
-                      setHoveredUploadedMediaId(null);
-                      setPopoverUploadedMediaMedia(null);
-                      setPopoverUploadedMediaAnchor(null);
-                    }}
                   >
-                    <td className="p-2 border align-middle">{media.title}</td>
-                    <td className="p-2 border align-middle">{media.eventMediaType}</td>
-                    <td className="p-2 border align-middle text-center">
+                    <td
+                      className="p-2 border align-middle"
+                      onMouseEnter={(e: React.MouseEvent<HTMLTableCellElement>) => {
+                        if (tooltipTimer.current) clearTimeout(tooltipTimer.current);
+                        setHoveredUploadedMediaId(media.id!);
+                        setPopoverUploadedMediaMedia(media);
+                        setPopoverUploadedMediaAnchor((e.currentTarget as HTMLElement).getBoundingClientRect());
+                      }}
+                      onMouseLeave={() => {
+                        tooltipTimer.current = setTimeout(() => {
+                          setHoveredUploadedMediaId(null);
+                          setPopoverUploadedMediaMedia(null);
+                          setPopoverUploadedMediaAnchor(null);
+                        }, 200);
+                      }}
+                    >
+                      {media.title}
+                    </td>
+                    <td
+                      className="p-2 border align-middle"
+                      onMouseEnter={(e: React.MouseEvent<HTMLTableCellElement>) => {
+                        if (tooltipTimer.current) clearTimeout(tooltipTimer.current);
+                        setHoveredUploadedMediaId(media.id!);
+                        setPopoverUploadedMediaMedia(media);
+                        setPopoverUploadedMediaAnchor((e.currentTarget as HTMLElement).getBoundingClientRect());
+                      }}
+                      onMouseLeave={() => {
+                        tooltipTimer.current = setTimeout(() => {
+                          setHoveredUploadedMediaId(null);
+                          setPopoverUploadedMediaMedia(null);
+                          setPopoverUploadedMediaAnchor(null);
+                        }, 200);
+                      }}
+                    >
+                      {media.eventMediaType}
+                    </td>
+                    <td
+                      className="p-2 border align-middle text-center"
+                      onMouseEnter={(e: React.MouseEvent<HTMLTableCellElement>) => {
+                        if (tooltipTimer.current) clearTimeout(tooltipTimer.current);
+                        setHoveredUploadedMediaId(media.id!);
+                        setPopoverUploadedMediaMedia(media);
+                        setPopoverUploadedMediaAnchor((e.currentTarget as HTMLElement).getBoundingClientRect());
+                      }}
+                      onMouseLeave={() => {
+                        tooltipTimer.current = setTimeout(() => {
+                          setHoveredUploadedMediaId(null);
+                          setPopoverUploadedMediaMedia(null);
+                          setPopoverUploadedMediaAnchor(null);
+                        }, 200);
+                      }}
+                    >
                       {media.fileUrl && media.contentType?.startsWith('image') && (
                         <a href={media.fileUrl} target="_blank" rel="noopener noreferrer">
                           <img src={media.fileUrl} alt={media.title || ''} className="w-16 h-16 object-cover rounded mx-auto" />
@@ -637,12 +593,24 @@ export default function UploadMediaPage() {
                     </td>
                     <td className="p-2 border align-middle">{media.createdAt ? new Date(media.createdAt).toLocaleString() : ''}</td>
                     <td className="p-2 border align-middle text-center">
-                      <button
-                        className="text-red-600 hover:text-red-800 px-2 py-1 rounded"
-                        onClick={() => handleDelete(media.id!)}
-                      >
-                        Delete
-                      </button>
+                      <div className="flex flex-col items-center gap-2">
+                        <button
+                          className="icon-btn icon-btn-edit"
+                          onClick={() => window.location.href = `/admin/media/${media.id}/edit`}
+                          title="Edit Media"
+                        >
+                          <FaEdit />
+                          <span className="text-xs mt-1">Edit</span>
+                        </button>
+                        <button
+                          className="icon-btn icon-btn-delete"
+                          onClick={() => handleDelete(media.id!)}
+                          title="Delete Media"
+                        >
+                          <FaTrashAlt />
+                          <span className="text-xs mt-1">Delete</span>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -671,6 +639,129 @@ export default function UploadMediaPage() {
           </div>
         )}
       </div>
+      {/* Upload Form at the bottom, with ref */}
+      <div ref={uploadFormDivRef} className="mt-12 border border-gray-300 rounded-lg shadow bg-white p-6 max-w-2xl mx-auto">
+        <div className="flex justify-center">
+          <h2 className="text-xl font-bold mb-6 text-white bg-blue-600 rounded px-6 py-3 w-full text-center">Upload Media Files</h2>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block font-semibold mb-1">Title</label>
+            <input
+              type="text"
+              className="w-full border rounded px-3 py-2"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              required
+            />
+          </div>
+          <div>
+            <label className="block font-semibold mb-1">Description</label>
+            <textarea
+              className="w-full border rounded px-3 py-2"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={3}
+            />
+          </div>
+          <div>
+            <label className="block font-semibold mb-1">Select Files</label>
+            <div className="relative flex items-center">
+              <label htmlFor="file-upload" className="inline-flex items-center bg-green-600 hover:bg-green-700 text-white font-semibold px-4 py-2 rounded cursor-pointer transition-colors gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 7a2 2 0 012-2h3.172a2 2 0 011.414.586l1.828 1.828A2 2 0 0012.828 8H19a2 2 0 012 2v7a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
+                </svg>
+                Choose Files
+              </label>
+              <input
+                id="file-upload"
+                type="file"
+                multiple
+                ref={fileInputRef}
+                className="absolute left-0 top-0 w-full h-full opacity-0 cursor-pointer"
+                onChange={handleFileChange}
+                required
+                style={{ zIndex: 2 }}
+              />
+              {files && files.length > 0 && (
+                <span className="ml-4 text-sm text-gray-700">{Array.from(files).map(f => f.name).join(", ")}</span>
+              )}
+            </div>
+          </div>
+          <div className="custom-grid-table mt-2">
+            {[
+              { label: 'Event Flyer', checked: eventFlyer, onChange: (e: React.ChangeEvent<HTMLInputElement>) => setEventFlyer(e.target.checked) },
+              { label: 'Event Management Official Document', checked: isEventManagementOfficialDocument, onChange: (e: React.ChangeEvent<HTMLInputElement>) => setIsEventManagementOfficialDocument(e.target.checked) },
+              { label: 'Hero Image', checked: isHeroImage, onChange: (e: React.ChangeEvent<HTMLInputElement>) => setIsHeroImage(e.target.checked) },
+              { label: 'Active Hero Image', checked: isActiveHeroImage, onChange: (e: React.ChangeEvent<HTMLInputElement>) => setIsActiveHeroImage(e.target.checked) },
+              { label: 'Featured', checked: isFeatured, onChange: (e: React.ChangeEvent<HTMLInputElement>) => setIsFeatured(e.target.checked) },
+              { label: 'Public', checked: isPublic, onChange: (e: React.ChangeEvent<HTMLInputElement>) => setIsPublic(e.target.checked) },
+            ].map(({ label, checked, onChange }) => (
+              <div key={label} className="custom-grid-cell">
+                <label className="flex flex-col items-center">
+                  <span className="relative flex items-center justify-center">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={onChange}
+                      className="custom-checkbox"
+                    />
+                    <span className="custom-checkbox-tick">
+                      {checked && (
+                        <svg className="w-6 h-6 text-black" fill="none" stroke="currentColor" strokeWidth="4" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l5 5L19 7" />
+                        </svg>
+                      )}
+                    </span>
+                  </span>
+                  <span className="mt-2 text-xs text-center select-none break-words max-w-[6rem]">{label}</span>
+                </label>
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-4 mt-2">
+            <div className="flex-1">
+              <label className="block font-semibold mb-1">Alt Text</label>
+              <input
+                type="text"
+                className="w-full border rounded px-3 py-2"
+                value={altText}
+                onChange={e => setAltText(e.target.value)}
+                maxLength={500}
+              />
+            </div>
+            <div className="flex-1">
+              <label className="block font-semibold mb-1">Display Order</label>
+              <input
+                type="number"
+                className="w-full border rounded px-3 py-2"
+                value={displayOrder ?? ''}
+                onChange={e => setDisplayOrder(e.target.value === '' ? undefined : Number(e.target.value))}
+                min={0}
+              />
+            </div>
+          </div>
+          <button
+            type="submit"
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+            disabled={uploading}
+          >
+            <FaUpload className="w-5 h-5 mr-1" />
+            {uploading ? "Uploading..." : "Upload"}
+          </button>
+          {progress > 0 && (
+            <div className="w-full bg-gray-200 rounded h-2 mt-2">
+              <div
+                className="bg-blue-500 h-2 rounded"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+          )}
+          {message && (
+            <div className={`mt-2 ${message.startsWith("Upload successful") ? "text-green-600" : "text-red-600"}`}>{message}</div>
+          )}
+        </form>
+      </div>
       {popoverOfficialDocMedia && hoveredOfficialDocId === popoverOfficialDocMedia.id && (
         <MediaDetailsPopover media={popoverOfficialDocMedia} anchorRect={popoverOfficialDocAnchor} onClose={() => {
           setHoveredOfficialDocId(null);
@@ -679,11 +770,24 @@ export default function UploadMediaPage() {
         }} position="below" />
       )}
       {popoverUploadedMediaMedia && hoveredUploadedMediaId === popoverUploadedMediaMedia.id && (
-        <MediaDetailsPopover media={popoverUploadedMediaMedia} anchorRect={popoverUploadedMediaAnchor} onClose={() => {
-          setHoveredUploadedMediaId(null);
-          setPopoverUploadedMediaMedia(null);
-          setPopoverUploadedMediaAnchor(null);
-        }} position="above" />
+        <div
+          onMouseEnter={() => {
+            if (tooltipTimer.current) clearTimeout(tooltipTimer.current);
+          }}
+          onMouseLeave={() => {
+            tooltipTimer.current = setTimeout(() => {
+              setHoveredUploadedMediaId(null);
+              setPopoverUploadedMediaMedia(null);
+              setPopoverUploadedMediaAnchor(null);
+            }, 200);
+          }}
+        >
+          <MediaDetailsPopover media={popoverUploadedMediaMedia} anchorRect={popoverUploadedMediaAnchor} onClose={() => {
+            setHoveredUploadedMediaId(null);
+            setPopoverUploadedMediaMedia(null);
+            setPopoverUploadedMediaAnchor(null);
+          }} position="above" />
+        </div>
       )}
     </div>
   );

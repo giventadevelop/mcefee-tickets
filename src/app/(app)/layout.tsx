@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { ReactNode } from "react";
 import { SideNav } from "@/components/side-nav";
 import { Navbar } from "@/components/Navbar";
+import { Footer } from "@/components/Footer";
 
 // Force Node.js runtime
 export const runtime = 'nodejs';
@@ -22,22 +23,23 @@ export default async function AppLayout({ children }: AppLayoutProps) {
     }
 
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen flex flex-col bg-gray-50">
         {/* Top navbar */}
         <Navbar />
 
-        <div className="flex min-h-[calc(100vh-4rem)]">
+        <div className="flex min-h-[calc(100vh-4rem)] flex-1">
           {/* Sidebar */}
           <SideNav />
 
           {/* Main content */}
-          <div className="flex-1">
+          <div className="flex-1 flex flex-col">
             {/* Page content */}
-            <div className="p-8">
+            <div className="p-8 flex-1 flex flex-col">
               {children}
             </div>
           </div>
         </div>
+        <Footer />
       </div>
     );
   } catch (error) {

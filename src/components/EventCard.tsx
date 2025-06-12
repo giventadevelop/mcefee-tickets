@@ -5,9 +5,10 @@ import { formatDateLocal } from '@/lib/date';
 
 interface EventCardProps {
   event: EventWithMedia;
+  placeholderText?: string;
 }
 
-export function EventCard({ event }: EventCardProps) {
+export function EventCard({ event, placeholderText }: EventCardProps) {
   const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -37,7 +38,9 @@ export function EventCard({ event }: EventCardProps) {
             />
           ) : (
             <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-              <span className="text-gray-400">No image available</span>
+              <span className="font-bold text-gray-900 text-lg text-center px-2">
+                {placeholderText || event.title || 'No image available'}
+              </span>
             </div>
           )}
         </div>

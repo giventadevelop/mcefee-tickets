@@ -253,6 +253,22 @@ alwaysApply: true
     - Guarantees tenantId injection and JWT handling for all resource operations
     - Simplifies maintenance and onboarding for new resources
 
+- **JHipster/Spring Data REST filter syntax for criteria queries**
+  - When calling backend APIs that use JHipster or Spring Data REST criteria objects, always use the correct filter syntax: `field.operation=value` (e.g., `tenantId.equals=tenant_demo_001`).
+  - Do **not** use just `tenantId=...` or `field=...` for filter fields; this will cause type conversion errors in the backend.
+  - Common operations: `.equals`, `.contains`, `.in`, etc. (e.g., `userStatus.equals=ACTIVE`, `email.contains=gmail.com`)
+  - Example:
+    ```typescript
+    // ✅ DO: Use .equals for exact match
+    params.append('tenantId.equals', getTenantId());
+    // ✅ DO: Use .contains for substring match
+    params.append('email.contains', 'gmail.com');
+    // ❌ DON'T: Use just tenantId=...
+    params.append('tenantId', getTenantId()); // Will cause backend error
+    ```
+  - This applies to all criteria-based GET endpoints, especially for multi-tenant filtering and user/resource queries.
+  - See also: UserProfileCriteria in backend code for supported filters.
+
 
 
 
