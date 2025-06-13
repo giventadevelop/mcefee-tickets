@@ -5,7 +5,7 @@ import { EventForm, defaultEvent } from '@/components/EventForm';
 import { EventList } from '@/components/EventList';
 import { useAuth } from "@clerk/nextjs";
 import { Modal } from '@/components/Modal';
-import { FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import { FaChevronLeft, FaChevronRight, FaUsers, FaPhotoVideo, FaCalendarAlt, FaPlus } from 'react-icons/fa';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -193,26 +193,37 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen p-8">
       <h1 className="text-3xl font-bold text-gray-900 mb-8">Admin Event Management</h1>
-      <div className="mb-6 flex justify-end">
-        <Link href="/admin/manage-usage" className="inline-block bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold shadow hover:bg-blue-700 transition">
-          Manage Usage (Users)
-        </Link>
+      {/* Dashboard Card with Grid Buttons */}
+      <div className="flex justify-center mb-8">
+        <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-2xl">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            <Link href="/admin/manage-usage" className="flex flex-col items-center justify-center bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg shadow-sm px-4 py-4 transition font-semibold text-sm">
+              <FaUsers className="mb-2 text-2xl" />
+              <span>Manage Usage</span>
+              <span className="text-xs text-blue-500 mt-1">[Users]</span>
+            </Link>
+            <Link href="/admin/media" className="flex flex-col items-center justify-center bg-yellow-50 hover:bg-yellow-100 text-yellow-700 rounded-lg shadow-sm px-4 py-4 transition font-semibold text-sm">
+              <FaPhotoVideo className="mb-2 text-2xl" />
+              Manage Media Files
+            </Link>
+            <Link href="/admin" className="flex flex-col items-center justify-center bg-green-50 hover:bg-green-100 text-green-700 rounded-lg shadow-sm px-4 py-4 transition font-semibold text-sm">
+              <FaCalendarAlt className="mb-2 text-2xl" />
+              Manage Events
+            </Link>
+          </div>
+        </div>
       </div>
-      {error && <div className="bg-red-50 text-red-500 p-3 rounded mb-4">{error}</div>}
-      <div className="mb-4 flex justify-end gap-4">
-        <Link
-          href="/admin/media"
-          className="bg-yellow-500 text-gray-900 px-4 py-2 rounded shadow font-bold flex items-center gap-2 hover:bg-yellow-400 transition"
-        >
-          Manage Media Files
-        </Link>
+      {/* After the dashboard card, add the Create Event button aligned right */}
+      <div className="flex justify-end mb-6">
         <Link
           href="/admin/events/new"
-          className="bg-blue-600 text-white px-4 py-2 rounded shadow font-bold flex items-center gap-2"
+          className="bg-blue-600 text-white px-4 py-2 rounded shadow font-bold flex items-center gap-2 hover:bg-blue-700 transition"
         >
+          <FaPlus />
           Create Event
         </Link>
       </div>
+      {error && <div className="bg-red-50 text-red-500 p-3 rounded mb-4">{error}</div>}
       <div>
         <h2 className="text-xl font-semibold mb-4">All Events</h2>
         <div className="border rounded p-4 bg-white shadow-sm min-h-[200px]">

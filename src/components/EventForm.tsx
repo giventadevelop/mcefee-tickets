@@ -221,7 +221,7 @@ export function EventForm({ event, eventTypes, onSubmit, loading }: EventFormPro
         </select>
         {errors.admissionType && <div className="text-red-500 text-sm">{errors.admissionType}</div>}
       </div>
-      <div className="custom-grid-table mt-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
         {[
           { name: 'isActive', label: 'Active', checked: form.isActive ?? false },
           { name: 'allowGuests', label: 'Allow Guests', checked: form.allowGuests ?? false },

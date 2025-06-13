@@ -3,7 +3,7 @@ import { useEffect, useState, useRef } from 'react';
 import type { UserProfileDTO } from '@/types';
 import Link from 'next/link';
 import ReactDOM from 'react-dom';
-import { FaEye, FaCheck, FaEdit, FaTimes } from 'react-icons/fa';
+import { FaEye, FaCheck, FaEdit, FaTimes, FaUsers, FaPhotoVideo, FaCalendarAlt } from 'react-icons/fa';
 import * as XLSX from 'xlsx';
 import { getTenantId } from '@/lib/env';
 import { fetchUsersServer, patchUserProfileServer, bulkUploadUsersServer } from './ApiServerActions';
@@ -425,6 +425,25 @@ export default function ManageUsageClient({ adminProfile }: { adminProfile: User
 
   return (
     <div className="max-w-6xl mx-auto p-8">
+      <div className="flex justify-center mb-8">
+        <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-2xl">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            <Link href="/admin/manage-usage" className="flex flex-col items-center justify-center bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg shadow-sm px-4 py-4 transition font-semibold text-sm">
+              <FaUsers className="mb-2 text-2xl" />
+              <span>Manage Usage</span>
+              <span className="text-xs text-blue-500 mt-1">[Users]</span>
+            </Link>
+            <Link href="/admin/media" className="flex flex-col items-center justify-center bg-yellow-50 hover:bg-yellow-100 text-yellow-700 rounded-lg shadow-sm px-4 py-4 transition font-semibold text-sm">
+              <FaPhotoVideo className="mb-2 text-2xl" />
+              Manage Media Files
+            </Link>
+            <Link href="/admin" className="flex flex-col items-center justify-center bg-green-50 hover:bg-green-100 text-green-700 rounded-lg shadow-sm px-4 py-4 transition font-semibold text-sm">
+              <FaCalendarAlt className="mb-2 text-2xl" />
+              Manage Events
+            </Link>
+          </div>
+        </div>
+      </div>
       <h1 className="text-2xl font-bold mb-6">User Management</h1>
       {/* Bulk Upload Button */}
       <div className="mb-4 flex items-center gap-4">
