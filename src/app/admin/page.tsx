@@ -8,50 +8,17 @@ import { Modal } from '@/components/Modal';
 import { FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-
-async function fetchEvents(): Promise<EventDetailsDTO[]> {
-  const res = await fetch('/api/proxy/event-details');
-  if (!res.ok) throw new Error('Failed to fetch events');
-  return await res.json();
-}
-
-async function fetchEventTypes(): Promise<EventTypeDetailsDTO[]> {
-  const res = await fetch('/api/proxy/event-type-details');
-  if (!res.ok) throw new Error('Failed to fetch event types');
-  return await res.json();
-}
-
-async function createEvent(event: any): Promise<any> {
-  const res = await fetch('/api/proxy/event-details', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(event),
-  });
-  if (!res.ok) throw new Error('Failed to create event');
-  return await res.json();
-}
-
-async function updateEvent(event: any): Promise<any> {
-  if (!event.id) throw new Error('Event ID required for update');
-  const res = await fetch(`/api/proxy/event-details/${event.id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(event),
-  });
-  if (!res.ok) throw new Error('Failed to update event');
-  return await res.json();
-}
-
-async function cancelEvent(event: EventDetailsDTO): Promise<EventDetailsDTO> {
-  if (!event.id) throw new Error('Event ID required for cancel');
-  const res = await fetch(`/api/proxy/event-details/${event.id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...event, isActive: false }),
-  });
-  if (!res.ok) throw new Error('Failed to cancel event');
-  return await res.json();
-}
+import {
+  fetchEventsServer,
+  fetchEventTypesServer,
+  createEventServer,
+  updateEventServer,
+  cancelEventServer,
+  createCalendarEventServer,
+  findCalendarEventByEventIdServer,
+  updateCalendarEventForEventServer,
+  deleteCalendarEventForEventServer
+} from './ApiServerActions';
 
 // Helper to convert date and time to Google Calendar format
 function toGoogleCalendarDate(date: string, time: string) {
@@ -170,7 +137,7 @@ export default function AdminPage() {
       const res = await fetch(`/api/proxy/event-details?page=${pageNum}&size=${pageSize}&sort=startDate,asc`);
       if (!res.ok) throw new Error('Failed to fetch events');
       const evs = await res.json();
-      const types = await fetchEventTypes();
+      const types = await fetchEventTypesServer();
       setEvents(evs);
       setEventTypes(types);
     } catch (e: any) {
@@ -201,9 +168,9 @@ export default function AdminPage() {
     setFormLoading(true);
     setError(null);
     try {
-      await cancelEvent(event);
+      await cancelEventServer(event);
       try {
-        await deleteCalendarEventForEvent(event);
+        await deleteCalendarEventForEventServer(event);
       } catch (calendarErr) {
         setError((prev) => (prev ? prev + '\n' : '') + (calendarErr instanceof Error ? calendarErr.message : String(calendarErr)));
       }

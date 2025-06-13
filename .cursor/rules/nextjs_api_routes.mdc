@@ -269,6 +269,55 @@ alwaysApply: true
   - This applies to all criteria-based GET endpoints, especially for multi-tenant filtering and user/resource queries.
   - See also: UserProfileCriteria in backend code for supported filters.
 
+- **All authenticated fetches must be server-side**
+  - Never fetch authenticated resources (e.g., user profiles, protected APIs) directly from the client. Always perform these fetches in a server component, server action, or API route.
+  - Rationale: Only server-side code has access to the user's session and can generate/attach a valid JWT. Client-side fetches will not have the session and will result in 401 Unauthorized errors.
+  - Example:
+    ```typescript
+    // ✅ DO: Fetch admin profile server-side
+    export default async function ManageUsagePage() {
+      const { userId } = auth();
+      const adminProfile = userId ? await fetchAdminProfileServer(userId) : null;
+      // ...
+    }
+    // ❌ DON'T: Fetch admin profile in useEffect or client-side hooks
+    useEffect(() => {
+      fetch('/api/proxy/user-profiles/by-user/' + userId);
+    }, [userId]);
+    ```
+  - See also: ProfileBootstrapper, ProfileForm, ManageUsagePage for correct patterns.
+
+- **All authenticated API calls must be made from server actions or server components, not from client components**
+  - Never call protected proxy API endpoints (e.g., /api/proxy/user-profiles, /api/proxy/ticket-types, etc.) directly from client components.
+  - Always create a server action (e.g., actions.ts) or use a server component to perform the API call, then pass the result to the client component as props or via server action invocation.
+  - This ensures JWT/session is available, tenantId is injected, and security is enforced.
+  - Example:
+    ```typescript
+    // src/app/admin/manage-usage/actions.ts
+    export async function patchUserProfileServer(userId: number, payload: any) { /* ... */ }
+    // src/app/admin/manage-usage/ManageUsageClient.tsx
+    import { patchUserProfileServer } from './actions';
+    // ...
+    await patchUserProfileServer(user.id, payload);
+    ```
+  - See also: ProfileBootstrapper, ProfileForm, ManageUsagePage for correct patterns.
+
+- **Standard: Place all server-side API calls in ApiServerActions.ts**
+  - If your module makes authenticated or protected API calls, create a file named `ApiServerActions.ts` in that folder.
+  - Place all server-side API calls (fetch, patch, post, etc.) in this file as exported async functions.
+  - Import and use these actions from your client components.
+  - This ensures all API calls are server-side, JWT/session is available, and security is enforced.
+  - Example:
+    ```typescript
+    // src/app/admin/manage-usage/ApiServerActions.ts
+    export async function patchUserProfileServer(userId: number, payload: any) { /* ... */ }
+    // src/app/admin/manage-usage/ManageUsageClient.tsx
+    import { patchUserProfileServer } from './ApiServerActions';
+    // ...
+    await patchUserProfileServer(user.id, payload);
+    ```
+  - This is now the standard for all modules with API calls.
+
 
 
 

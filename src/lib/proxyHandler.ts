@@ -9,7 +9,7 @@ interface ProxyHandlerOptions {
   backendPath: string;
 }
 
-export function createProxyHandler({ injectTenantId = true, allowedMethods = ['GET', 'POST', 'PUT', 'DELETE'], backendPath }: ProxyHandlerOptions) {
+export function createProxyHandler({ injectTenantId = true, allowedMethods = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'], backendPath }: ProxyHandlerOptions) {
   const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
   return async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (!API_BASE_URL) {
@@ -64,23 +64,47 @@ export function createProxyHandler({ injectTenantId = true, allowedMethods = ['G
       let bodyToSend: any = undefined;
       let extraHeaders: Record<string, string> = {};
       if (method === 'PATCH') {
+        console.log('[PROXY] Received PATCH request:', {
+          path,
+          headers: req.headers,
+          query: req.query
+        });
+
         // Read the raw body as text, parse, inject tenantId, and re-stringify
         const rawBody = (await getRawBody(req)).toString('utf-8');
+        console.log('[PROXY] Raw PATCH body:', rawBody);
+
         let json: any;
         try {
           json = JSON.parse(rawBody);
+          console.log('[PROXY] Parsed PATCH body:', json);
         } catch (e) {
+          console.error('[PROXY] Failed to parse PATCH body:', e);
           json = {};
         }
+
         if (injectTenantId) {
+          const beforeTenant = { ...json };
           json = withTenantId(json);
+          console.log('[PROXY] Injected tenantId:', {
+            before: beforeTenant,
+            after: json
+          });
         }
+
         bodyToSend = JSON.stringify(json);
         // Use merge-patch+json if not explicitly set
         if (!req.headers['content-type']) {
           extraHeaders['Content-Type'] = 'application/merge-patch+json';
         }
-        console.log('[PROXY OUTGOING] PATCH payload:', json);
+
+        console.log('[PROXY OUTGOING] PATCH request details:', {
+          method,
+          path,
+          apiUrl,
+          headers: { ...req.headers, ...extraHeaders },
+          payload: json
+        });
       } else if (method !== 'GET' && method !== 'DELETE') {
         bodyToSend = JSON.stringify(payload);
       }
@@ -91,6 +115,27 @@ export function createProxyHandler({ injectTenantId = true, allowedMethods = ['G
           console.log('[PROXY OUTGOING] apiUrl:', apiUrl, 'method:', method, 'headers:', { 'Content-Type': contentType, ...extraHeaders }, 'payload:', parsed, 'typeof payload:', typeof bodyToSend);
         } catch {
           console.log('[PROXY OUTGOING] apiUrl:', apiUrl, 'method:', method, 'headers:', { 'Content-Type': contentType, ...extraHeaders }, 'payload:', bodyToSend, 'typeof payload:', typeof bodyToSend);
+        }
+      }
+      // Before making the backend request, add debug logging for /by-user endpoints
+      if (apiUrl.includes('/by-user')) {
+        console.log('[PROXY DEBUG] Outgoing headers for by-user:', {
+          method,
+          path,
+          apiUrl,
+          headers: { ...req.headers, ...extraHeaders },
+          payload: payload
+        });
+        if (req.headers && typeof req.headers.Authorization === 'string') {
+          const jwt = req.headers.Authorization.split(' ')[1];
+          try {
+            const payload = JSON.parse(Buffer.from(jwt.split('.')[1], 'base64').toString());
+            console.log('[PROXY DEBUG] JWT payload:', payload);
+          } catch (e) {
+            console.log('[PROXY DEBUG] Could not decode JWT:', e);
+          }
+        } else {
+          console.log('[PROXY DEBUG] No Authorization header present for by-user endpoint');
         }
       }
       const apiRes = await fetchWithJwtRetry(apiUrl, {

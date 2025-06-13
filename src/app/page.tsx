@@ -1,12 +1,15 @@
 import Link from "next/link";
 import { UserRoleDisplay } from "@/components/UserRoleDisplay";
-import { ProfileBootstrapper } from "@/components/ProfileBootstrapper";
+// import { ProfileBootstrapper } from "@/components/ProfileBootstrapper"; // Remove client bootstrapper
 import { EventCard } from "@/components/EventCard";
 import Image from "next/image";
 import type { EventDetailsDTO } from '@/types';
 import { TeamImage } from '@/components/TeamImage';
 import { getTenantId } from '@/lib/env';
 import { formatDateLocal } from '@/lib/date';
+import { auth } from '@clerk/nextjs/server';
+import { currentUser } from '@clerk/nextjs/server';
+import { bootstrapUserProfile } from '@/components/ProfileBootstrapperApiServerActions';
 
 // Add EventWithMedia type for local use
 interface EventWithMedia extends EventDetailsDTO {
@@ -82,6 +85,22 @@ async function fetchEventsWithMedia(): Promise<EventWithMedia[]> {
 }
 
 export default async function Page() {
+  // SSR profile bootstrap logic
+  const session = await auth();
+  const userId = session?.userId;
+  let user = null;
+  if (userId) {
+    user = await currentUser();
+    // Only bootstrap if user is signed in and user object is available
+    if (user) {
+      try {
+        await bootstrapUserProfile({ userId, user });
+      } catch (err) {
+        console.error('SSR profile bootstrap failed:', err);
+      }
+    }
+  }
+
   let events: EventWithMedia[] = [];
   let fetchError = false;
 

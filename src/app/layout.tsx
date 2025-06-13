@@ -5,7 +5,6 @@ import { ClerkProvider } from "@clerk/nextjs";
 import TrpcProvider from "@/lib/trpc/Provider";
 import Script from "next/script";
 import { Header } from "@/components/Header";
-import { ProfileBootstrapper } from "@/components/ProfileBootstrapper";
 import { usePathname } from "next/navigation";
 import { Footer } from "@/components/Footer";
 
@@ -65,7 +64,6 @@ export default function RootLayout({
             },
           }}
         >
-          <ProfileBootstrapper />
           <TrpcProvider>
             <Header hideMenuItems={isAuthRoute} />
             <div className="flex-1 flex flex-col">
