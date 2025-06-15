@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { EventMediaDTO } from "@/types";
-import { FaEdit, FaTrash, FaUsers, FaPhotoVideo, FaCalendarAlt } from 'react-icons/fa';
+import { FaEdit, FaTrashAlt, FaUsers, FaPhotoVideo, FaCalendarAlt } from 'react-icons/fa';
 
 export default function AdminMediaPage() {
   const [mediaList, setMediaList] = useState<EventMediaDTO[]>([]);
@@ -105,11 +105,6 @@ export default function AdminMediaPage() {
         </div>
       </div>
       <h1 className="text-3xl font-bold text-gray-900 mb-8">Manage Media Files</h1>
-      <div className="mb-6 flex justify-end">
-        <Link href="/admin" className="inline-block bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold shadow hover:bg-blue-700 transition">
-          Back to Admin
-        </Link>
-      </div>
       {error && <div className="bg-red-50 text-red-500 p-3 rounded mb-4">{error}</div>}
       <div className="border rounded p-4 bg-white shadow-sm min-h-[200px]">
         {loading ? (
@@ -183,14 +178,15 @@ export default function AdminMediaPage() {
                   <td className="p-2 border border-gray-400 align-middle">{media.createdAt ? new Date(media.createdAt).toLocaleString() : ''}</td>
                   <td className="p-2 border border-gray-400 align-middle text-center">
                     <button
-                      className="text-blue-600 hover:text-blue-800 px-2 py-1 rounded flex items-center gap-1"
+                      className="icon-btn icon-btn-edit flex flex-col items-center"
                       onClick={() => router.push(`/admin/media/${media.id}/edit`)}
                       title="Edit Media"
                     >
-                      <FaEdit /> Edit
+                      <FaEdit />
+                      <span className="text-[10px] text-gray-600 mt-1">Edit</span>
                     </button>
                     <button
-                      className="text-red-600 hover:text-red-800 px-2 py-1 rounded flex items-center gap-1 ml-2"
+                      className="icon-btn icon-btn-delete flex flex-col items-center ml-2"
                       onClick={async () => {
                         if (!window.confirm('Are you sure you want to delete this media file?')) return;
                         try {
@@ -206,7 +202,8 @@ export default function AdminMediaPage() {
                       }}
                       title="Delete Media"
                     >
-                      <FaTrash /> Delete
+                      <FaTrashAlt />
+                      <span className="text-[10px] text-gray-600 mt-1">Delete</span>
                     </button>
                   </td>
                 </tr>

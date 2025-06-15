@@ -22,6 +22,12 @@ export const defaultEvent: EventDetailsDTO = {
   capacity: undefined,
   admissionType: '',
   isActive: true,
+  allowGuests: false,
+  requireGuestApproval: false,
+  enableGuestPricing: false,
+  isRegistrationRequired: false,
+  isSportsEvent: false,
+  isLive: false,
   createdBy: undefined,
   createdAt: '',
   updatedAt: '',
@@ -148,7 +154,18 @@ export function EventForm({ event, eventTypes, onSubmit, loading }: EventFormPro
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!validate()) return;
-    onSubmit(form);
+    // Ensure all booleans are true/false
+    const sanitizedForm = {
+      ...form,
+      isActive: !!form.isActive,
+      allowGuests: !!form.allowGuests,
+      requireGuestApproval: !!form.requireGuestApproval,
+      enableGuestPricing: !!form.enableGuestPricing,
+      isRegistrationRequired: !!form.isRegistrationRequired,
+      isSportsEvent: !!form.isSportsEvent,
+      isLive: !!form.isLive,
+    };
+    onSubmit(sanitizedForm);
   }
 
   return (

@@ -276,6 +276,14 @@ export default async function Page() {
               <div className="pointer-events-none absolute left-0 top-0 h-full w-8" style={{ background: 'linear-gradient(to right, rgba(248,250,252,1) 0%, rgba(248,250,252,0) 100%)', zIndex: 20 }} />
               <div className="pointer-events-none absolute right-0 top-0 h-full w-8" style={{ background: 'linear-gradient(to left, rgba(248,250,252,1) 0%, rgba(248,250,252,0) 100%)', zIndex: 20 }} />
             </div>
+            {nextEvent && nextEvent.isRegistrationRequired && (
+              <Link
+                href={`/events/${nextEvent.id}/register`}
+                className="absolute bottom-6 right-6 z-10 bg-blue-600 text-white px-6 py-3 rounded-lg shadow-lg hover:bg-blue-700 transition"
+              >
+                Register for this event
+              </Link>
+            )}
           </div>
         </section>
 
@@ -345,16 +353,22 @@ export default async function Page() {
               </div>
             ) : (
               <div className="flex justify-center w-full">
-                <div className="flex flex-wrap justify-center gap-8 max-w-6xl w-full">
-                  {events.map((event) => (
-                    <div
-                      key={event.id}
-                      className="flex justify-center"
-                      style={{ flex: "1 0 320px", maxWidth: 350, minWidth: 280 }}
-                    >
-                      <EventCard event={event} placeholderText={event.placeholderText} />
-                    </div>
-                  ))}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8 max-w-6xl w-full">
+                  {events.map((event) => {
+                    if (event.id === 4650 || event.id === 4552) {
+                      // eslint-disable-next-line no-console
+                      console.log('Event debug:', event.id, event);
+                    }
+                    return (
+                      <div
+                        key={event.id}
+                        className="flex justify-center"
+                        style={{ width: 350, minWidth: 350, maxWidth: 350, height: 500, minHeight: 500, maxHeight: 500 }}
+                      >
+                        <EventCard event={event} placeholderText={event.placeholderText} />
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}

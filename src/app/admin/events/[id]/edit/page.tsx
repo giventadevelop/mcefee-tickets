@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { EventForm } from '@/components/EventForm';
 import type { EventDetailsDTO, EventTypeDetailsDTO } from '@/types';
 import Link from 'next/link';
+import { FaUsers, FaPhotoVideo, FaCalendarAlt } from 'react-icons/fa';
 
 export default function EditEventPage() {
   const router = useRouter();
@@ -46,7 +47,26 @@ export default function EditEventPage() {
 
   return (
     <div className="min-h-screen p-8 max-w-2xl mx-auto">
-      <Link href="/admin" className="inline-block mb-6 text-blue-600 hover:underline">← Back to All Events</Link>
+      {/* Dashboard Card with Grid Buttons */}
+      <div className="flex justify-center mb-8">
+        <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-2xl">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            <Link href="/admin/manage-usage" className="flex flex-col items-center justify-center bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg shadow-sm px-4 py-4 transition font-semibold text-sm">
+              <FaUsers className="mb-2 text-2xl" />
+              <span>Manage Usage</span>
+              <span className="text-xs text-blue-500 mt-1">[Users]</span>
+            </Link>
+            <Link href="/admin/media" className="flex flex-col items-center justify-center bg-yellow-50 hover:bg-yellow-100 text-yellow-700 rounded-lg shadow-sm px-4 py-4 transition font-semibold text-sm">
+              <FaPhotoVideo className="mb-2 text-2xl" />
+              Manage Media Files
+            </Link>
+            <Link href="/admin" className="flex flex-col items-center justify-center bg-green-50 hover:bg-green-100 text-green-700 rounded-lg shadow-sm px-4 py-4 transition font-semibold text-sm">
+              <FaCalendarAlt className="mb-2 text-2xl" />
+              Manage Events
+            </Link>
+          </div>
+        </div>
+      </div>
       <h1 className="text-2xl font-bold mb-4">Edit Event</h1>
       {error && <div className="bg-red-50 text-red-500 p-3 rounded mb-4">{error}</div>}
       <div className="border rounded p-4 bg-white shadow-sm min-h-[200px]">

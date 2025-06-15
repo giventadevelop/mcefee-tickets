@@ -6,6 +6,7 @@
 -- Dumped by pg_dump version 17.0
 
 -- Started on 2025-06-08 23:51:02
+SET ROLE giventa_event_management;
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -44,37 +45,66 @@ SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
 
---
--- TOC entry 256 (class 1255 OID 71145)
--- Name: generate_attendee_qr_code(); Type: FUNCTION; Schema: public; Owner: nextjs_template_boot
---
-
-
 -- Drop existing types if they exist (for clean recreation)
-DROP TYPE IF EXISTS guest_age_group CASCADE;
-DROP TYPE IF EXISTS user_to_guest_relationship CASCADE;
-DROP TYPE IF EXISTS user_event_registration_status CASCADE;
-DROP TYPE IF EXISTS user_event_check_in_status CASCADE;
-DROP TYPE IF EXISTS subscription_plan_type CASCADE;
-DROP TYPE IF EXISTS subscription_status_type CASCADE;
-DROP TYPE IF EXISTS user_role_type CASCADE;
-DROP TYPE IF EXISTS user_status_type CASCADE;
-DROP TYPE IF EXISTS event_admission_type CASCADE;
-DROP TYPE IF EXISTS transaction_type CASCADE;
-DROP TYPE IF EXISTS transaction_status CASCADE;
+DROP TYPE IF EXISTS public.guest_age_group CASCADE;
+DROP TYPE IF EXISTS public.user_to_guest_relationship CASCADE;
+DROP TYPE IF EXISTS public.user_event_registration_status CASCADE;
+DROP TYPE IF EXISTS public.user_event_check_in_status CASCADE;
+DROP TYPE IF EXISTS public.subscription_plan_type CASCADE;
+DROP TYPE IF EXISTS public.subscription_status_type CASCADE;
+DROP TYPE IF EXISTS public.user_role_type CASCADE;
+DROP TYPE IF EXISTS public.user_status_type CASCADE;
+DROP TYPE IF EXISTS public.event_admission_type CASCADE;
+DROP TYPE IF EXISTS public.transaction_type CASCADE;
+DROP TYPE IF EXISTS public.transaction_status CASCADE;
+
+-- Guest age group classifications
+CREATE TYPE public.guest_age_group AS ENUM ('ADULT', 'TEEN', 'CHILD', 'INFANT');
+
+-- User to guest relationship types
+CREATE TYPE public.user_to_guest_relationship AS ENUM ('SPOUSE', 'CHILD', 'FRIEND', 'COLLEAGUE', 'PARENT', 'SIBLING', 'RELATIVE', 'OTHER');
+
+-- Registration status for events
+CREATE TYPE public.user_event_registration_status AS ENUM ('PENDING', 'CONFIRMED', 'CANCELLED', 'WAITLISTED');
+
+-- Check-in status for events
+CREATE TYPE public.user_event_check_in_status AS ENUM ('NOT_CHECKED_IN', 'CHECKED_IN', 'NO_SHOW', 'LEFT_EARLY');
+
+-- Subscription plans
+CREATE TYPE public.subscription_plan_type AS ENUM ('FREE', 'BASIC', 'PREMIUM', 'ENTERPRISE');
+
+-- Subscription status
+CREATE TYPE public.subscription_status_type AS ENUM ('ACTIVE', 'SUSPENDED', 'CANCELLED', 'EXPIRED', 'TRIAL');
+
+-- User roles
+CREATE TYPE public.user_role_type AS ENUM ('MEMBER', 'ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'VOLUNTEER');
+
+-- User status
+CREATE TYPE public.user_status_type AS ENUM ('ACTIVE', 'INACTIVE', 'PENDING_APPROVAL', 'SUSPENDED', 'BANNED');
+
+-- Event admission types
+CREATE TYPE public.event_admission_type AS ENUM ('FREE', 'TICKETED', 'INVITATION_ONLY', 'DONATION_BASED');
+
+-- Transaction types
+CREATE TYPE public.transaction_type AS ENUM ('SUBSCRIPTION', 'TICKET_SALE', 'COMMISSION', 'REFUND', 'CHARGEBACK');
+
+-- Transaction status
+CREATE TYPE public.transaction_status AS ENUM ('PENDING', 'COMPLETED', 'FAILED', 'REFUNDED', 'CANCELLED');
+
+
 
 -- ===================================================
 -- drop functions
 -- ===================================================
-DROP FUNCTION IF EXISTS public.generate_attendee_qr_code();
-DROP FUNCTION IF EXISTS public.generate_enhanced_qr_code();
-DROP FUNCTION IF EXISTS public.manage_ticket_inventory();
-DROP FUNCTION IF EXISTS public.update_ticket_sold_quantity();
-DROP FUNCTION IF EXISTS public.update_updated_at_column();
-DROP FUNCTION IF EXISTS public.validate_event_dates();
-DROP FUNCTION IF EXISTS public.validate_event_dates_alt1();
-DROP FUNCTION IF EXISTS public.validate_event_dates_alt2();
-DROP FUNCTION IF EXISTS public.validate_event_details();
+DROP FUNCTION IF EXISTS public.generate_attendee_qr_code() CASCADE;
+DROP FUNCTION IF EXISTS public.generate_enhanced_qr_code() CASCADE;
+DROP FUNCTION IF EXISTS public.manage_ticket_inventory() CASCADE;
+DROP FUNCTION IF EXISTS public.update_ticket_sold_quantity() CASCADE;
+DROP FUNCTION IF EXISTS public.update_updated_at_column() CASCADE;
+DROP FUNCTION IF EXISTS public.validate_event_dates() CASCADE;
+DROP FUNCTION IF EXISTS public.validate_event_dates_alt1() CASCADE;
+DROP FUNCTION IF EXISTS public.validate_event_dates_alt2() CASCADE;
+DROP FUNCTION IF EXISTS public.validate_event_details() CASCADE;
 
 -- Drop sequence if exists and recreate
 DROP SEQUENCE IF EXISTS public.sequence_generator CASCADE;
@@ -85,7 +115,7 @@ DROP SEQUENCE IF EXISTS public.sequence_generator CASCADE;
 
 DROP TABLE IF EXISTS public.bulk_operation_log CASCADE;
 DROP TABLE IF EXISTS public.qr_code_usage CASCADE;
-DROP TABLE IF EXISTS public.user_registration_request CASCADE;
+
 DROP TABLE IF EXISTS public.event_attendee_guest CASCADE;
 DROP TABLE IF EXISTS public.event_guest_pricing CASCADE;
 DROP TABLE IF EXISTS public.event_attendee CASCADE;
@@ -101,6 +131,11 @@ DROP TABLE IF EXISTS public.event_ticket_type CASCADE;
 DROP TABLE IF EXISTS public.event_organizer CASCADE;
 DROP TABLE IF EXISTS public.event_details CASCADE;
 DROP TABLE IF EXISTS public.event_admin CASCADE;
+DROP TABLE IF EXISTS public.event_live_update_attachment CASCADE;
+DROP TABLE IF EXISTS public.event_live_update CASCADE;
+DROP TABLE IF EXISTS public.event_score_card CASCADE;
+DROP TABLE IF EXISTS public.event_score_card_detail CASCADE;
+DROP TABLE IF EXISTS public.rel_event_details__discount_codes CASCADE;
 DROP TABLE IF EXISTS public.user_task CASCADE;
 DROP TABLE IF EXISTS public.user_subscription CASCADE;
 DROP TABLE IF EXISTS public.event_type_details CASCADE;
@@ -120,17 +155,17 @@ BEGIN
         NEW.qr_code_data = 'ATTENDEE:' || NEW.id || '|EVENT:' || NEW.event_id || '|TENANT:' || NEW.tenant_id || '|TIMESTAMP:' || extract(epoch from NOW());
         NEW.qr_code_generated = TRUE;
     END IF;
-    
+
     RETURN NEW;
 END;
 $$;
 
 
-ALTER FUNCTION public.generate_attendee_qr_code() OWNER TO nextjs_template_boot;
+ALTER FUNCTION public.generate_attendee_qr_code() OWNER TO giventa_event_management;
 
 --
 -- TOC entry 272 (class 1255 OID 71151)
--- Name: generate_enhanced_qr_code(); Type: FUNCTION; Schema: public; Owner: nextjs_template_boot
+-- Name: generate_enhanced_qr_code(); Type: FUNCTION; Schema: public; Owner: giventa_event_management
 --
 
 CREATE FUNCTION  public.generate_enhanced_qr_code() RETURNS trigger
@@ -175,11 +210,11 @@ END;
 $$;
 
 
-ALTER FUNCTION public.generate_enhanced_qr_code() OWNER TO nextjs_template_boot;
+ALTER FUNCTION public.generate_enhanced_qr_code() OWNER TO giventa_event_management;
 
 --
 -- TOC entry 273 (class 1255 OID 71150)
--- Name: manage_ticket_inventory(); Type: FUNCTION; Schema: public; Owner: nextjs_template_boot
+-- Name: manage_ticket_inventory(); Type: FUNCTION; Schema: public; Owner: giventa_event_management
 --
 
 CREATE FUNCTION  public.manage_ticket_inventory() RETURNS trigger
@@ -257,11 +292,11 @@ END;
 $$;
 
 
-ALTER FUNCTION public.manage_ticket_inventory() OWNER TO nextjs_template_boot;
+ALTER FUNCTION public.manage_ticket_inventory() OWNER TO giventa_event_management;
 
 --
 -- TOC entry 255 (class 1255 OID 71143)
--- Name: update_ticket_sold_quantity(); Type: FUNCTION; Schema: public; Owner: nextjs_template_boot
+-- Name: update_ticket_sold_quantity(); Type: FUNCTION; Schema: public; Owner: giventa_event_management
 --
 
 CREATE FUNCTION  public.update_ticket_sold_quantity() RETURNS trigger
@@ -269,23 +304,23 @@ CREATE FUNCTION  public.update_ticket_sold_quantity() RETURNS trigger
     AS $$
 BEGIN
     IF TG_OP = 'INSERT' AND NEW.status = 'COMPLETED' THEN
-        UPDATE public.event_ticket_type 
-        SET sold_quantity = sold_quantity + NEW.quantity 
+        UPDATE public.event_ticket_type
+        SET sold_quantity = sold_quantity + NEW.quantity
         WHERE id = NEW.ticket_type_id;
     ELSIF TG_OP = 'UPDATE' AND OLD.status != 'COMPLETED' AND NEW.status = 'COMPLETED' THEN
-        UPDATE public.event_ticket_type 
-        SET sold_quantity = sold_quantity + NEW.quantity 
+        UPDATE public.event_ticket_type
+        SET sold_quantity = sold_quantity + NEW.quantity
         WHERE id = NEW.ticket_type_id;
     ELSIF TG_OP = 'UPDATE' AND OLD.status = 'COMPLETED' AND NEW.status != 'COMPLETED' THEN
-        UPDATE public.event_ticket_type 
-        SET sold_quantity = sold_quantity - OLD.quantity 
+        UPDATE public.event_ticket_type
+        SET sold_quantity = sold_quantity - OLD.quantity
         WHERE id = OLD.ticket_type_id;
     ELSIF TG_OP = 'DELETE' AND OLD.status = 'COMPLETED' THEN
-        UPDATE public.event_ticket_type 
-        SET sold_quantity = sold_quantity - OLD.quantity 
+        UPDATE public.event_ticket_type
+        SET sold_quantity = sold_quantity - OLD.quantity
         WHERE id = OLD.ticket_type_id;
     END IF;
-    
+
     IF TG_OP = 'DELETE' THEN
         RETURN OLD;
     ELSE
@@ -295,11 +330,11 @@ END;
 $$;
 
 
-ALTER FUNCTION public.update_ticket_sold_quantity() OWNER TO nextjs_template_boot;
+ALTER FUNCTION public.update_ticket_sold_quantity() OWNER TO giventa_event_management;
 
 --
 -- TOC entry 271 (class 1255 OID 70264)
--- Name: update_updated_at_column(); Type: FUNCTION; Schema: public; Owner: nextjs_template_boot
+-- Name: update_updated_at_column(); Type: FUNCTION; Schema: public; Owner: giventa_event_management
 --
 
 CREATE FUNCTION  public.update_updated_at_column() RETURNS trigger
@@ -312,11 +347,11 @@ END;
 $$;
 
 
-ALTER FUNCTION public.update_updated_at_column() OWNER TO nextjs_template_boot;
+ALTER FUNCTION public.update_updated_at_column() OWNER TO giventa_event_management;
 
 --
 -- TOC entry 254 (class 1255 OID 71141)
--- Name: validate_event_dates(); Type: FUNCTION; Schema: public; Owner: nextjs_template_boot
+-- Name: validate_event_dates(); Type: FUNCTION; Schema: public; Owner: giventa_event_management
 --
 
 CREATE FUNCTION  public.validate_event_dates() RETURNS trigger
@@ -327,22 +362,22 @@ BEGIN
     IF NEW.start_date < CURRENT_DATE THEN
         RAISE EXCEPTION 'Event start date cannot be in the past';
     END IF;
-    
+
     -- Ensure registration deadline is before event start
     IF NEW.registration_deadline IS NOT NULL AND NEW.registration_deadline::date > NEW.start_date THEN
         RAISE EXCEPTION 'Registration deadline must be before event start date';
     END IF;
-    
+
     RETURN NEW;
 END;
 $$;
 
 
-ALTER FUNCTION public.validate_event_dates() OWNER TO nextjs_template_boot;
+ALTER FUNCTION public.validate_event_dates() OWNER TO giventa_event_management;
 
 --
 -- TOC entry 257 (class 1255 OID 71147)
--- Name: validate_event_dates_alt1(); Type: FUNCTION; Schema: public; Owner: nextjs_template_boot
+-- Name: validate_event_dates_alt1(); Type: FUNCTION; Schema: public; Owner: giventa_event_management
 --
 
 CREATE FUNCTION  public.validate_event_dates_alt1() RETURNS trigger
@@ -352,21 +387,21 @@ BEGIN
     IF NEW.start_date < CURRENT_DATE THEN
         RAISE EXCEPTION 'Event start date cannot be in the past';
     END IF;
-    
+
     IF NEW.registration_deadline IS NOT NULL AND NEW.registration_deadline::date > NEW.start_date THEN
         RAISE EXCEPTION 'Registration deadline must be before event start date';
     END IF;
-    
+
     RETURN NEW;
 END;
 $$;
 
 
-ALTER FUNCTION public.validate_event_dates_alt1() OWNER TO nextjs_template_boot;
+ALTER FUNCTION public.validate_event_dates_alt1() OWNER TO giventa_event_management;
 
 --
 -- TOC entry 258 (class 1255 OID 71148)
--- Name: validate_event_dates_alt2(); Type: FUNCTION; Schema: public; Owner: nextjs_template_boot
+-- Name: validate_event_dates_alt2(); Type: FUNCTION; Schema: public; Owner: giventa_event_management
 --
 
 CREATE FUNCTION  public.validate_event_dates_alt2() RETURNS trigger
@@ -376,21 +411,21 @@ BEGIN
     IF NEW.start_date < CURRENT_DATE THEN
         RAISE EXCEPTION 'Event start date cannot be in the past';
     END IF;
-    
+
     IF NEW.registration_deadline IS NOT NULL AND NEW.registration_deadline::date > NEW.start_date THEN
         RAISE EXCEPTION 'Registration deadline must be before event start date';
     END IF;
-    
+
     RETURN NEW;
 END;
 $$;
 
 
-ALTER FUNCTION public.validate_event_dates_alt2() OWNER TO nextjs_template_boot;
+ALTER FUNCTION public.validate_event_dates_alt2() OWNER TO giventa_event_management;
 
 --
 -- TOC entry 270 (class 1255 OID 71149)
--- Name: validate_event_details(); Type: FUNCTION; Schema: public; Owner: nextjs_template_boot
+-- Name: validate_event_details(); Type: FUNCTION; Schema: public; Owner: giventa_event_management
 --
 
 CREATE FUNCTION  public.validate_event_details() RETURNS trigger
@@ -427,11 +462,11 @@ END;
 $$;
 
 
-ALTER FUNCTION public.validate_event_details() OWNER TO nextjs_template_boot;
+ALTER FUNCTION public.validate_event_details() OWNER TO giventa_event_management;
 
 --
 -- TOC entry 224 (class 1259 OID 82754)
--- Name: sequence_generator; Type: SEQUENCE; Schema: public; Owner: nextjs_template_boot
+-- Name: sequence_generator; Type: SEQUENCE; Schema: public; Owner: giventa_event_management
 --
 
 CREATE SEQUENCE public.sequence_generator
@@ -442,7 +477,7 @@ CREATE SEQUENCE public.sequence_generator
     CACHE 1;
 
 
-ALTER SEQUENCE public.sequence_generator OWNER TO nextjs_template_boot;
+ALTER SEQUENCE public.sequence_generator OWNER TO giventa_event_management;
 
 SET default_tablespace = '';
 
@@ -450,7 +485,7 @@ SET default_table_access_method = heap;
 
 --
 -- TOC entry 238 (class 1259 OID 82938)
--- Name: bulk_operation_log; Type: TABLE; Schema: public; Owner: nextjs_template_boot
+-- Name: bulk_operation_log; Type: TABLE; Schema: public; Owner: giventa_event_management
 --
 
 CREATE TABLE public.bulk_operation_log (
@@ -472,11 +507,11 @@ CREATE TABLE public.bulk_operation_log (
 );
 
 
-ALTER TABLE public.bulk_operation_log OWNER TO nextjs_template_boot;
+ALTER TABLE public.bulk_operation_log OWNER TO giventa_event_management;
 
 --
 -- TOC entry 225 (class 1259 OID 82755)
--- Name: databasechangelog; Type: TABLE; Schema: public; Owner: nextjs_template_boot
+-- Name: databasechangelog; Type: TABLE; Schema: public; Owner: giventa_event_management
 --
 
 CREATE TABLE public.databasechangelog (
@@ -497,11 +532,11 @@ CREATE TABLE public.databasechangelog (
 );
 
 
-ALTER TABLE public.databasechangelog OWNER TO nextjs_template_boot;
+ALTER TABLE public.databasechangelog OWNER TO giventa_event_management;
 
 --
 -- TOC entry 226 (class 1259 OID 82760)
--- Name: databasechangeloglock; Type: TABLE; Schema: public; Owner: nextjs_template_boot
+-- Name: databasechangeloglock; Type: TABLE; Schema: public; Owner: giventa_event_management
 --
 
 CREATE TABLE public.databasechangeloglock (
@@ -512,11 +547,11 @@ CREATE TABLE public.databasechangeloglock (
 );
 
 
-ALTER TABLE public.databasechangeloglock OWNER TO nextjs_template_boot;
+ALTER TABLE public.databasechangeloglock OWNER TO giventa_event_management;
 
 --
 -- TOC entry 228 (class 1259 OID 82766)
--- Name: discount_code; Type: TABLE; Schema: public; Owner: nextjs_template_boot
+-- Name: discount_code; Type: TABLE; Schema: public; Owner: giventa_event_management
 --
 
 CREATE TABLE public.discount_code (
@@ -535,12 +570,12 @@ CREATE TABLE public.discount_code (
 );
 
 
-ALTER TABLE public.discount_code OWNER TO nextjs_template_boot;
+ALTER TABLE public.discount_code OWNER TO giventa_event_management;
 
 --
 -- TOC entry 3927 (class 0 OID 0)
 -- Dependencies: 228
--- Name: TABLE discount_code; Type: COMMENT; Schema: public; Owner: nextjs_template_boot
+-- Name: TABLE discount_code; Type: COMMENT; Schema: public; Owner: giventa_event_management
 --
 
 COMMENT ON TABLE public.discount_code IS 'Discount codes for ticket purchases';
@@ -548,7 +583,7 @@ COMMENT ON TABLE public.discount_code IS 'Discount codes for ticket purchases';
 
 --
 -- TOC entry 227 (class 1259 OID 82765)
--- Name: discount_code_id_seq; Type: SEQUENCE; Schema: public; Owner: nextjs_template_boot
+-- Name: discount_code_id_seq; Type: SEQUENCE; Schema: public; Owner: giventa_event_management
 --
 
 CREATE SEQUENCE public.discount_code_id_seq
@@ -559,12 +594,12 @@ CREATE SEQUENCE public.discount_code_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.discount_code_id_seq OWNER TO nextjs_template_boot;
+ALTER SEQUENCE public.discount_code_id_seq OWNER TO giventa_event_management;
 
 --
 -- TOC entry 3929 (class 0 OID 0)
 -- Dependencies: 227
--- Name: discount_code_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: nextjs_template_boot
+-- Name: discount_code_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: giventa_event_management
 --
 
 ALTER SEQUENCE public.discount_code_id_seq OWNED BY public.discount_code.id;
@@ -572,7 +607,7 @@ ALTER SEQUENCE public.discount_code_id_seq OWNED BY public.discount_code.id;
 
 --
 -- TOC entry 235 (class 1259 OID 82890)
--- Name: event_admin; Type: TABLE; Schema: public; Owner: nextjs_template_boot
+-- Name: event_admin; Type: TABLE; Schema: public; Owner: giventa_event_management
 --
 
 CREATE TABLE public.event_admin (
@@ -588,11 +623,11 @@ CREATE TABLE public.event_admin (
 );
 
 
-ALTER TABLE public.event_admin OWNER TO nextjs_template_boot;
+ALTER TABLE public.event_admin OWNER TO giventa_event_management;
 
 --
 -- TOC entry 249 (class 1259 OID 83122)
--- Name: event_admin_audit_log; Type: TABLE; Schema: public; Owner: nextjs_template_boot
+-- Name: event_admin_audit_log; Type: TABLE; Schema: public; Owner: giventa_event_management
 --
 
 CREATE TABLE public.event_admin_audit_log (
@@ -612,12 +647,12 @@ CREATE TABLE public.event_admin_audit_log (
 );
 
 
-ALTER TABLE public.event_admin_audit_log OWNER TO nextjs_template_boot;
+ALTER TABLE public.event_admin_audit_log OWNER TO giventa_event_management;
 
 --
 -- TOC entry 3932 (class 0 OID 0)
 -- Dependencies: 249
--- Name: TABLE event_admin_audit_log; Type: COMMENT; Schema: public; Owner: nextjs_template_boot
+-- Name: TABLE event_admin_audit_log; Type: COMMENT; Schema: public; Owner: giventa_event_management
 --
 
 COMMENT ON TABLE public.event_admin_audit_log IS 'Comprehensive audit logging for all admin actions';
@@ -625,7 +660,7 @@ COMMENT ON TABLE public.event_admin_audit_log IS 'Comprehensive audit logging fo
 
 --
 -- TOC entry 248 (class 1259 OID 83101)
--- Name: event_attendee; Type: TABLE; Schema: public; Owner: nextjs_template_boot
+-- Name: event_attendee; Type: TABLE; Schema: public; Owner: giventa_event_management
 --
 
 CREATE TABLE public.event_attendee (
@@ -660,16 +695,21 @@ CREATE TABLE public.event_attendee (
     created_at timestamp without time zone DEFAULT now() NOT NULL,
     updated_at timestamp without time zone DEFAULT now() NOT NULL,
     CONSTRAINT check_waitlist_position_positive CHECK (((waitlist_position IS NULL) OR (waitlist_position > 0))),
-    CONSTRAINT event_attendee_attendance_rating_check CHECK (((attendance_rating >= 1) AND (attendance_rating <= 5)))
+    CONSTRAINT event_attendee_attendance_rating_check CHECK (((attendance_rating >= 1) AND (attendance_rating <= 5))),
+    first_name character varying(255),
+    last_name character varying(255),
+    email character varying(255),
+    phone character varying(255),
+    is_member boolean
 );
 
 
-ALTER TABLE public.event_attendee OWNER TO nextjs_template_boot;
+ALTER TABLE public.event_attendee OWNER TO giventa_event_management;
 
 --
 -- TOC entry 3934 (class 0 OID 0)
 -- Dependencies: 248
--- Name: TABLE event_attendee; Type: COMMENT; Schema: public; Owner: nextjs_template_boot
+-- Name: TABLE event_attendee; Type: COMMENT; Schema: public; Owner: giventa_event_management
 --
 
 COMMENT ON TABLE public.event_attendee IS 'Enhanced event registration and attendance tracking with QR code support';
@@ -678,7 +718,7 @@ COMMENT ON TABLE public.event_attendee IS 'Enhanced event registration and atten
 --
 -- TOC entry 3935 (class 0 OID 0)
 -- Dependencies: 248
--- Name: COLUMN event_attendee.qr_code_data; Type: COMMENT; Schema: public; Owner: nextjs_template_boot
+-- Name: COLUMN event_attendee.qr_code_data; Type: COMMENT; Schema: public; Owner: giventa_event_management
 --
 
 COMMENT ON COLUMN public.event_attendee.qr_code_data IS 'QR code data for check-in (auto-generated)';
@@ -687,7 +727,7 @@ COMMENT ON COLUMN public.event_attendee.qr_code_data IS 'QR code data for check-
 --
 -- TOC entry 3936 (class 0 OID 0)
 -- Dependencies: 248
--- Name: COLUMN event_attendee.qr_code_generated; Type: COMMENT; Schema: public; Owner: nextjs_template_boot
+-- Name: COLUMN event_attendee.qr_code_generated; Type: COMMENT; Schema: public; Owner: giventa_event_management
 --
 
 COMMENT ON COLUMN public.event_attendee.qr_code_generated IS 'Whether QR code has been generated for this attendee';
@@ -696,7 +736,7 @@ COMMENT ON COLUMN public.event_attendee.qr_code_generated IS 'Whether QR code ha
 --
 -- TOC entry 3937 (class 0 OID 0)
 -- Dependencies: 248
--- Name: COLUMN event_attendee.qr_code_generated_at; Type: COMMENT; Schema: public; Owner: nextjs_template_boot
+-- Name: COLUMN event_attendee.qr_code_generated_at; Type: COMMENT; Schema: public; Owner: giventa_event_management
 --
 
 COMMENT ON COLUMN public.event_attendee.qr_code_generated_at IS 'Timestamp when QR code was generated';
@@ -704,14 +744,13 @@ COMMENT ON COLUMN public.event_attendee.qr_code_generated_at IS 'Timestamp when 
 
 --
 -- TOC entry 250 (class 1259 OID 83131)
--- Name: event_attendee_guest; Type: TABLE; Schema: public; Owner: nextjs_template_boot
+-- Name: event_attendee_guest; Type: TABLE; Schema: public; Owner: giventa_event_management
 --
 
 CREATE TABLE public.event_attendee_guest (
     id bigint DEFAULT nextval('public.sequence_generator'::regclass) NOT NULL,
     tenant_id character varying(255),
     primary_attendee_id bigint NOT NULL,
-    guest_name character varying(255) NOT NULL,
     age_group character varying(20) NOT NULL,
     relationship character varying(20),
     special_requirements text,
@@ -731,16 +770,20 @@ CREATE TABLE public.event_attendee_guest (
     notes text,
     created_at timestamp without time zone DEFAULT now() NOT NULL,
     updated_at timestamp without time zone DEFAULT now() NOT NULL,
-    CONSTRAINT check_guest_fee_non_negative CHECK ((fee_amount >= (0)::numeric))
+    CONSTRAINT check_guest_fee_non_negative CHECK ((fee_amount >= (0)::numeric)),
+    first_name character varying(255),
+    last_name character varying(255),
+    email character varying(255),
+    phone character varying(255)
 );
 
 
-ALTER TABLE public.event_attendee_guest OWNER TO nextjs_template_boot;
+ALTER TABLE public.event_attendee_guest OWNER TO giventa_event_management;
 
 --
 -- TOC entry 3939 (class 0 OID 0)
 -- Dependencies: 250
--- Name: TABLE event_attendee_guest; Type: COMMENT; Schema: public; Owner: nextjs_template_boot
+-- Name: TABLE event_attendee_guest; Type: COMMENT; Schema: public; Owner: giventa_event_management
 --
 
 COMMENT ON TABLE public.event_attendee_guest IS 'Guest registrations linked to primary attendees using JDL enum types';
@@ -749,7 +792,7 @@ COMMENT ON TABLE public.event_attendee_guest IS 'Guest registrations linked to p
 --
 -- TOC entry 3940 (class 0 OID 0)
 -- Dependencies: 250
--- Name: COLUMN event_attendee_guest.age_group; Type: COMMENT; Schema: public; Owner: nextjs_template_boot
+-- Name: COLUMN event_attendee_guest.age_group; Type: COMMENT; Schema: public; Owner: giventa_event_management
 --
 
 COMMENT ON COLUMN public.event_attendee_guest.age_group IS 'Guest age group: ADULT, TEEN, CHILD, INFANT';
@@ -758,7 +801,7 @@ COMMENT ON COLUMN public.event_attendee_guest.age_group IS 'Guest age group: ADU
 --
 -- TOC entry 3941 (class 0 OID 0)
 -- Dependencies: 250
--- Name: COLUMN event_attendee_guest.relationship; Type: COMMENT; Schema: public; Owner: nextjs_template_boot
+-- Name: COLUMN event_attendee_guest.relationship; Type: COMMENT; Schema: public; Owner: giventa_event_management
 --
 
 COMMENT ON COLUMN public.event_attendee_guest.relationship IS 'Relationship to primary attendee';
@@ -766,7 +809,7 @@ COMMENT ON COLUMN public.event_attendee_guest.relationship IS 'Relationship to p
 
 --
 -- TOC entry 247 (class 1259 OID 83088)
--- Name: event_calendar_entry; Type: TABLE; Schema: public; Owner: nextjs_template_boot
+-- Name: event_calendar_entry; Type: TABLE; Schema: public; Owner: giventa_event_management
 --
 
 CREATE TABLE public.event_calendar_entry (
@@ -785,11 +828,11 @@ CREATE TABLE public.event_calendar_entry (
 );
 
 
-ALTER TABLE public.event_calendar_entry OWNER TO nextjs_template_boot;
+ALTER TABLE public.event_calendar_entry OWNER TO giventa_event_management;
 
 --
 -- TOC entry 234 (class 1259 OID 82865)
--- Name: event_details; Type: TABLE; Schema: public; Owner: nextjs_template_boot
+-- Name: event_details; Type: TABLE; Schema: public; Owner: giventa_event_management
 --
 
 CREATE TABLE public.event_details (
@@ -833,12 +876,12 @@ CREATE TABLE public.event_details (
 );
 
 
-ALTER TABLE public.event_details OWNER TO nextjs_template_boot;
+ALTER TABLE public.event_details OWNER TO giventa_event_management;
 
 --
 -- TOC entry 3944 (class 0 OID 0)
 -- Dependencies: 234
--- Name: TABLE event_details; Type: COMMENT; Schema: public; Owner: nextjs_template_boot
+-- Name: TABLE event_details; Type: COMMENT; Schema: public; Owner: giventa_event_management
 --
 
 COMMENT ON TABLE public.event_details IS 'Enhanced event details with guest management and validation';
@@ -847,7 +890,7 @@ COMMENT ON TABLE public.event_details IS 'Enhanced event details with guest mana
 --
 -- TOC entry 3945 (class 0 OID 0)
 -- Dependencies: 234
--- Name: COLUMN event_details.max_guests_per_attendee; Type: COMMENT; Schema: public; Owner: nextjs_template_boot
+-- Name: COLUMN event_details.max_guests_per_attendee; Type: COMMENT; Schema: public; Owner: giventa_event_management
 --
 
 COMMENT ON COLUMN public.event_details.max_guests_per_attendee IS 'Maximum number of guests allowed per primary attendee';
@@ -856,7 +899,7 @@ COMMENT ON COLUMN public.event_details.max_guests_per_attendee IS 'Maximum numbe
 --
 -- TOC entry 3946 (class 0 OID 0)
 -- Dependencies: 234
--- Name: COLUMN event_details.allow_guests; Type: COMMENT; Schema: public; Owner: nextjs_template_boot
+-- Name: COLUMN event_details.allow_guests; Type: COMMENT; Schema: public; Owner: giventa_event_management
 --
 
 COMMENT ON COLUMN public.event_details.allow_guests IS 'Whether guest registrations are allowed for this event';
@@ -865,7 +908,7 @@ COMMENT ON COLUMN public.event_details.allow_guests IS 'Whether guest registrati
 --
 -- TOC entry 3947 (class 0 OID 0)
 -- Dependencies: 234
--- Name: COLUMN event_details.require_guest_approval; Type: COMMENT; Schema: public; Owner: nextjs_template_boot
+-- Name: COLUMN event_details.require_guest_approval; Type: COMMENT; Schema: public; Owner: giventa_event_management
 --
 
 COMMENT ON COLUMN public.event_details.require_guest_approval IS 'Whether guest registrations require admin approval';
@@ -874,7 +917,7 @@ COMMENT ON COLUMN public.event_details.require_guest_approval IS 'Whether guest 
 --
 -- TOC entry 3948 (class 0 OID 0)
 -- Dependencies: 234
--- Name: COLUMN event_details.enable_guest_pricing; Type: COMMENT; Schema: public; Owner: nextjs_template_boot
+-- Name: COLUMN event_details.enable_guest_pricing; Type: COMMENT; Schema: public; Owner: giventa_event_management
 --
 
 COMMENT ON COLUMN public.event_details.enable_guest_pricing IS 'Whether special pricing applies to guests';
@@ -883,7 +926,7 @@ COMMENT ON COLUMN public.event_details.enable_guest_pricing IS 'Whether special 
 --
 -- TOC entry 3949 (class 0 OID 0)
 -- Dependencies: 234
--- Name: COLUMN event_details.is_registration_required; Type: COMMENT; Schema: public; Owner: nextjs_template_boot
+-- Name: COLUMN event_details.is_registration_required; Type: COMMENT; Schema: public; Owner: giventa_event_management
 --
 
 COMMENT ON COLUMN public.event_details.is_registration_required IS 'Whether formal registration is required for this event';
@@ -892,7 +935,7 @@ COMMENT ON COLUMN public.event_details.is_registration_required IS 'Whether form
 --
 -- TOC entry 3950 (class 0 OID 0)
 -- Dependencies: 234
--- Name: COLUMN event_details.is_sports_event; Type: COMMENT; Schema: public; Owner: nextjs_template_boot
+-- Name: COLUMN event_details.is_sports_event; Type: COMMENT; Schema: public; Owner: giventa_event_management
 --
 
 COMMENT ON COLUMN public.event_details.is_sports_event IS 'Whether this event is a sports event';
@@ -901,7 +944,7 @@ COMMENT ON COLUMN public.event_details.is_sports_event IS 'Whether this event is
 --
 -- TOC entry 3951 (class 0 OID 0)
 -- Dependencies: 234
--- Name: COLUMN event_details.is_live; Type: COMMENT; Schema: public; Owner: nextjs_template_boot
+-- Name: COLUMN event_details.is_live; Type: COMMENT; Schema: public; Owner: giventa_event_management
 --
 
 COMMENT ON COLUMN public.event_details.is_live IS 'Whether this event is currently live and should be featured on the home page';
@@ -909,7 +952,7 @@ COMMENT ON COLUMN public.event_details.is_live IS 'Whether this event is current
 
 --
 -- TOC entry 253 (class 1259 OID 83390)
--- Name: event_discount_code; Type: TABLE; Schema: public; Owner: nextjs_template_boot
+-- Name: event_discount_code; Type: TABLE; Schema: public; Owner: giventa_event_management
 --
 
 CREATE TABLE public.event_discount_code (
@@ -918,12 +961,12 @@ CREATE TABLE public.event_discount_code (
 );
 
 
-ALTER TABLE public.event_discount_code OWNER TO nextjs_template_boot;
+ALTER TABLE public.event_discount_code OWNER TO giventa_event_management;
 
 --
 -- TOC entry 3953 (class 0 OID 0)
 -- Dependencies: 253
--- Name: TABLE event_discount_code; Type: COMMENT; Schema: public; Owner: nextjs_template_boot
+-- Name: TABLE event_discount_code; Type: COMMENT; Schema: public; Owner: giventa_event_management
 --
 
 COMMENT ON TABLE public.event_discount_code IS 'Links discount codes to events';
@@ -931,7 +974,7 @@ COMMENT ON TABLE public.event_discount_code IS 'Links discount codes to events';
 
 --
 -- TOC entry 251 (class 1259 OID 83147)
--- Name: event_guest_pricing; Type: TABLE; Schema: public; Owner: nextjs_template_boot
+-- Name: event_guest_pricing; Type: TABLE; Schema: public; Owner: giventa_event_management
 --
 
 CREATE TABLE public.event_guest_pricing (
@@ -960,12 +1003,12 @@ CREATE TABLE public.event_guest_pricing (
 );
 
 
-ALTER TABLE public.event_guest_pricing OWNER TO nextjs_template_boot;
+ALTER TABLE public.event_guest_pricing OWNER TO giventa_event_management;
 
 --
 -- TOC entry 3955 (class 0 OID 0)
 -- Dependencies: 251
--- Name: TABLE event_guest_pricing; Type: COMMENT; Schema: public; Owner: nextjs_template_boot
+-- Name: TABLE event_guest_pricing; Type: COMMENT; Schema: public; Owner: giventa_event_management
 --
 
 COMMENT ON TABLE public.event_guest_pricing IS 'Flexible pricing structure for event guests with JDL validation';
@@ -974,7 +1017,7 @@ COMMENT ON TABLE public.event_guest_pricing IS 'Flexible pricing structure for e
 --
 -- TOC entry 3956 (class 0 OID 0)
 -- Dependencies: 251
--- Name: COLUMN event_guest_pricing.price; Type: COMMENT; Schema: public; Owner: nextjs_template_boot
+-- Name: COLUMN event_guest_pricing.price; Type: COMMENT; Schema: public; Owner: giventa_event_management
 --
 
 COMMENT ON COLUMN public.event_guest_pricing.price IS 'Guest price (required, minimum 0)';
@@ -983,7 +1026,7 @@ COMMENT ON COLUMN public.event_guest_pricing.price IS 'Guest price (required, mi
 --
 -- TOC entry 3957 (class 0 OID 0)
 -- Dependencies: 251
--- Name: COLUMN event_guest_pricing.is_active; Type: COMMENT; Schema: public; Owner: nextjs_template_boot
+-- Name: COLUMN event_guest_pricing.is_active; Type: COMMENT; Schema: public; Owner: giventa_event_management
 --
 
 COMMENT ON COLUMN public.event_guest_pricing.is_active IS 'Whether this pricing is currently active';
@@ -992,7 +1035,7 @@ COMMENT ON COLUMN public.event_guest_pricing.is_active IS 'Whether this pricing 
 --
 -- TOC entry 3958 (class 0 OID 0)
 -- Dependencies: 251
--- Name: COLUMN event_guest_pricing.valid_from; Type: COMMENT; Schema: public; Owner: nextjs_template_boot
+-- Name: COLUMN event_guest_pricing.valid_from; Type: COMMENT; Schema: public; Owner: giventa_event_management
 --
 
 COMMENT ON COLUMN public.event_guest_pricing.valid_from IS 'Start date for pricing validity';
@@ -1001,7 +1044,7 @@ COMMENT ON COLUMN public.event_guest_pricing.valid_from IS 'Start date for prici
 --
 -- TOC entry 3959 (class 0 OID 0)
 -- Dependencies: 251
--- Name: COLUMN event_guest_pricing.valid_to; Type: COMMENT; Schema: public; Owner: nextjs_template_boot
+-- Name: COLUMN event_guest_pricing.valid_to; Type: COMMENT; Schema: public; Owner: giventa_event_management
 --
 
 COMMENT ON COLUMN public.event_guest_pricing.valid_to IS 'End date for pricing validity';
@@ -1010,7 +1053,7 @@ COMMENT ON COLUMN public.event_guest_pricing.valid_to IS 'End date for pricing v
 --
 -- TOC entry 3960 (class 0 OID 0)
 -- Dependencies: 251
--- Name: COLUMN event_guest_pricing.description; Type: COMMENT; Schema: public; Owner: nextjs_template_boot
+-- Name: COLUMN event_guest_pricing.description; Type: COMMENT; Schema: public; Owner: giventa_event_management
 --
 
 COMMENT ON COLUMN public.event_guest_pricing.description IS 'Pricing description (max 255 chars)';
@@ -1126,7 +1169,7 @@ ALTER SEQUENCE public.event_live_update_id_seq OWNED BY public.event_live_update
 
 --
 -- TOC entry 246 (class 1259 OID 83070)
--- Name: event_media; Type: TABLE; Schema: public; Owner: nextjs_template_boot
+-- Name: event_media; Type: TABLE; Schema: public; Owner: giventa_event_management
 --
 
 CREATE TABLE public.event_media (
@@ -1160,13 +1203,12 @@ CREATE TABLE public.event_media (
     CONSTRAINT check_file_size_positive CHECK (((file_size IS NULL) OR (file_size >= 0)))
 );
 
-
-ALTER TABLE public.event_media OWNER TO nextjs_template_boot;
+ALTER TABLE public.event_media OWNER TO giventa_event_management;
 
 --
 -- TOC entry 3966 (class 0 OID 0)
 -- Dependencies: 246
--- Name: COLUMN event_media.pre_signed_url; Type: COMMENT; Schema: public; Owner: nextjs_template_boot
+-- Name: COLUMN event_media.pre_signed_url; Type: COMMENT; Schema: public; Owner: giventa_event_management
 --
 
 COMMENT ON COLUMN public.event_media.pre_signed_url IS 'Pre-signed URL for temporary access (max length 2048 chars)';
@@ -1174,7 +1216,7 @@ COMMENT ON COLUMN public.event_media.pre_signed_url IS 'Pre-signed URL for tempo
 
 --
 -- TOC entry 239 (class 1259 OID 82951)
--- Name: event_organizer; Type: TABLE; Schema: public; Owner: nextjs_template_boot
+-- Name: event_organizer; Type: TABLE; Schema: public; Owner: giventa_event_management
 --
 
 CREATE TABLE public.event_organizer (
@@ -1196,11 +1238,11 @@ CREATE TABLE public.event_organizer (
 );
 
 
-ALTER TABLE public.event_organizer OWNER TO nextjs_template_boot;
+ALTER TABLE public.event_organizer OWNER TO giventa_event_management;
 
 --
 -- TOC entry 243 (class 1259 OID 83028)
--- Name: event_poll; Type: TABLE; Schema: public; Owner: nextjs_template_boot
+-- Name: event_poll; Type: TABLE; Schema: public; Owner: giventa_event_management
 --
 
 CREATE TABLE public.event_poll (
@@ -1224,11 +1266,11 @@ CREATE TABLE public.event_poll (
 );
 
 
-ALTER TABLE public.event_poll OWNER TO nextjs_template_boot;
+ALTER TABLE public.event_poll OWNER TO giventa_event_management;
 
 --
 -- TOC entry 244 (class 1259 OID 83045)
--- Name: event_poll_option; Type: TABLE; Schema: public; Owner: nextjs_template_boot
+-- Name: event_poll_option; Type: TABLE; Schema: public; Owner: giventa_event_management
 --
 
 CREATE TABLE public.event_poll_option (
@@ -1243,11 +1285,11 @@ CREATE TABLE public.event_poll_option (
 );
 
 
-ALTER TABLE public.event_poll_option OWNER TO nextjs_template_boot;
+ALTER TABLE public.event_poll_option OWNER TO giventa_event_management;
 
 --
 -- TOC entry 245 (class 1259 OID 83057)
--- Name: event_poll_response; Type: TABLE; Schema: public; Owner: nextjs_template_boot
+-- Name: event_poll_response; Type: TABLE; Schema: public; Owner: giventa_event_management
 --
 
 CREATE TABLE public.event_poll_response (
@@ -1264,7 +1306,7 @@ CREATE TABLE public.event_poll_response (
 );
 
 
-ALTER TABLE public.event_poll_response OWNER TO nextjs_template_boot;
+ALTER TABLE public.event_poll_response OWNER TO giventa_event_management;
 
 --
 -- TOC entry 216 (class 1259 OID 77393)
@@ -1373,7 +1415,7 @@ ALTER SEQUENCE public.event_score_card_id_seq OWNED BY public.event_score_card.i
 
 --
 -- TOC entry 241 (class 1259 OID 82986)
--- Name: event_ticket_transaction; Type: TABLE; Schema: public; Owner: nextjs_template_boot
+-- Name: event_ticket_transaction; Type: TABLE; Schema: public; Owner: giventa_event_management
 --
 
 CREATE TABLE public.event_ticket_transaction (
@@ -1410,12 +1452,12 @@ CREATE TABLE public.event_ticket_transaction (
 );
 
 
-ALTER TABLE public.event_ticket_transaction OWNER TO nextjs_template_boot;
+ALTER TABLE public.event_ticket_transaction OWNER TO giventa_event_management;
 
 --
 -- TOC entry 3976 (class 0 OID 0)
 -- Dependencies: 241
--- Name: COLUMN event_ticket_transaction.discount_code_id; Type: COMMENT; Schema: public; Owner: nextjs_template_boot
+-- Name: COLUMN event_ticket_transaction.discount_code_id; Type: COMMENT; Schema: public; Owner: giventa_event_management
 --
 
 COMMENT ON COLUMN public.event_ticket_transaction.discount_code_id IS 'Discount code used for this ticket purchase';
@@ -1424,7 +1466,7 @@ COMMENT ON COLUMN public.event_ticket_transaction.discount_code_id IS 'Discount 
 --
 -- TOC entry 3977 (class 0 OID 0)
 -- Dependencies: 241
--- Name: COLUMN event_ticket_transaction.discount_amount; Type: COMMENT; Schema: public; Owner: nextjs_template_boot
+-- Name: COLUMN event_ticket_transaction.discount_amount; Type: COMMENT; Schema: public; Owner: giventa_event_management
 --
 
 COMMENT ON COLUMN public.event_ticket_transaction.discount_amount IS 'Discount amount applied to this ticket purchase';
@@ -1432,7 +1474,7 @@ COMMENT ON COLUMN public.event_ticket_transaction.discount_amount IS 'Discount a
 
 --
 -- TOC entry 240 (class 1259 OID 82964)
--- Name: event_ticket_type; Type: TABLE; Schema: public; Owner: nextjs_template_boot
+-- Name: event_ticket_type; Type: TABLE; Schema: public; Owner: giventa_event_management
 --
 
 CREATE TABLE public.event_ticket_type (
@@ -1461,12 +1503,12 @@ CREATE TABLE public.event_ticket_type (
 );
 
 
-ALTER TABLE public.event_ticket_type OWNER TO nextjs_template_boot;
+ALTER TABLE public.event_ticket_type OWNER TO giventa_event_management;
 
 --
 -- TOC entry 3979 (class 0 OID 0)
 -- Dependencies: 240
--- Name: COLUMN event_ticket_type.sold_quantity; Type: COMMENT; Schema: public; Owner: nextjs_template_boot
+-- Name: COLUMN event_ticket_type.sold_quantity; Type: COMMENT; Schema: public; Owner: giventa_event_management
 --
 
 COMMENT ON COLUMN public.event_ticket_type.sold_quantity IS 'Number of tickets sold (auto-updated by triggers)';
@@ -1474,7 +1516,7 @@ COMMENT ON COLUMN public.event_ticket_type.sold_quantity IS 'Number of tickets s
 
 --
 -- TOC entry 232 (class 1259 OID 82832)
--- Name: event_type_details; Type: TABLE; Schema: public; Owner: nextjs_template_boot
+-- Name: event_type_details; Type: TABLE; Schema: public; Owner: giventa_event_management
 --
 
 CREATE TABLE public.event_type_details (
@@ -1492,12 +1534,12 @@ CREATE TABLE public.event_type_details (
 );
 
 
-ALTER TABLE public.event_type_details OWNER TO nextjs_template_boot;
+ALTER TABLE public.event_type_details OWNER TO giventa_event_management;
 
 --
 -- TOC entry 3981 (class 0 OID 0)
 -- Dependencies: 232
--- Name: TABLE event_type_details; Type: COMMENT; Schema: public; Owner: nextjs_template_boot
+-- Name: TABLE event_type_details; Type: COMMENT; Schema: public; Owner: giventa_event_management
 --
 
 COMMENT ON TABLE public.event_type_details IS 'Event type classifications with visual customization';
@@ -1505,7 +1547,7 @@ COMMENT ON TABLE public.event_type_details IS 'Event type classifications with v
 
 --
 -- TOC entry 252 (class 1259 OID 83166)
--- Name: qr_code_usage; Type: TABLE; Schema: public; Owner: nextjs_template_boot
+-- Name: qr_code_usage; Type: TABLE; Schema: public; Owner: giventa_event_management
 --
 
 CREATE TABLE public.qr_code_usage (
@@ -1531,12 +1573,12 @@ CREATE TABLE public.qr_code_usage (
 );
 
 
-ALTER TABLE public.qr_code_usage OWNER TO nextjs_template_boot;
+ALTER TABLE public.qr_code_usage OWNER TO giventa_event_management;
 
 --
 -- TOC entry 3983 (class 0 OID 0)
 -- Dependencies: 252
--- Name: TABLE qr_code_usage; Type: COMMENT; Schema: public; Owner: nextjs_template_boot
+-- Name: TABLE qr_code_usage; Type: COMMENT; Schema: public; Owner: giventa_event_management
 --
 
 COMMENT ON TABLE public.qr_code_usage IS 'Enhanced QR code generation and usage tracking with security features';
@@ -1566,7 +1608,7 @@ COMMENT ON TABLE public.rel_event_details__discount_codes IS 'Join table for Eve
 
 --
 -- TOC entry 229 (class 1259 OID 82779)
--- Name: tenant_organization; Type: TABLE; Schema: public; Owner: nextjs_template_boot
+-- Name: tenant_organization; Type: TABLE; Schema: public; Owner: giventa_event_management
 --
 
 CREATE TABLE public.tenant_organization (
@@ -1593,12 +1635,12 @@ CREATE TABLE public.tenant_organization (
 );
 
 
-ALTER TABLE public.tenant_organization OWNER TO nextjs_template_boot;
+ALTER TABLE public.tenant_organization OWNER TO giventa_event_management;
 
 --
 -- TOC entry 3986 (class 0 OID 0)
 -- Dependencies: 229
--- Name: TABLE tenant_organization; Type: COMMENT; Schema: public; Owner: nextjs_template_boot
+-- Name: TABLE tenant_organization; Type: COMMENT; Schema: public; Owner: giventa_event_management
 --
 
 COMMENT ON TABLE public.tenant_organization IS 'Multi-tenant organization configuration and subscription management';
@@ -1606,7 +1648,7 @@ COMMENT ON TABLE public.tenant_organization IS 'Multi-tenant organization config
 
 --
 -- TOC entry 231 (class 1259 OID 82809)
--- Name: tenant_settings; Type: TABLE; Schema: public; Owner: nextjs_template_boot
+-- Name: tenant_settings; Type: TABLE; Schema: public; Owner: giventa_event_management
 --
 
 CREATE TABLE public.tenant_settings (
@@ -1634,12 +1676,12 @@ CREATE TABLE public.tenant_settings (
 );
 
 
-ALTER TABLE public.tenant_settings OWNER TO nextjs_template_boot;
+ALTER TABLE public.tenant_settings OWNER TO giventa_event_management;
 
 --
 -- TOC entry 3988 (class 0 OID 0)
 -- Dependencies: 231
--- Name: TABLE tenant_settings; Type: COMMENT; Schema: public; Owner: nextjs_template_boot
+-- Name: TABLE tenant_settings; Type: COMMENT; Schema: public; Owner: giventa_event_management
 --
 
 COMMENT ON TABLE public.tenant_settings IS 'Tenant-specific configuration settings with enhanced options';
@@ -1647,7 +1689,7 @@ COMMENT ON TABLE public.tenant_settings IS 'Tenant-specific configuration settin
 
 --
 -- TOC entry 242 (class 1259 OID 83010)
--- Name: user_payment_transaction; Type: TABLE; Schema: public; Owner: nextjs_template_boot
+-- Name: user_payment_transaction; Type: TABLE; Schema: public; Owner: giventa_event_management
 --
 
 CREATE TABLE public.user_payment_transaction (
@@ -1675,11 +1717,11 @@ CREATE TABLE public.user_payment_transaction (
 );
 
 
-ALTER TABLE public.user_payment_transaction OWNER TO nextjs_template_boot;
+ALTER TABLE public.user_payment_transaction OWNER TO giventa_event_management;
 
 --
 -- TOC entry 230 (class 1259 OID 82796)
--- Name: user_profile; Type: TABLE; Schema: public; Owner: nextjs_template_boot
+-- Name: user_profile; Type: TABLE; Schema: public; Owner: giventa_event_management
 --
 
 CREATE TABLE public.user_profile (
@@ -1708,67 +1750,35 @@ CREATE TABLE public.user_profile (
     reviewed_by_admin_id bigint,
     created_at timestamp without time zone DEFAULT now() NOT NULL,
     updated_at timestamp without time zone DEFAULT now() NOT NULL,
-    CONSTRAINT check_email_format CHECK (((email IS NULL) OR ((email)::text ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'::text)))
+    CONSTRAINT check_email_format CHECK (((email IS NULL) OR ((email)::text ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'::text))),
+    request_id character varying(255) UNIQUE,
+    request_reason text,
+    status character varying(50),
+    admin_comments text,
+    submitted_at timestamp without time zone,
+    reviewed_at timestamp without time zone,
+    approved_at timestamp without time zone,
+    rejected_at timestamp without time zone
 );
 
 
-ALTER TABLE public.user_profile OWNER TO nextjs_template_boot;
+ALTER TABLE public.user_profile OWNER TO giventa_event_management;
 
 --
 -- TOC entry 3991 (class 0 OID 0)
 -- Dependencies: 230
--- Name: TABLE user_profile; Type: COMMENT; Schema: public; Owner: nextjs_template_boot
+-- Name: TABLE user_profile; Type: COMMENT; Schema: public; Owner: giventa_event_management
 --
 
 COMMENT ON TABLE public.user_profile IS 'User profiles with tenant isolation and enhanced fields';
 
 
---
--- TOC entry 237 (class 1259 OID 82919)
--- Name: user_registration_request; Type: TABLE; Schema: public; Owner: nextjs_template_boot
---
-
-CREATE TABLE public.user_registration_request (
-    id bigint DEFAULT nextval('public.sequence_generator'::regclass) NOT NULL,
-    tenant_id character varying(255) NOT NULL,
-    request_id character varying(255) NOT NULL,
-    user_id character varying(255) NOT NULL,
-    first_name character varying(255),
-    last_name character varying(255),
-    email character varying(255) NOT NULL,
-    phone character varying(255),
-    address_line_1 character varying(255),
-    address_line_2 character varying(255),
-    city character varying(255),
-    state character varying(255),
-    zip_code character varying(255),
-    country character varying(255),
-    family_name character varying(255),
-    city_town character varying(255),
-    district character varying(255),
-    educational_institution character varying(255),
-    profile_image_url character varying(1024),
-    request_reason text,
-    status character varying(50) DEFAULT 'PENDING'::character varying NOT NULL,
-    admin_comments text,
-    automatic_approval_eligible boolean DEFAULT false,
-    priority_score integer DEFAULT 0,
-    submitted_at timestamp without time zone DEFAULT now() NOT NULL,
-    reviewed_at timestamp without time zone,
-    approved_at timestamp without time zone,
-    rejected_at timestamp without time zone,
-    reviewed_by_id bigint,
-    created_at timestamp without time zone DEFAULT now() NOT NULL,
-    updated_at timestamp without time zone DEFAULT now() NOT NULL,
-    CONSTRAINT check_email_format_request CHECK (((email)::text ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'::text))
-);
 
 
-ALTER TABLE public.user_registration_request OWNER TO nextjs_template_boot;
 
 --
 -- TOC entry 233 (class 1259 OID 82848)
--- Name: user_subscription; Type: TABLE; Schema: public; Owner: nextjs_template_boot
+-- Name: user_subscription; Type: TABLE; Schema: public; Owner: giventa_event_management
 --
 
 CREATE TABLE public.user_subscription (
@@ -1787,12 +1797,6 @@ CREATE TABLE public.user_subscription (
 );
 
 
-ALTER TABLE public.user_subscription OWNER TO nextjs_template_boot;
-
---
--- TOC entry 236 (class 1259 OID 82903)
--- Name: user_task; Type: TABLE; Schema: public; Owner: nextjs_template_boot
---
 
 CREATE TABLE public.user_task (
     id bigint DEFAULT nextval('public.sequence_generator'::regclass) NOT NULL,
@@ -1819,11 +1823,9 @@ CREATE TABLE public.user_task (
 );
 
 
-ALTER TABLE public.user_task OWNER TO nextjs_template_boot;
 
---
 -- TOC entry 3363 (class 2604 OID 82769)
--- Name: discount_code id; Type: DEFAULT; Schema: public; Owner: nextjs_template_boot
+-- Name: discount_code id; Type: DEFAULT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.discount_code ALTER COLUMN id SET DEFAULT nextval('public.discount_code_id_seq'::regclass);
@@ -1862,315 +1864,9 @@ ALTER TABLE ONLY public.event_score_card_detail ALTER COLUMN id SET DEFAULT next
 
 
 --
--- TOC entry 3900 (class 0 OID 82938)
--- Dependencies: 238
--- Data for Name: bulk_operation_log; Type: TABLE DATA; Schema: public; Owner: nextjs_template_boot
---
-
-
-
---
--- TOC entry 3887 (class 0 OID 82755)
--- Dependencies: 225
--- Data for Name: databasechangelog; Type: TABLE DATA; Schema: public; Owner: nextjs_template_boot
---
-
-
-
---
--- TOC entry 3888 (class 0 OID 82760)
--- Dependencies: 226
--- Data for Name: databasechangeloglock; Type: TABLE DATA; Schema: public; Owner: nextjs_template_boot
---
-
-
-
---
--- TOC entry 3890 (class 0 OID 82766)
--- Dependencies: 228
--- Data for Name: discount_code; Type: TABLE DATA; Schema: public; Owner: nextjs_template_boot
---
-
-
-
---
--- TOC entry 3897 (class 0 OID 82890)
--- Dependencies: 235
--- Data for Name: event_admin; Type: TABLE DATA; Schema: public; Owner: nextjs_template_boot
---
-
-
-
---
--- TOC entry 3911 (class 0 OID 83122)
--- Dependencies: 249
--- Data for Name: event_admin_audit_log; Type: TABLE DATA; Schema: public; Owner: nextjs_template_boot
---
-
-
-
---
--- TOC entry 3910 (class 0 OID 83101)
--- Dependencies: 248
--- Data for Name: event_attendee; Type: TABLE DATA; Schema: public; Owner: nextjs_template_boot
---
-
-INSERT INTO public.event_attendee VALUES (3500, 'tenant_demo_001', 2800, 2600, 'CONFIRMED', '2025-05-29 20:16:39.697806', NULL, NULL, NULL, 'MEMBER', NULL, NULL, NULL, NULL, NULL, NULL, 'NOT_CHECKED_IN', NULL, NULL, NULL, NULL, NULL, 'ATTENDEE:3500|EVENT:2800|TENANT:tenant_demo_001|NAME:John Smith|EVENT_TITLE:Annual Tech Conference 2025|TIMESTAMP:1749428199.697806|TYPE:MEMBER', true, '2025-06-08 20:16:39.697806', 'DIRECT', NULL, 0, '2025-06-08 20:16:39.697806', '2025-06-08 20:16:39.697806');
-INSERT INTO public.event_attendee VALUES (3550, 'tenant_demo_001', 2800, 2650, 'CONFIRMED', '2025-05-31 20:16:39.697806', NULL, NULL, NULL, 'MEMBER', NULL, NULL, NULL, NULL, NULL, NULL, 'NOT_CHECKED_IN', NULL, NULL, NULL, NULL, NULL, 'ATTENDEE:3550|EVENT:2800|TENANT:tenant_demo_001|NAME:Jane Doe|EVENT_TITLE:Annual Tech Conference 2025|TIMESTAMP:1749428199.697806|TYPE:MEMBER', true, '2025-06-08 20:16:39.697806', 'DIRECT', NULL, 0, '2025-06-08 20:16:39.697806', '2025-06-08 20:16:39.697806');
-INSERT INTO public.event_attendee VALUES (3600, 'tenant_demo_001', 2850, 2650, 'CONFIRMED', '2025-06-03 20:16:39.697806', NULL, NULL, NULL, 'MEMBER', NULL, NULL, NULL, NULL, NULL, NULL, 'NOT_CHECKED_IN', NULL, NULL, NULL, NULL, NULL, 'ATTENDEE:3600|EVENT:2850|TENANT:tenant_demo_001|NAME:Jane Doe|EVENT_TITLE:React Workshop for Beginners|TIMESTAMP:1749428199.697806|TYPE:MEMBER', true, '2025-06-08 20:16:39.697806', 'DIRECT', NULL, 0, '2025-06-08 20:16:39.697806', '2025-06-08 20:16:39.697806');
-INSERT INTO public.event_attendee VALUES (3650, 'tenant_demo_002', 2900, 2700, 'CONFIRMED', '2025-06-05 20:16:39.697806', NULL, NULL, NULL, 'ORGANIZER', NULL, NULL, NULL, NULL, NULL, NULL, 'NOT_CHECKED_IN', NULL, NULL, NULL, NULL, NULL, 'ATTENDEE:3650|EVENT:2900|TENANT:tenant_demo_002|NAME:Bob Johnson|EVENT_TITLE:Family Fun Day|TIMESTAMP:1749428199.697806|TYPE:ORGANIZER', true, '2025-06-08 20:16:39.697806', 'DIRECT', NULL, 0, '2025-06-08 20:16:39.697806', '2025-06-08 20:16:39.697806');
-
-
---
--- TOC entry 3912 (class 0 OID 83131)
--- Dependencies: 250
--- Data for Name: event_attendee_guest; Type: TABLE DATA; Schema: public; Owner: nextjs_template_boot
---
-
-INSERT INTO public.event_attendee_guest VALUES (3700, 'tenant_demo_001', 3500, 'Sarah Smith', 'ADULT', 'SPOUSE', NULL, NULL, NULL, 'CONFIRMED', 'NOT_CHECKED_IN', NULL, NULL, 'PENDING', NULL, NULL, NULL, NULL, 0.00, 'PENDING', NULL, '2025-06-08 20:16:39.763069', '2025-06-08 20:16:39.763069');
-INSERT INTO public.event_attendee_guest VALUES (3750, 'tenant_demo_001', 3500, 'Tommy Smith', 'CHILD', 'CHILD', NULL, NULL, NULL, 'CONFIRMED', 'NOT_CHECKED_IN', NULL, NULL, 'PENDING', NULL, NULL, NULL, NULL, 0.00, 'PENDING', NULL, '2025-06-08 20:16:39.763069', '2025-06-08 20:16:39.763069');
-INSERT INTO public.event_attendee_guest VALUES (3800, 'tenant_demo_002', 3650, 'Emma Johnson', 'TEEN', 'CHILD', NULL, NULL, NULL, 'PENDING', 'NOT_CHECKED_IN', NULL, NULL, 'PENDING', NULL, NULL, NULL, NULL, 0.00, 'PENDING', NULL, '2025-06-08 20:16:39.763069', '2025-06-08 20:16:39.763069');
-INSERT INTO public.event_attendee_guest VALUES (3850, 'tenant_demo_002', 3650, 'Lisa Johnson', 'ADULT', 'SPOUSE', NULL, NULL, NULL, 'CONFIRMED', 'NOT_CHECKED_IN', NULL, NULL, 'PENDING', NULL, NULL, NULL, NULL, 0.00, 'PENDING', NULL, '2025-06-08 20:16:39.763069', '2025-06-08 20:16:39.763069');
-
-
---
--- TOC entry 3909 (class 0 OID 83088)
--- Dependencies: 247
--- Data for Name: event_calendar_entry; Type: TABLE DATA; Schema: public; Owner: nextjs_template_boot
---
-
-
-
---
--- TOC entry 3896 (class 0 OID 82865)
--- Dependencies: 234
--- Data for Name: event_details; Type: TABLE DATA; Schema: public; Owner: nextjs_template_boot
---
-
-INSERT INTO public.event_details VALUES (2800, 'tenant_demo_001', 'Annual Tech Conference 2025', 'Join us for the biggest tech event of the year', 'A comprehensive conference featuring the latest in technology trends, networking opportunities, and expert speakers from around the globe.', '2025-07-15', '2025-07-17', '09:00', '17:00', 'Convention Center, Downtown', NULL, 500, 'TICKETED', true, 2, true, false, true, NULL, NULL, NULL, NULL, false, true, NULL, 2600, 2400, '2025-06-08 20:16:39.532111', '2025-06-08 20:16:39.532111', false, false, false);
-INSERT INTO public.event_details VALUES (2900, 'tenant_demo_002', 'Family Fun Day', 'Community event for all ages', 'A family-friendly event with activities for all age groups, food, games, and entertainment.', '2025-08-10', '2025-08-10', '10:00', '18:00', 'Community Park', NULL, 200, 'FREE', true, 4, true, true, true, NULL, NULL, NULL, NULL, false, true, NULL, 2700, 2450, '2025-06-08 20:16:39.532111', '2025-06-08 20:16:39.532111', false, false, false);
-INSERT INTO public.event_details VALUES (2850, 'tenant_demo_001', 'React Workshop for Beginners', 'Learn React from scratch in this hands-on workshop', 'A beginner-friendly workshop covering React fundamentals, component creation, state management, and building your first React application.', '2025-06-20', '2025-06-20', '10:00', '16:00', 'Tech Hub Building A', NULL, 30, 'FREE', true, 0, false, false, false, NULL, NULL, NULL, NULL, false, true, NULL, 2600, 2350, '2025-06-08 20:16:39.532111', '2025-06-08 20:46:43.612386', true, false, false);
-INSERT INTO public.event_details VALUES (3951, 'tenant_demo_001', 'xxxcxc', 'cxcx', 'cxcxcxc', '2025-06-22', '2025-06-22', '10:15 AM', '11:15 AM', 'xcxcx', 'xcxcxc', 2, 'free', true, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, false, true, NULL, NULL, 2350, '2025-06-09 01:16:21.63', '2025-06-08 21:17:06.742427', true, NULL, NULL);
-INSERT INTO public.event_details VALUES (3952, 'tenant_demo_001', 'xcxcx', 'xcxcxc', 'xcxcxxc', '2025-06-22', '2025-06-22', '10:15 AM', '11:15 AM', 'cxcx', 'xcxxc', NULL, 'free', true, NULL, NULL, true, NULL, NULL, NULL, NULL, NULL, false, true, NULL, NULL, 2350, '2025-06-09 01:20:26.525', '2025-06-08 22:04:48.609372', NULL, NULL, NULL);
-
-
---
--- TOC entry 3915 (class 0 OID 83390)
--- Dependencies: 253
--- Data for Name: event_discount_code; Type: TABLE DATA; Schema: public; Owner: nextjs_template_boot
---
-
-
-
---
--- TOC entry 3913 (class 0 OID 83147)
--- Dependencies: 251
--- Data for Name: event_guest_pricing; Type: TABLE DATA; Schema: public; Owner: nextjs_template_boot
---
-
-INSERT INTO public.event_guest_pricing VALUES (3100, 'tenant_demo_001', 2800, 'ADULT', 150.00, true, '2025-06-01', '2025-07-14', 'Adult guest pricing for conference', NULL, NULL, NULL, NULL, NULL, NULL, '2025-06-08 20:16:39.631864', '2025-06-08 20:16:39.631864');
-INSERT INTO public.event_guest_pricing VALUES (3150, 'tenant_demo_001', 2800, 'TEEN', 75.00, true, '2025-06-01', '2025-07-14', 'Teen guest pricing (13-17 years)', NULL, NULL, NULL, NULL, NULL, NULL, '2025-06-08 20:16:39.631864', '2025-06-08 20:16:39.631864');
-INSERT INTO public.event_guest_pricing VALUES (3200, 'tenant_demo_001', 2800, 'CHILD', 25.00, true, '2025-06-01', '2025-07-14', 'Child guest pricing (5-12 years)', NULL, NULL, NULL, NULL, NULL, NULL, '2025-06-08 20:16:39.631864', '2025-06-08 20:16:39.631864');
-INSERT INTO public.event_guest_pricing VALUES (3250, 'tenant_demo_001', 2800, 'INFANT', 0.00, true, '2025-06-01', '2025-07-14', 'Free admission for infants (under 5)', NULL, NULL, NULL, NULL, NULL, NULL, '2025-06-08 20:16:39.631864', '2025-06-08 20:16:39.631864');
-INSERT INTO public.event_guest_pricing VALUES (3300, 'tenant_demo_002', 2900, 'ADULT', 0.00, true, NULL, NULL, 'Free adult admission to family event', NULL, NULL, NULL, NULL, NULL, NULL, '2025-06-08 20:16:39.631864', '2025-06-08 20:16:39.631864');
-INSERT INTO public.event_guest_pricing VALUES (3350, 'tenant_demo_002', 2900, 'TEEN', 0.00, true, NULL, NULL, 'Free teen admission to family event', NULL, NULL, NULL, NULL, NULL, NULL, '2025-06-08 20:16:39.631864', '2025-06-08 20:16:39.631864');
-INSERT INTO public.event_guest_pricing VALUES (3400, 'tenant_demo_002', 2900, 'CHILD', 0.00, true, NULL, NULL, 'Free child admission to family event', NULL, NULL, NULL, NULL, NULL, NULL, '2025-06-08 20:16:39.631864', '2025-06-08 20:16:39.631864');
-INSERT INTO public.event_guest_pricing VALUES (3450, 'tenant_demo_002', 2900, 'INFANT', 0.00, true, NULL, NULL, 'Free infant admission to family event', NULL, NULL, NULL, NULL, NULL, NULL, '2025-06-08 20:16:39.631864', '2025-06-08 20:16:39.631864');
-
-
---
--- TOC entry 3882 (class 0 OID 77428)
--- Dependencies: 220
--- Data for Name: event_live_update; Type: TABLE DATA; Schema: public; Owner: giventa_event_management
---
-
-
-
---
--- TOC entry 3884 (class 0 OID 77446)
--- Dependencies: 222
--- Data for Name: event_live_update_attachment; Type: TABLE DATA; Schema: public; Owner: giventa_event_management
---
-
-
-
---
--- TOC entry 3908 (class 0 OID 83070)
--- Dependencies: 246
--- Data for Name: event_media; Type: TABLE DATA; Schema: public; Owner: nextjs_template_boot
---
-
-
-
---
--- TOC entry 3901 (class 0 OID 82951)
--- Dependencies: 239
--- Data for Name: event_organizer; Type: TABLE DATA; Schema: public; Owner: nextjs_template_boot
---
-
-
-
---
--- TOC entry 3905 (class 0 OID 83028)
--- Dependencies: 243
--- Data for Name: event_poll; Type: TABLE DATA; Schema: public; Owner: nextjs_template_boot
---
-
-
-
---
--- TOC entry 3906 (class 0 OID 83045)
--- Dependencies: 244
--- Data for Name: event_poll_option; Type: TABLE DATA; Schema: public; Owner: nextjs_template_boot
---
-
-
-
---
--- TOC entry 3907 (class 0 OID 83057)
--- Dependencies: 245
--- Data for Name: event_poll_response; Type: TABLE DATA; Schema: public; Owner: nextjs_template_boot
---
-
-
-
---
--- TOC entry 3878 (class 0 OID 77393)
--- Dependencies: 216
--- Data for Name: event_score_card; Type: TABLE DATA; Schema: public; Owner: giventa_event_management
---
-
-
-
---
--- TOC entry 3880 (class 0 OID 77411)
--- Dependencies: 218
--- Data for Name: event_score_card_detail; Type: TABLE DATA; Schema: public; Owner: giventa_event_management
---
-
-
-
---
--- TOC entry 3903 (class 0 OID 82986)
--- Dependencies: 241
--- Data for Name: event_ticket_transaction; Type: TABLE DATA; Schema: public; Owner: nextjs_template_boot
---
-
-
-
---
--- TOC entry 3902 (class 0 OID 82964)
--- Dependencies: 240
--- Data for Name: event_ticket_type; Type: TABLE DATA; Schema: public; Owner: nextjs_template_boot
---
-
-INSERT INTO public.event_ticket_type VALUES (2950, 'tenant_demo_001', 'Early Bird', 'Early bird discount ticket', 199.00, 'EARLYBIRD2025', 100, 15, true, NULL, NULL, 1, 10, false, 0, '2025-06-08 20:16:39.583923', '2025-06-08 20:16:39.583923', 2800);
-INSERT INTO public.event_ticket_type VALUES (3000, 'tenant_demo_001', 'Regular', 'Standard conference ticket', 299.00, 'REGULAR2025', 300, 45, true, NULL, NULL, 1, 10, false, 0, '2025-06-08 20:16:39.583923', '2025-06-08 20:16:39.583923', 2800);
-INSERT INTO public.event_ticket_type VALUES (3050, 'tenant_demo_001', 'VIP', 'VIP access with exclusive benefits', 499.00, 'VIP2025', 50, 8, true, NULL, NULL, 1, 10, false, 0, '2025-06-08 20:16:39.583923', '2025-06-08 20:16:39.583923', 2800);
-
-
---
--- TOC entry 3894 (class 0 OID 82832)
--- Dependencies: 232
--- Data for Name: event_type_details; Type: TABLE DATA; Schema: public; Owner: nextjs_template_boot
---
-
-INSERT INTO public.event_type_details VALUES (2350, 'tenant_demo_001', 'Workshop', 'Educational workshops and training sessions', '#10B981', NULL, true, 1, '2025-06-08 20:16:39.454859', '2025-06-08 20:16:39.454859');
-INSERT INTO public.event_type_details VALUES (2400, 'tenant_demo_001', 'Conference', 'Professional conferences and seminars', '#3B82F6', NULL, true, 2, '2025-06-08 20:16:39.454859', '2025-06-08 20:16:39.454859');
-INSERT INTO public.event_type_details VALUES (2450, 'tenant_demo_001', 'Social Event', 'Community gatherings and social activities', '#F59E0B', NULL, true, 3, '2025-06-08 20:16:39.454859', '2025-06-08 20:16:39.454859');
-INSERT INTO public.event_type_details VALUES (2500, 'tenant_demo_002', 'Meeting', 'Regular team and organizational meetings', '#6366F1', NULL, true, 1, '2025-06-08 20:16:39.454859', '2025-06-08 20:16:39.454859');
-INSERT INTO public.event_type_details VALUES (2550, 'tenant_demo_002', 'Training', 'Skills development and training programs', '#EF4444', NULL, true, 2, '2025-06-08 20:16:39.454859', '2025-06-08 20:16:39.454859');
-
-
---
--- TOC entry 3914 (class 0 OID 83166)
--- Dependencies: 252
--- Data for Name: qr_code_usage; Type: TABLE DATA; Schema: public; Owner: nextjs_template_boot
---
-
-
-
---
--- TOC entry 3885 (class 0 OID 78121)
--- Dependencies: 223
--- Data for Name: rel_event_details__discount_codes; Type: TABLE DATA; Schema: public; Owner: giventa_event_management
---
-
-
-
---
--- TOC entry 3891 (class 0 OID 82779)
--- Dependencies: 229
--- Data for Name: tenant_organization; Type: TABLE DATA; Schema: public; Owner: nextjs_template_boot
---
-
-INSERT INTO public.tenant_organization VALUES (1950, 'tenant_demo_001', 'Demo Organization 1', NULL, NULL, NULL, NULL, 'demo1@example.com', NULL, 'FREE', 'ACTIVE', NULL, NULL, NULL, NULL, true, '2025-06-08 20:16:39.374375', '2025-06-08 20:16:39.374375');
-INSERT INTO public.tenant_organization VALUES (2000, 'tenant_demo_002', 'Demo Organization 2', NULL, NULL, NULL, NULL, 'demo2@example.com', NULL, 'BASIC', 'ACTIVE', NULL, NULL, NULL, NULL, true, '2025-06-08 20:16:39.374375', '2025-06-08 20:16:39.374375');
-INSERT INTO public.tenant_organization VALUES (2050, 'tenant_demo_003', 'Premium Corp', NULL, NULL, NULL, NULL, 'premium@example.com', NULL, 'PREMIUM', 'ACTIVE', NULL, NULL, NULL, NULL, true, '2025-06-08 20:16:39.374375', '2025-06-08 20:16:39.374375');
-INSERT INTO public.tenant_organization VALUES (2100, 'tenant_demo_004', 'Enterprise Solutions', NULL, NULL, NULL, NULL, 'enterprise@example.com', NULL, 'ENTERPRISE', 'ACTIVE', NULL, NULL, NULL, NULL, true, '2025-06-08 20:16:39.374375', '2025-06-08 20:16:39.374375');
-
-
---
--- TOC entry 3893 (class 0 OID 82809)
--- Dependencies: 231
--- Data for Name: tenant_settings; Type: TABLE DATA; Schema: public; Owner: nextjs_template_boot
---
-
-INSERT INTO public.tenant_settings VALUES (2150, 'tenant_demo_001', true, false, false, false, NULL, NULL, NULL, NULL, NULL, NULL, true, 5, 100, '2025-06-08 20:16:39.418496', '2025-06-08 20:16:39.418496');
-INSERT INTO public.tenant_settings VALUES (2200, 'tenant_demo_002', true, true, false, false, NULL, NULL, NULL, NULL, NULL, NULL, true, 5, 100, '2025-06-08 20:16:39.418496', '2025-06-08 20:16:39.418496');
-INSERT INTO public.tenant_settings VALUES (2250, 'tenant_demo_003', true, false, true, true, NULL, NULL, NULL, NULL, NULL, NULL, true, 5, 100, '2025-06-08 20:16:39.418496', '2025-06-08 20:16:39.418496');
-INSERT INTO public.tenant_settings VALUES (2300, 'tenant_demo_004', true, true, true, true, NULL, NULL, NULL, NULL, NULL, NULL, true, 5, 100, '2025-06-08 20:16:39.418496', '2025-06-08 20:16:39.418496');
-
-
---
--- TOC entry 3904 (class 0 OID 83010)
--- Dependencies: 242
--- Data for Name: user_payment_transaction; Type: TABLE DATA; Schema: public; Owner: nextjs_template_boot
---
-
-
-
---
--- TOC entry 3892 (class 0 OID 82796)
--- Dependencies: 230
--- Data for Name: user_profile; Type: TABLE DATA; Schema: public; Owner: nextjs_template_boot
---
-
-INSERT INTO public.user_profile VALUES (2600, 'tenant_demo_001', 'user_001', 'John', 'Smith', 'john.smith@example.com', '+1-555-0101', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'ACTIVE', 'ADMIN', NULL, NULL, '2025-06-08 20:16:39.497138', '2025-06-08 20:16:39.497138');
-INSERT INTO public.user_profile VALUES (2650, 'tenant_demo_001', 'user_002', 'Jane', 'Doe', 'jane.doe@example.com', '+1-555-0102', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'ACTIVE', 'MEMBER', NULL, NULL, '2025-06-08 20:16:39.497138', '2025-06-08 20:16:39.497138');
-INSERT INTO public.user_profile VALUES (2700, 'tenant_demo_002', 'user_003', 'Bob', 'Johnson', 'bob.johnson@example.com', '+1-555-0103', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'ACTIVE', 'ORGANIZER', NULL, NULL, '2025-06-08 20:16:39.497138', '2025-06-08 20:16:39.497138');
-INSERT INTO public.user_profile VALUES (2750, 'tenant_demo_002', 'user_004', 'Alice', 'Williams', 'alice.williams@example.com', '+1-555-0104', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'PENDING_APPROVAL', 'MEMBER', NULL, NULL, '2025-06-08 20:16:39.497138', '2025-06-08 20:16:39.497138');
-INSERT INTO public.user_profile VALUES (3901, 'tenant_demo_001', 'user_2vVLxhPnsIPGYf6qpfozk383Slr', 'Gain', 'Joseph', 'giventauser@gmail.com', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'https://img.clerk.com/eyJ0eXBlIjoicHJveHkiLCJzcmMiOiJodHRwczovL2ltYWdlcy5jbGVyay5kZXYvb2F1dGhfZ29vZ2xlL2ltZ18ydlZMeGVDUnFWTnpkTDBLUXMySXNWekFBVG8ifQ', 'PENDING_APPROVAL', 'MEMBER', NULL, NULL, '2025-06-09 00:36:14.99', '2025-06-09 00:36:14.99');
-
-
---
--- TOC entry 3899 (class 0 OID 82919)
--- Dependencies: 237
--- Data for Name: user_registration_request; Type: TABLE DATA; Schema: public; Owner: nextjs_template_boot
---
-
-
-
---
--- TOC entry 3895 (class 0 OID 82848)
--- Dependencies: 233
--- Data for Name: user_subscription; Type: TABLE DATA; Schema: public; Owner: nextjs_template_boot
---
-
-
-
---
--- TOC entry 3898 (class 0 OID 82903)
--- Dependencies: 236
--- Data for Name: user_task; Type: TABLE DATA; Schema: public; Owner: nextjs_template_boot
---
-
-
-
---
 -- TOC entry 3996 (class 0 OID 0)
 -- Dependencies: 227
--- Name: discount_code_id_seq; Type: SEQUENCE SET; Schema: public; Owner: nextjs_template_boot
+-- Name: discount_code_id_seq; Type: SEQUENCE SET; Schema: public; Owner: giventa_event_management
 --
 
 SELECT pg_catalog.setval('public.discount_code_id_seq', 1, false);
@@ -2215,7 +1911,7 @@ SELECT pg_catalog.setval('public.event_score_card_id_seq', 1, false);
 --
 -- TOC entry 4001 (class 0 OID 0)
 -- Dependencies: 224
--- Name: sequence_generator; Type: SEQUENCE SET; Schema: public; Owner: nextjs_template_boot
+-- Name: sequence_generator; Type: SEQUENCE SET; Schema: public; Owner: giventa_event_management
 --
 
 SELECT pg_catalog.setval('public.sequence_generator', 4000, true);
@@ -2223,7 +1919,7 @@ SELECT pg_catalog.setval('public.sequence_generator', 4000, true);
 
 --
 -- TOC entry 3623 (class 2606 OID 82950)
--- Name: bulk_operation_log bulk_operation_log_pkey; Type: CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: bulk_operation_log bulk_operation_log_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.bulk_operation_log
@@ -2232,7 +1928,7 @@ ALTER TABLE ONLY public.bulk_operation_log
 
 --
 -- TOC entry 3573 (class 2606 OID 82764)
--- Name: databasechangeloglock databasechangeloglock_pkey; Type: CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: databasechangeloglock databasechangeloglock_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.databasechangeloglock
@@ -2241,7 +1937,7 @@ ALTER TABLE ONLY public.databasechangeloglock
 
 --
 -- TOC entry 3575 (class 2606 OID 82778)
--- Name: discount_code discount_code_code_key; Type: CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: discount_code discount_code_code_key; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.discount_code
@@ -2250,7 +1946,7 @@ ALTER TABLE ONLY public.discount_code
 
 --
 -- TOC entry 3577 (class 2606 OID 82776)
--- Name: discount_code discount_code_pkey; Type: CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: discount_code discount_code_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.discount_code
@@ -2259,7 +1955,7 @@ ALTER TABLE ONLY public.discount_code
 
 --
 -- TOC entry 3664 (class 2606 OID 83130)
--- Name: event_admin_audit_log event_admin_audit_log_pkey; Type: CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: event_admin_audit_log event_admin_audit_log_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.event_admin_audit_log
@@ -2268,7 +1964,7 @@ ALTER TABLE ONLY public.event_admin_audit_log
 
 --
 -- TOC entry 3611 (class 2606 OID 82900)
--- Name: event_admin event_admin_pkey; Type: CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: event_admin event_admin_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.event_admin
@@ -2277,7 +1973,7 @@ ALTER TABLE ONLY public.event_admin
 
 --
 -- TOC entry 3666 (class 2606 OID 83146)
--- Name: event_attendee_guest event_attendee_guest_pkey; Type: CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: event_attendee_guest event_attendee_guest_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.event_attendee_guest
@@ -2286,7 +1982,7 @@ ALTER TABLE ONLY public.event_attendee_guest
 
 --
 -- TOC entry 3657 (class 2606 OID 83119)
--- Name: event_attendee event_attendee_pkey; Type: CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: event_attendee event_attendee_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.event_attendee
@@ -2295,7 +1991,7 @@ ALTER TABLE ONLY public.event_attendee
 
 --
 -- TOC entry 3653 (class 2606 OID 83098)
--- Name: event_calendar_entry event_calendar_entry_pkey; Type: CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: event_calendar_entry event_calendar_entry_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.event_calendar_entry
@@ -2304,7 +2000,7 @@ ALTER TABLE ONLY public.event_calendar_entry
 
 --
 -- TOC entry 3605 (class 2606 OID 82889)
--- Name: event_details event_details_pkey; Type: CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: event_details event_details_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.event_details
@@ -2313,7 +2009,7 @@ ALTER TABLE ONLY public.event_details
 
 --
 -- TOC entry 3680 (class 2606 OID 83394)
--- Name: event_discount_code event_discount_code_pkey; Type: CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: event_discount_code event_discount_code_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.event_discount_code
@@ -2322,7 +2018,7 @@ ALTER TABLE ONLY public.event_discount_code
 
 --
 -- TOC entry 3668 (class 2606 OID 83163)
--- Name: event_guest_pricing event_guest_pricing_pkey; Type: CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: event_guest_pricing event_guest_pricing_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.event_guest_pricing
@@ -2349,7 +2045,7 @@ ALTER TABLE ONLY public.event_live_update
 
 --
 -- TOC entry 3649 (class 2606 OID 83087)
--- Name: event_media event_media_pkey; Type: CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: event_media event_media_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.event_media
@@ -2358,7 +2054,7 @@ ALTER TABLE ONLY public.event_media
 
 --
 -- TOC entry 3625 (class 2606 OID 82963)
--- Name: event_organizer event_organizer_pkey; Type: CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: event_organizer event_organizer_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.event_organizer
@@ -2367,7 +2063,7 @@ ALTER TABLE ONLY public.event_organizer
 
 --
 -- TOC entry 3643 (class 2606 OID 83056)
--- Name: event_poll_option event_poll_option_pkey; Type: CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: event_poll_option event_poll_option_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.event_poll_option
@@ -2376,7 +2072,7 @@ ALTER TABLE ONLY public.event_poll_option
 
 --
 -- TOC entry 3641 (class 2606 OID 83044)
--- Name: event_poll event_poll_pkey; Type: CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: event_poll event_poll_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.event_poll
@@ -2385,7 +2081,7 @@ ALTER TABLE ONLY public.event_poll
 
 --
 -- TOC entry 3645 (class 2606 OID 83067)
--- Name: event_poll_response event_poll_response_pkey; Type: CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: event_poll_response event_poll_response_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.event_poll_response
@@ -2412,7 +2108,7 @@ ALTER TABLE ONLY public.event_score_card
 
 --
 -- TOC entry 3633 (class 2606 OID 83002)
--- Name: event_ticket_transaction event_ticket_transaction_pkey; Type: CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: event_ticket_transaction event_ticket_transaction_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.event_ticket_transaction
@@ -2421,7 +2117,7 @@ ALTER TABLE ONLY public.event_ticket_transaction
 
 --
 -- TOC entry 3627 (class 2606 OID 82983)
--- Name: event_ticket_type event_ticket_type_pkey; Type: CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: event_ticket_type event_ticket_type_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.event_ticket_type
@@ -2430,7 +2126,7 @@ ALTER TABLE ONLY public.event_ticket_type
 
 --
 -- TOC entry 3593 (class 2606 OID 82845)
--- Name: event_type_details event_type_details_pkey; Type: CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: event_type_details event_type_details_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.event_type_details
@@ -2439,7 +2135,7 @@ ALTER TABLE ONLY public.event_type_details
 
 --
 -- TOC entry 3676 (class 2606 OID 83180)
--- Name: qr_code_usage qr_code_usage_pkey; Type: CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: qr_code_usage qr_code_usage_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.qr_code_usage
@@ -2457,7 +2153,7 @@ ALTER TABLE ONLY public.rel_event_details__discount_codes
 
 --
 -- TOC entry 3579 (class 2606 OID 82795)
--- Name: tenant_organization tenant_organization_domain_key; Type: CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: tenant_organization tenant_organization_domain_key; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.tenant_organization
@@ -2466,7 +2162,7 @@ ALTER TABLE ONLY public.tenant_organization
 
 --
 -- TOC entry 3581 (class 2606 OID 82791)
--- Name: tenant_organization tenant_organization_pkey; Type: CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: tenant_organization tenant_organization_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.tenant_organization
@@ -2475,7 +2171,7 @@ ALTER TABLE ONLY public.tenant_organization
 
 --
 -- TOC entry 3583 (class 2606 OID 82793)
--- Name: tenant_organization tenant_organization_tenant_id_key; Type: CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: tenant_organization tenant_organization_tenant_id_key; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.tenant_organization
@@ -2484,7 +2180,7 @@ ALTER TABLE ONLY public.tenant_organization
 
 --
 -- TOC entry 3589 (class 2606 OID 82829)
--- Name: tenant_settings tenant_settings_pkey; Type: CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: tenant_settings tenant_settings_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.tenant_settings
@@ -2493,7 +2189,7 @@ ALTER TABLE ONLY public.tenant_settings
 
 --
 -- TOC entry 3591 (class 2606 OID 82831)
--- Name: tenant_settings tenant_settings_tenant_id_key; Type: CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: tenant_settings tenant_settings_tenant_id_key; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.tenant_settings
@@ -2502,7 +2198,7 @@ ALTER TABLE ONLY public.tenant_settings
 
 --
 -- TOC entry 3637 (class 2606 OID 83025)
--- Name: user_payment_transaction user_payment_transaction_pkey; Type: CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: user_payment_transaction user_payment_transaction_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.user_payment_transaction
@@ -2511,34 +2207,20 @@ ALTER TABLE ONLY public.user_payment_transaction
 
 --
 -- TOC entry 3585 (class 2606 OID 82806)
--- Name: user_profile user_profile_pkey; Type: CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: user_profile user_profile_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.user_profile
     ADD CONSTRAINT user_profile_pkey PRIMARY KEY (id);
 
 
---
--- TOC entry 3617 (class 2606 OID 82933)
--- Name: user_registration_request user_registration_request_pkey; Type: CONSTRAINT; Schema: public; Owner: nextjs_template_boot
---
-
-ALTER TABLE ONLY public.user_registration_request
-    ADD CONSTRAINT user_registration_request_pkey PRIMARY KEY (id);
 
 
---
--- TOC entry 3619 (class 2606 OID 82935)
--- Name: user_registration_request user_registration_request_request_id_key; Type: CONSTRAINT; Schema: public; Owner: nextjs_template_boot
---
-
-ALTER TABLE ONLY public.user_registration_request
-    ADD CONSTRAINT user_registration_request_request_id_key UNIQUE (request_id);
 
 
 --
 -- TOC entry 3597 (class 2606 OID 82858)
--- Name: user_subscription user_subscription_pkey; Type: CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: user_subscription user_subscription_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.user_subscription
@@ -2547,7 +2229,7 @@ ALTER TABLE ONLY public.user_subscription
 
 --
 -- TOC entry 3615 (class 2606 OID 82918)
--- Name: user_task user_task_pkey; Type: CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: user_task user_task_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.user_task
@@ -2556,7 +2238,7 @@ ALTER TABLE ONLY public.user_task
 
 --
 -- TOC entry 3655 (class 2606 OID 83100)
--- Name: event_calendar_entry ux_calendar_entry_provider_external; Type: CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: event_calendar_entry ux_calendar_entry_provider_external; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.event_calendar_entry
@@ -2565,7 +2247,7 @@ ALTER TABLE ONLY public.event_calendar_entry
 
 --
 -- TOC entry 3613 (class 2606 OID 82902)
--- Name: event_admin ux_event_admin_user_tenant; Type: CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: event_admin ux_event_admin_user_tenant; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.event_admin
@@ -2574,7 +2256,7 @@ ALTER TABLE ONLY public.event_admin
 
 --
 -- TOC entry 3662 (class 2606 OID 83121)
--- Name: event_attendee ux_event_attendee__event_attendee; Type: CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: event_attendee ux_event_attendee__event_attendee; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.event_attendee
@@ -2583,7 +2265,7 @@ ALTER TABLE ONLY public.event_attendee
 
 --
 -- TOC entry 3674 (class 2606 OID 83165)
--- Name: event_guest_pricing ux_event_guest_pricing_event_age_tier; Type: CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: event_guest_pricing ux_event_guest_pricing_event_age_tier; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.event_guest_pricing
@@ -2592,7 +2274,7 @@ ALTER TABLE ONLY public.event_guest_pricing
 
 --
 -- TOC entry 3631 (class 2606 OID 82985)
--- Name: event_ticket_type ux_event_ticket_type_event_code; Type: CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: event_ticket_type ux_event_ticket_type_event_code; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.event_ticket_type
@@ -2601,7 +2283,7 @@ ALTER TABLE ONLY public.event_ticket_type
 
 --
 -- TOC entry 3595 (class 2606 OID 82847)
--- Name: event_type_details ux_event_type_tenant_name; Type: CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: event_type_details ux_event_type_tenant_name; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.event_type_details
@@ -2610,7 +2292,7 @@ ALTER TABLE ONLY public.event_type_details
 
 --
 -- TOC entry 3639 (class 2606 OID 83027)
--- Name: user_payment_transaction ux_payment_transaction_stripe_intent; Type: CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: user_payment_transaction ux_payment_transaction_stripe_intent; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.user_payment_transaction
@@ -2619,7 +2301,7 @@ ALTER TABLE ONLY public.user_payment_transaction
 
 --
 -- TOC entry 3647 (class 2606 OID 83069)
--- Name: event_poll_response ux_poll_response_user_option; Type: CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: event_poll_response ux_poll_response_user_option; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.event_poll_response
@@ -2628,7 +2310,7 @@ ALTER TABLE ONLY public.event_poll_response
 
 --
 -- TOC entry 3678 (class 2606 OID 83182)
--- Name: qr_code_usage ux_qr_code_attendee_type; Type: CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: qr_code_usage ux_qr_code_attendee_type; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.qr_code_usage
@@ -2637,7 +2319,7 @@ ALTER TABLE ONLY public.qr_code_usage
 
 --
 -- TOC entry 3635 (class 2606 OID 83004)
--- Name: event_ticket_transaction ux_ticket_transaction_reference; Type: CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: event_ticket_transaction ux_ticket_transaction_reference; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.event_ticket_transaction
@@ -2646,25 +2328,19 @@ ALTER TABLE ONLY public.event_ticket_transaction
 
 --
 -- TOC entry 3587 (class 2606 OID 82808)
--- Name: user_profile ux_user_profile__user_id; Type: CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: user_profile ux_user_profile__user_id; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.user_profile
     ADD CONSTRAINT ux_user_profile__user_id UNIQUE (user_id);
 
 
---
--- TOC entry 3621 (class 2606 OID 82937)
--- Name: user_registration_request ux_user_registration_tenant_user; Type: CONSTRAINT; Schema: public; Owner: nextjs_template_boot
---
 
-ALTER TABLE ONLY public.user_registration_request
-    ADD CONSTRAINT ux_user_registration_tenant_user UNIQUE (tenant_id, user_id);
 
 
 --
 -- TOC entry 3599 (class 2606 OID 82860)
--- Name: user_subscription ux_user_subscription__stripe_customer_id; Type: CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: user_subscription ux_user_subscription__stripe_customer_id; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.user_subscription
@@ -2673,7 +2349,7 @@ ALTER TABLE ONLY public.user_subscription
 
 --
 -- TOC entry 3601 (class 2606 OID 82862)
--- Name: user_subscription ux_user_subscription__stripe_subscription_id; Type: CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: user_subscription ux_user_subscription__stripe_subscription_id; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.user_subscription
@@ -2682,7 +2358,7 @@ ALTER TABLE ONLY public.user_subscription
 
 --
 -- TOC entry 3603 (class 2606 OID 82864)
--- Name: user_subscription ux_user_subscription__user_profile_id; Type: CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: user_subscription ux_user_subscription__user_profile_id; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.user_subscription
@@ -2691,7 +2367,7 @@ ALTER TABLE ONLY public.user_subscription
 
 --
 -- TOC entry 3658 (class 1259 OID 83371)
--- Name: idx_event_attendee_qr_data; Type: INDEX; Schema: public; Owner: nextjs_template_boot
+-- Name: idx_event_attendee_qr_data; Type: INDEX; Schema: public; Owner: giventa_event_management
 --
 
 CREATE INDEX idx_event_attendee_qr_data ON public.event_attendee USING btree (qr_code_data) WHERE (qr_code_data IS NOT NULL);
@@ -2699,7 +2375,7 @@ CREATE INDEX idx_event_attendee_qr_data ON public.event_attendee USING btree (qr
 
 --
 -- TOC entry 3659 (class 1259 OID 83369)
--- Name: idx_event_attendee_qr_generated; Type: INDEX; Schema: public; Owner: nextjs_template_boot
+-- Name: idx_event_attendee_qr_generated; Type: INDEX; Schema: public; Owner: giventa_event_management
 --
 
 CREATE INDEX idx_event_attendee_qr_generated ON public.event_attendee USING btree (qr_code_generated) WHERE (qr_code_generated = true);
@@ -2707,7 +2383,7 @@ CREATE INDEX idx_event_attendee_qr_generated ON public.event_attendee USING btre
 
 --
 -- TOC entry 3660 (class 1259 OID 83370)
--- Name: idx_event_attendee_qr_generated_at; Type: INDEX; Schema: public; Owner: nextjs_template_boot
+-- Name: idx_event_attendee_qr_generated_at; Type: INDEX; Schema: public; Owner: giventa_event_management
 --
 
 CREATE INDEX idx_event_attendee_qr_generated_at ON public.event_attendee USING btree (qr_code_generated_at);
@@ -2715,7 +2391,7 @@ CREATE INDEX idx_event_attendee_qr_generated_at ON public.event_attendee USING b
 
 --
 -- TOC entry 3606 (class 1259 OID 83363)
--- Name: idx_event_details_allow_guests; Type: INDEX; Schema: public; Owner: nextjs_template_boot
+-- Name: idx_event_details_allow_guests; Type: INDEX; Schema: public; Owner: giventa_event_management
 --
 
 CREATE INDEX idx_event_details_allow_guests ON public.event_details USING btree (allow_guests) WHERE (allow_guests = true);
@@ -2723,7 +2399,7 @@ CREATE INDEX idx_event_details_allow_guests ON public.event_details USING btree 
 
 --
 -- TOC entry 3607 (class 1259 OID 83364)
--- Name: idx_event_details_guest_pricing; Type: INDEX; Schema: public; Owner: nextjs_template_boot
+-- Name: idx_event_details_guest_pricing; Type: INDEX; Schema: public; Owner: giventa_event_management
 --
 
 CREATE INDEX idx_event_details_guest_pricing ON public.event_details USING btree (enable_guest_pricing) WHERE (enable_guest_pricing = true);
@@ -2731,7 +2407,7 @@ CREATE INDEX idx_event_details_guest_pricing ON public.event_details USING btree
 
 --
 -- TOC entry 3608 (class 1259 OID 83366)
--- Name: idx_event_details_max_guests; Type: INDEX; Schema: public; Owner: nextjs_template_boot
+-- Name: idx_event_details_max_guests; Type: INDEX; Schema: public; Owner: giventa_event_management
 --
 
 CREATE INDEX idx_event_details_max_guests ON public.event_details USING btree (max_guests_per_attendee) WHERE (max_guests_per_attendee > 0);
@@ -2739,7 +2415,7 @@ CREATE INDEX idx_event_details_max_guests ON public.event_details USING btree (m
 
 --
 -- TOC entry 3609 (class 1259 OID 83365)
--- Name: idx_event_details_require_guest_approval; Type: INDEX; Schema: public; Owner: nextjs_template_boot
+-- Name: idx_event_details_require_guest_approval; Type: INDEX; Schema: public; Owner: giventa_event_management
 --
 
 CREATE INDEX idx_event_details_require_guest_approval ON public.event_details USING btree (require_guest_approval) WHERE (require_guest_approval = true);
@@ -2747,7 +2423,7 @@ CREATE INDEX idx_event_details_require_guest_approval ON public.event_details US
 
 --
 -- TOC entry 3669 (class 1259 OID 83375)
--- Name: idx_event_guest_pricing_description; Type: INDEX; Schema: public; Owner: nextjs_template_boot
+-- Name: idx_event_guest_pricing_description; Type: INDEX; Schema: public; Owner: giventa_event_management
 --
 
 CREATE INDEX idx_event_guest_pricing_description ON public.event_guest_pricing USING btree (description) WHERE (description IS NOT NULL);
@@ -2755,7 +2431,7 @@ CREATE INDEX idx_event_guest_pricing_description ON public.event_guest_pricing U
 
 --
 -- TOC entry 3670 (class 1259 OID 83374)
--- Name: idx_event_guest_pricing_event_age_active; Type: INDEX; Schema: public; Owner: nextjs_template_boot
+-- Name: idx_event_guest_pricing_event_age_active; Type: INDEX; Schema: public; Owner: giventa_event_management
 --
 
 CREATE INDEX idx_event_guest_pricing_event_age_active ON public.event_guest_pricing USING btree (event_id, age_group, is_active) WHERE (is_active = true);
@@ -2763,7 +2439,7 @@ CREATE INDEX idx_event_guest_pricing_event_age_active ON public.event_guest_pric
 
 --
 -- TOC entry 3671 (class 1259 OID 83372)
--- Name: idx_event_guest_pricing_is_active; Type: INDEX; Schema: public; Owner: nextjs_template_boot
+-- Name: idx_event_guest_pricing_is_active; Type: INDEX; Schema: public; Owner: giventa_event_management
 --
 
 CREATE INDEX idx_event_guest_pricing_is_active ON public.event_guest_pricing USING btree (is_active) WHERE (is_active = true);
@@ -2771,7 +2447,7 @@ CREATE INDEX idx_event_guest_pricing_is_active ON public.event_guest_pricing USI
 
 --
 -- TOC entry 3672 (class 1259 OID 83373)
--- Name: idx_event_guest_pricing_valid_period; Type: INDEX; Schema: public; Owner: nextjs_template_boot
+-- Name: idx_event_guest_pricing_valid_period; Type: INDEX; Schema: public; Owner: giventa_event_management
 --
 
 CREATE INDEX idx_event_guest_pricing_valid_period ON public.event_guest_pricing USING btree (valid_from, valid_to);
@@ -2779,7 +2455,7 @@ CREATE INDEX idx_event_guest_pricing_valid_period ON public.event_guest_pricing 
 
 --
 -- TOC entry 3650 (class 1259 OID 83377)
--- Name: idx_event_media_pre_signed_expires; Type: INDEX; Schema: public; Owner: nextjs_template_boot
+-- Name: idx_event_media_pre_signed_expires; Type: INDEX; Schema: public; Owner: giventa_event_management
 --
 
 CREATE INDEX idx_event_media_pre_signed_expires ON public.event_media USING btree (pre_signed_url_expires_at);
@@ -2787,7 +2463,7 @@ CREATE INDEX idx_event_media_pre_signed_expires ON public.event_media USING btre
 
 --
 -- TOC entry 3651 (class 1259 OID 83376)
--- Name: idx_event_media_pre_signed_url; Type: INDEX; Schema: public; Owner: nextjs_template_boot
+-- Name: idx_event_media_pre_signed_url; Type: INDEX; Schema: public; Owner: giventa_event_management
 --
 
 CREATE INDEX idx_event_media_pre_signed_url ON public.event_media USING btree (pre_signed_url) WHERE (pre_signed_url IS NOT NULL);
@@ -2795,7 +2471,7 @@ CREATE INDEX idx_event_media_pre_signed_url ON public.event_media USING btree (p
 
 --
 -- TOC entry 3628 (class 1259 OID 83368)
--- Name: idx_event_ticket_type_availability; Type: INDEX; Schema: public; Owner: nextjs_template_boot
+-- Name: idx_event_ticket_type_availability; Type: INDEX; Schema: public; Owner: giventa_event_management
 --
 
 CREATE INDEX idx_event_ticket_type_availability ON public.event_ticket_type USING btree (available_quantity, sold_quantity);
@@ -2803,7 +2479,7 @@ CREATE INDEX idx_event_ticket_type_availability ON public.event_ticket_type USIN
 
 --
 -- TOC entry 3629 (class 1259 OID 83367)
--- Name: idx_event_ticket_type_sold_quantity; Type: INDEX; Schema: public; Owner: nextjs_template_boot
+-- Name: idx_event_ticket_type_sold_quantity; Type: INDEX; Schema: public; Owner: giventa_event_management
 --
 
 CREATE INDEX idx_event_ticket_type_sold_quantity ON public.event_ticket_type USING btree (sold_quantity);
@@ -2811,7 +2487,7 @@ CREATE INDEX idx_event_ticket_type_sold_quantity ON public.event_ticket_type USI
 
 --
 -- TOC entry 3730 (class 2620 OID 83389)
--- Name: event_attendee generate_enhanced_qr_code_trigger; Type: TRIGGER; Schema: public; Owner: nextjs_template_boot
+-- Name: event_attendee generate_enhanced_qr_code_trigger; Type: TRIGGER; Schema: public; Owner: giventa_event_management
 --
 
 CREATE TRIGGER generate_enhanced_qr_code_trigger BEFORE INSERT OR UPDATE ON public.event_attendee FOR EACH ROW EXECUTE FUNCTION public.generate_enhanced_qr_code();
@@ -2819,7 +2495,7 @@ CREATE TRIGGER generate_enhanced_qr_code_trigger BEFORE INSERT OR UPDATE ON publ
 
 --
 -- TOC entry 3729 (class 2620 OID 83388)
--- Name: event_ticket_transaction manage_ticket_inventory_trigger; Type: TRIGGER; Schema: public; Owner: nextjs_template_boot
+-- Name: event_ticket_transaction manage_ticket_inventory_trigger; Type: TRIGGER; Schema: public; Owner: giventa_event_management
 --
 
 CREATE TRIGGER manage_ticket_inventory_trigger AFTER INSERT OR DELETE OR UPDATE ON public.event_ticket_transaction FOR EACH ROW EXECUTE FUNCTION public.manage_ticket_inventory();
@@ -2827,7 +2503,7 @@ CREATE TRIGGER manage_ticket_inventory_trigger AFTER INSERT OR DELETE OR UPDATE 
 
 --
 -- TOC entry 3732 (class 2620 OID 83384)
--- Name: event_attendee_guest update_event_attendee_guest_updated_at; Type: TRIGGER; Schema: public; Owner: nextjs_template_boot
+-- Name: event_attendee_guest update_event_attendee_guest_updated_at; Type: TRIGGER; Schema: public; Owner: giventa_event_management
 --
 
 CREATE TRIGGER update_event_attendee_guest_updated_at BEFORE UPDATE ON public.event_attendee_guest FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
@@ -2835,7 +2511,7 @@ CREATE TRIGGER update_event_attendee_guest_updated_at BEFORE UPDATE ON public.ev
 
 --
 -- TOC entry 3731 (class 2620 OID 83383)
--- Name: event_attendee update_event_attendee_updated_at; Type: TRIGGER; Schema: public; Owner: nextjs_template_boot
+-- Name: event_attendee update_event_attendee_updated_at; Type: TRIGGER; Schema: public; Owner: giventa_event_management
 --
 
 CREATE TRIGGER update_event_attendee_updated_at BEFORE UPDATE ON public.event_attendee FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
@@ -2843,7 +2519,7 @@ CREATE TRIGGER update_event_attendee_updated_at BEFORE UPDATE ON public.event_at
 
 --
 -- TOC entry 3726 (class 2620 OID 83382)
--- Name: event_details update_event_details_updated_at; Type: TRIGGER; Schema: public; Owner: nextjs_template_boot
+-- Name: event_details update_event_details_updated_at; Type: TRIGGER; Schema: public; Owner: giventa_event_management
 --
 
 CREATE TRIGGER update_event_details_updated_at BEFORE UPDATE ON public.event_details FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
@@ -2851,7 +2527,7 @@ CREATE TRIGGER update_event_details_updated_at BEFORE UPDATE ON public.event_det
 
 --
 -- TOC entry 3733 (class 2620 OID 83385)
--- Name: event_guest_pricing update_event_guest_pricing_updated_at; Type: TRIGGER; Schema: public; Owner: nextjs_template_boot
+-- Name: event_guest_pricing update_event_guest_pricing_updated_at; Type: TRIGGER; Schema: public; Owner: giventa_event_management
 --
 
 CREATE TRIGGER update_event_guest_pricing_updated_at BEFORE UPDATE ON public.event_guest_pricing FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
@@ -2859,7 +2535,7 @@ CREATE TRIGGER update_event_guest_pricing_updated_at BEFORE UPDATE ON public.eve
 
 --
 -- TOC entry 3728 (class 2620 OID 83386)
--- Name: event_ticket_type update_event_ticket_type_updated_at; Type: TRIGGER; Schema: public; Owner: nextjs_template_boot
+-- Name: event_ticket_type update_event_ticket_type_updated_at; Type: TRIGGER; Schema: public; Owner: giventa_event_management
 --
 
 CREATE TRIGGER update_event_ticket_type_updated_at BEFORE UPDATE ON public.event_ticket_type FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
@@ -2867,7 +2543,7 @@ CREATE TRIGGER update_event_ticket_type_updated_at BEFORE UPDATE ON public.event
 
 --
 -- TOC entry 3725 (class 2620 OID 83381)
--- Name: event_type_details update_event_type_details_updated_at; Type: TRIGGER; Schema: public; Owner: nextjs_template_boot
+-- Name: event_type_details update_event_type_details_updated_at; Type: TRIGGER; Schema: public; Owner: giventa_event_management
 --
 
 CREATE TRIGGER update_event_type_details_updated_at BEFORE UPDATE ON public.event_type_details FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
@@ -2875,7 +2551,7 @@ CREATE TRIGGER update_event_type_details_updated_at BEFORE UPDATE ON public.even
 
 --
 -- TOC entry 3722 (class 2620 OID 83378)
--- Name: tenant_organization update_tenant_organization_updated_at; Type: TRIGGER; Schema: public; Owner: nextjs_template_boot
+-- Name: tenant_organization update_tenant_organization_updated_at; Type: TRIGGER; Schema: public; Owner: giventa_event_management
 --
 
 CREATE TRIGGER update_tenant_organization_updated_at BEFORE UPDATE ON public.tenant_organization FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
@@ -2883,7 +2559,7 @@ CREATE TRIGGER update_tenant_organization_updated_at BEFORE UPDATE ON public.ten
 
 --
 -- TOC entry 3724 (class 2620 OID 83379)
--- Name: tenant_settings update_tenant_settings_updated_at; Type: TRIGGER; Schema: public; Owner: nextjs_template_boot
+-- Name: tenant_settings update_tenant_settings_updated_at; Type: TRIGGER; Schema: public; Owner: giventa_event_management
 --
 
 CREATE TRIGGER update_tenant_settings_updated_at BEFORE UPDATE ON public.tenant_settings FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
@@ -2891,7 +2567,7 @@ CREATE TRIGGER update_tenant_settings_updated_at BEFORE UPDATE ON public.tenant_
 
 --
 -- TOC entry 3723 (class 2620 OID 83380)
--- Name: user_profile update_user_profile_updated_at; Type: TRIGGER; Schema: public; Owner: nextjs_template_boot
+-- Name: user_profile update_user_profile_updated_at; Type: TRIGGER; Schema: public; Owner: giventa_event_management
 --
 
 CREATE TRIGGER update_user_profile_updated_at BEFORE UPDATE ON public.user_profile FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
@@ -2899,7 +2575,7 @@ CREATE TRIGGER update_user_profile_updated_at BEFORE UPDATE ON public.user_profi
 
 --
 -- TOC entry 3727 (class 2620 OID 83387)
--- Name: event_details validate_event_details_trigger; Type: TRIGGER; Schema: public; Owner: nextjs_template_boot
+-- Name: event_details validate_event_details_trigger; Type: TRIGGER; Schema: public; Owner: giventa_event_management
 --
 
 CREATE TRIGGER validate_event_details_trigger BEFORE INSERT OR UPDATE ON public.event_details FOR EACH ROW EXECUTE FUNCTION public.validate_event_details();
@@ -2916,7 +2592,7 @@ ALTER TABLE ONLY public.event_live_update_attachment
 
 --
 -- TOC entry 3688 (class 2606 OID 83213)
--- Name: event_admin fk_admin__created_by_id; Type: FK CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: event_admin fk_admin__created_by_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.event_admin
@@ -2925,7 +2601,7 @@ ALTER TABLE ONLY public.event_admin
 
 --
 -- TOC entry 3689 (class 2606 OID 83208)
--- Name: event_admin fk_admin__user_id; Type: FK CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: event_admin fk_admin__user_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.event_admin
@@ -2934,7 +2610,7 @@ ALTER TABLE ONLY public.event_admin
 
 --
 -- TOC entry 3715 (class 2606 OID 83338)
--- Name: event_admin_audit_log fk_admin_audit_log__admin_id; Type: FK CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: event_admin_audit_log fk_admin_audit_log__admin_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.event_admin_audit_log
@@ -2943,7 +2619,7 @@ ALTER TABLE ONLY public.event_admin_audit_log
 
 --
 -- TOC entry 3693 (class 2606 OID 83233)
--- Name: bulk_operation_log fk_bulk_operation_log__performed_by; Type: FK CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: bulk_operation_log fk_bulk_operation_log__performed_by; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.bulk_operation_log
@@ -2952,7 +2628,7 @@ ALTER TABLE ONLY public.bulk_operation_log
 
 --
 -- TOC entry 3711 (class 2606 OID 83323)
--- Name: event_calendar_entry fk_calendar_event__created_by_id; Type: FK CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: event_calendar_entry fk_calendar_event__created_by_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.event_calendar_entry
@@ -2961,7 +2637,7 @@ ALTER TABLE ONLY public.event_calendar_entry
 
 --
 -- TOC entry 3712 (class 2606 OID 83318)
--- Name: event_calendar_entry fk_calendar_event__event_id; Type: FK CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: event_calendar_entry fk_calendar_event__event_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.event_calendar_entry
@@ -2970,7 +2646,7 @@ ALTER TABLE ONLY public.event_calendar_entry
 
 --
 -- TOC entry 3686 (class 2606 OID 83198)
--- Name: event_details fk_event__created_by_id; Type: FK CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: event_details fk_event__created_by_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.event_details
@@ -2979,7 +2655,7 @@ ALTER TABLE ONLY public.event_details
 
 --
 -- TOC entry 3687 (class 2606 OID 83203)
--- Name: event_details fk_event__event_type_id; Type: FK CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: event_details fk_event__event_type_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.event_details
@@ -2988,7 +2664,7 @@ ALTER TABLE ONLY public.event_details
 
 --
 -- TOC entry 3713 (class 2606 OID 83333)
--- Name: event_attendee fk_event_attendee__attendee_id; Type: FK CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: event_attendee fk_event_attendee__attendee_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.event_attendee
@@ -2997,7 +2673,7 @@ ALTER TABLE ONLY public.event_attendee
 
 --
 -- TOC entry 3714 (class 2606 OID 83328)
--- Name: event_attendee fk_event_attendee__event_id; Type: FK CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: event_attendee fk_event_attendee__event_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.event_attendee
@@ -3006,7 +2682,7 @@ ALTER TABLE ONLY public.event_attendee
 
 --
 -- TOC entry 3716 (class 2606 OID 83348)
--- Name: event_attendee_guest fk_event_attendee_guest__approved_by_id; Type: FK CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: event_attendee_guest fk_event_attendee_guest__approved_by_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.event_attendee_guest
@@ -3015,7 +2691,7 @@ ALTER TABLE ONLY public.event_attendee_guest
 
 --
 -- TOC entry 3717 (class 2606 OID 83343)
--- Name: event_attendee_guest fk_event_attendee_guest__primary_attendee_id; Type: FK CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: event_attendee_guest fk_event_attendee_guest__primary_attendee_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.event_attendee_guest
@@ -3024,7 +2700,7 @@ ALTER TABLE ONLY public.event_attendee_guest
 
 --
 -- TOC entry 3720 (class 2606 OID 83400)
--- Name: event_discount_code fk_event_discount_code__discount_code_id; Type: FK CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: event_discount_code fk_event_discount_code__discount_code_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.event_discount_code
@@ -3033,7 +2709,7 @@ ALTER TABLE ONLY public.event_discount_code
 
 --
 -- TOC entry 3721 (class 2606 OID 83395)
--- Name: event_discount_code fk_event_discount_code__event_id; Type: FK CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: event_discount_code fk_event_discount_code__event_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.event_discount_code
@@ -3042,7 +2718,7 @@ ALTER TABLE ONLY public.event_discount_code
 
 --
 -- TOC entry 3718 (class 2606 OID 83353)
--- Name: event_guest_pricing fk_event_guest_pricing__event_id; Type: FK CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: event_guest_pricing fk_event_guest_pricing__event_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.event_guest_pricing
@@ -3051,7 +2727,7 @@ ALTER TABLE ONLY public.event_guest_pricing
 
 --
 -- TOC entry 3709 (class 2606 OID 83308)
--- Name: event_media fk_event_media__event_id; Type: FK CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: event_media fk_event_media__event_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.event_media
@@ -3060,7 +2736,7 @@ ALTER TABLE ONLY public.event_media
 
 --
 -- TOC entry 3710 (class 2606 OID 83313)
--- Name: event_media fk_event_media__uploaded_by_id; Type: FK CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: event_media fk_event_media__uploaded_by_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.event_media
@@ -3069,7 +2745,7 @@ ALTER TABLE ONLY public.event_media
 
 --
 -- TOC entry 3694 (class 2606 OID 83238)
--- Name: event_organizer fk_event_organizer__event_id; Type: FK CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: event_organizer fk_event_organizer__event_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.event_organizer
@@ -3078,7 +2754,7 @@ ALTER TABLE ONLY public.event_organizer
 
 --
 -- TOC entry 3695 (class 2606 OID 83243)
--- Name: event_organizer fk_event_organizer__organizer_id; Type: FK CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: event_organizer fk_event_organizer__organizer_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.event_organizer
@@ -3087,7 +2763,7 @@ ALTER TABLE ONLY public.event_organizer
 
 --
 -- TOC entry 3701 (class 2606 OID 83268)
--- Name: user_payment_transaction fk_payment_transaction__event_id; Type: FK CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: user_payment_transaction fk_payment_transaction__event_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.user_payment_transaction
@@ -3096,7 +2772,7 @@ ALTER TABLE ONLY public.user_payment_transaction
 
 --
 -- TOC entry 3702 (class 2606 OID 83273)
--- Name: user_payment_transaction fk_payment_transaction__ticket_transaction_id; Type: FK CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: user_payment_transaction fk_payment_transaction__ticket_transaction_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.user_payment_transaction
@@ -3105,7 +2781,7 @@ ALTER TABLE ONLY public.user_payment_transaction
 
 --
 -- TOC entry 3703 (class 2606 OID 83283)
--- Name: event_poll fk_poll__created_by_id; Type: FK CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: event_poll fk_poll__created_by_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.event_poll
@@ -3114,7 +2790,7 @@ ALTER TABLE ONLY public.event_poll
 
 --
 -- TOC entry 3704 (class 2606 OID 83278)
--- Name: event_poll fk_poll__event_id; Type: FK CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: event_poll fk_poll__event_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.event_poll
@@ -3123,7 +2799,7 @@ ALTER TABLE ONLY public.event_poll
 
 --
 -- TOC entry 3705 (class 2606 OID 83288)
--- Name: event_poll_option fk_poll_option__poll_id; Type: FK CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: event_poll_option fk_poll_option__poll_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.event_poll_option
@@ -3132,7 +2808,7 @@ ALTER TABLE ONLY public.event_poll_option
 
 --
 -- TOC entry 3706 (class 2606 OID 83293)
--- Name: event_poll_response fk_poll_response__poll_id; Type: FK CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: event_poll_response fk_poll_response__poll_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.event_poll_response
@@ -3141,7 +2817,7 @@ ALTER TABLE ONLY public.event_poll_response
 
 --
 -- TOC entry 3707 (class 2606 OID 83298)
--- Name: event_poll_response fk_poll_response__poll_option_id; Type: FK CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: event_poll_response fk_poll_response__poll_option_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.event_poll_response
@@ -3150,7 +2826,7 @@ ALTER TABLE ONLY public.event_poll_response
 
 --
 -- TOC entry 3708 (class 2606 OID 83303)
--- Name: event_poll_response fk_poll_response__user_id; Type: FK CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: event_poll_response fk_poll_response__user_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.event_poll_response
@@ -3159,7 +2835,7 @@ ALTER TABLE ONLY public.event_poll_response
 
 --
 -- TOC entry 3719 (class 2606 OID 83358)
--- Name: qr_code_usage fk_qr_code_usage__attendee_id; Type: FK CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: qr_code_usage fk_qr_code_usage__attendee_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.qr_code_usage
@@ -3177,7 +2853,7 @@ ALTER TABLE ONLY public.event_score_card_detail
 
 --
 -- TOC entry 3684 (class 2606 OID 83183)
--- Name: tenant_settings fk_tenant_settings__tenant_id; Type: FK CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: tenant_settings fk_tenant_settings__tenant_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.tenant_settings
@@ -3186,7 +2862,7 @@ ALTER TABLE ONLY public.tenant_settings
 
 --
 -- TOC entry 3697 (class 2606 OID 83405)
--- Name: event_ticket_transaction fk_ticket_transaction__discount_code_id; Type: FK CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: event_ticket_transaction fk_ticket_transaction__discount_code_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.event_ticket_transaction
@@ -3195,7 +2871,7 @@ ALTER TABLE ONLY public.event_ticket_transaction
 
 --
 -- TOC entry 3698 (class 2606 OID 83253)
--- Name: event_ticket_transaction fk_ticket_transaction__event_id; Type: FK CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: event_ticket_transaction fk_ticket_transaction__event_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.event_ticket_transaction
@@ -3204,7 +2880,7 @@ ALTER TABLE ONLY public.event_ticket_transaction
 
 --
 -- TOC entry 3699 (class 2606 OID 83258)
--- Name: event_ticket_transaction fk_ticket_transaction__ticket_type_id; Type: FK CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: event_ticket_transaction fk_ticket_transaction__ticket_type_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.event_ticket_transaction
@@ -3213,7 +2889,7 @@ ALTER TABLE ONLY public.event_ticket_transaction
 
 --
 -- TOC entry 3700 (class 2606 OID 83263)
--- Name: event_ticket_transaction fk_ticket_transaction__user_id; Type: FK CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: event_ticket_transaction fk_ticket_transaction__user_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.event_ticket_transaction
@@ -3222,7 +2898,7 @@ ALTER TABLE ONLY public.event_ticket_transaction
 
 --
 -- TOC entry 3696 (class 2606 OID 83248)
--- Name: event_ticket_type fk_ticket_type__event_id; Type: FK CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: event_ticket_type fk_ticket_type__event_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.event_ticket_type
@@ -3231,25 +2907,18 @@ ALTER TABLE ONLY public.event_ticket_type
 
 --
 -- TOC entry 3683 (class 2606 OID 83188)
--- Name: user_profile fk_user_profile_reviewed_by_admin; Type: FK CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: user_profile fk_user_profile_reviewed_by_admin; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.user_profile
     ADD CONSTRAINT fk_user_profile_reviewed_by_admin FOREIGN KEY (reviewed_by_admin_id) REFERENCES public.user_profile(id) ON DELETE SET NULL;
 
 
---
--- TOC entry 3692 (class 2606 OID 83228)
--- Name: user_registration_request fk_user_registration_request__reviewed_by_id; Type: FK CONSTRAINT; Schema: public; Owner: nextjs_template_boot
---
-
-ALTER TABLE ONLY public.user_registration_request
-    ADD CONSTRAINT fk_user_registration_request__reviewed_by_id FOREIGN KEY (reviewed_by_id) REFERENCES public.user_profile(id) ON DELETE SET NULL;
 
 
 --
 -- TOC entry 3685 (class 2606 OID 83193)
--- Name: user_subscription fk_user_subscription__user_profile_id; Type: FK CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: user_subscription fk_user_subscription__user_profile_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.user_subscription
@@ -3258,7 +2927,7 @@ ALTER TABLE ONLY public.user_subscription
 
 --
 -- TOC entry 3690 (class 2606 OID 83223)
--- Name: user_task fk_user_task_event_id; Type: FK CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: user_task fk_user_task_event_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.user_task
@@ -3267,7 +2936,7 @@ ALTER TABLE ONLY public.user_task
 
 --
 -- TOC entry 3691 (class 2606 OID 83218)
--- Name: user_task fk_user_task_user_id; Type: FK CONSTRAINT; Schema: public; Owner: nextjs_template_boot
+-- Name: user_task fk_user_task_user_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
 ALTER TABLE ONLY public.user_task
@@ -3286,7 +2955,7 @@ GRANT USAGE ON SCHEMA public TO giventa_event_management;
 --
 -- TOC entry 3923 (class 0 OID 0)
 -- Dependencies: 224
--- Name: SEQUENCE sequence_generator; Type: ACL; Schema: public; Owner: nextjs_template_boot
+-- Name: SEQUENCE sequence_generator; Type: ACL; Schema: public; Owner: giventa_event_management
 --
 
 GRANT SELECT,USAGE ON SEQUENCE public.sequence_generator TO giventa_event_management;
@@ -3295,7 +2964,7 @@ GRANT SELECT,USAGE ON SEQUENCE public.sequence_generator TO giventa_event_manage
 --
 -- TOC entry 3924 (class 0 OID 0)
 -- Dependencies: 238
--- Name: TABLE bulk_operation_log; Type: ACL; Schema: public; Owner: nextjs_template_boot
+-- Name: TABLE bulk_operation_log; Type: ACL; Schema: public; Owner: giventa_event_management
 --
 
 GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.bulk_operation_log TO giventa_event_management;
@@ -3304,7 +2973,7 @@ GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.bu
 --
 -- TOC entry 3925 (class 0 OID 0)
 -- Dependencies: 225
--- Name: TABLE databasechangelog; Type: ACL; Schema: public; Owner: nextjs_template_boot
+-- Name: TABLE databasechangelog; Type: ACL; Schema: public; Owner: giventa_event_management
 --
 
 GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.databasechangelog TO giventa_event_management;
@@ -3313,7 +2982,7 @@ GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.da
 --
 -- TOC entry 3926 (class 0 OID 0)
 -- Dependencies: 226
--- Name: TABLE databasechangeloglock; Type: ACL; Schema: public; Owner: nextjs_template_boot
+-- Name: TABLE databasechangeloglock; Type: ACL; Schema: public; Owner: giventa_event_management
 --
 
 GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.databasechangeloglock TO giventa_event_management;
@@ -3322,7 +2991,7 @@ GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.da
 --
 -- TOC entry 3928 (class 0 OID 0)
 -- Dependencies: 228
--- Name: TABLE discount_code; Type: ACL; Schema: public; Owner: nextjs_template_boot
+-- Name: TABLE discount_code; Type: ACL; Schema: public; Owner: giventa_event_management
 --
 
 GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.discount_code TO giventa_event_management;
@@ -3331,7 +3000,7 @@ GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.di
 --
 -- TOC entry 3930 (class 0 OID 0)
 -- Dependencies: 227
--- Name: SEQUENCE discount_code_id_seq; Type: ACL; Schema: public; Owner: nextjs_template_boot
+-- Name: SEQUENCE discount_code_id_seq; Type: ACL; Schema: public; Owner: giventa_event_management
 --
 
 GRANT SELECT,USAGE ON SEQUENCE public.discount_code_id_seq TO giventa_event_management;
@@ -3340,7 +3009,7 @@ GRANT SELECT,USAGE ON SEQUENCE public.discount_code_id_seq TO giventa_event_mana
 --
 -- TOC entry 3931 (class 0 OID 0)
 -- Dependencies: 235
--- Name: TABLE event_admin; Type: ACL; Schema: public; Owner: nextjs_template_boot
+-- Name: TABLE event_admin; Type: ACL; Schema: public; Owner: giventa_event_management
 --
 
 GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.event_admin TO giventa_event_management;
@@ -3349,7 +3018,7 @@ GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.ev
 --
 -- TOC entry 3933 (class 0 OID 0)
 -- Dependencies: 249
--- Name: TABLE event_admin_audit_log; Type: ACL; Schema: public; Owner: nextjs_template_boot
+-- Name: TABLE event_admin_audit_log; Type: ACL; Schema: public; Owner: giventa_event_management
 --
 
 GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.event_admin_audit_log TO giventa_event_management;
@@ -3358,7 +3027,7 @@ GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.ev
 --
 -- TOC entry 3938 (class 0 OID 0)
 -- Dependencies: 248
--- Name: TABLE event_attendee; Type: ACL; Schema: public; Owner: nextjs_template_boot
+-- Name: TABLE event_attendee; Type: ACL; Schema: public; Owner: giventa_event_management
 --
 
 GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.event_attendee TO giventa_event_management;
@@ -3367,7 +3036,7 @@ GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.ev
 --
 -- TOC entry 3942 (class 0 OID 0)
 -- Dependencies: 250
--- Name: TABLE event_attendee_guest; Type: ACL; Schema: public; Owner: nextjs_template_boot
+-- Name: TABLE event_attendee_guest; Type: ACL; Schema: public; Owner: giventa_event_management
 --
 
 GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.event_attendee_guest TO giventa_event_management;
@@ -3376,7 +3045,7 @@ GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.ev
 --
 -- TOC entry 3943 (class 0 OID 0)
 -- Dependencies: 247
--- Name: TABLE event_calendar_entry; Type: ACL; Schema: public; Owner: nextjs_template_boot
+-- Name: TABLE event_calendar_entry; Type: ACL; Schema: public; Owner: giventa_event_management
 --
 
 GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.event_calendar_entry TO giventa_event_management;
@@ -3385,7 +3054,7 @@ GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.ev
 --
 -- TOC entry 3952 (class 0 OID 0)
 -- Dependencies: 234
--- Name: TABLE event_details; Type: ACL; Schema: public; Owner: nextjs_template_boot
+-- Name: TABLE event_details; Type: ACL; Schema: public; Owner: giventa_event_management
 --
 
 GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.event_details TO giventa_event_management;
@@ -3394,7 +3063,7 @@ GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.ev
 --
 -- TOC entry 3954 (class 0 OID 0)
 -- Dependencies: 253
--- Name: TABLE event_discount_code; Type: ACL; Schema: public; Owner: nextjs_template_boot
+-- Name: TABLE event_discount_code; Type: ACL; Schema: public; Owner: giventa_event_management
 --
 
 GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.event_discount_code TO giventa_event_management;
@@ -3403,7 +3072,7 @@ GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.ev
 --
 -- TOC entry 3961 (class 0 OID 0)
 -- Dependencies: 251
--- Name: TABLE event_guest_pricing; Type: ACL; Schema: public; Owner: nextjs_template_boot
+-- Name: TABLE event_guest_pricing; Type: ACL; Schema: public; Owner: giventa_event_management
 --
 
 GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.event_guest_pricing TO giventa_event_management;
@@ -3412,7 +3081,7 @@ GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.ev
 --
 -- TOC entry 3967 (class 0 OID 0)
 -- Dependencies: 246
--- Name: TABLE event_media; Type: ACL; Schema: public; Owner: nextjs_template_boot
+-- Name: TABLE event_media; Type: ACL; Schema: public; Owner: giventa_event_management
 --
 
 GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.event_media TO giventa_event_management;
@@ -3421,7 +3090,7 @@ GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.ev
 --
 -- TOC entry 3968 (class 0 OID 0)
 -- Dependencies: 239
--- Name: TABLE event_organizer; Type: ACL; Schema: public; Owner: nextjs_template_boot
+-- Name: TABLE event_organizer; Type: ACL; Schema: public; Owner: giventa_event_management
 --
 
 GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.event_organizer TO giventa_event_management;
@@ -3430,7 +3099,7 @@ GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.ev
 --
 -- TOC entry 3969 (class 0 OID 0)
 -- Dependencies: 243
--- Name: TABLE event_poll; Type: ACL; Schema: public; Owner: nextjs_template_boot
+-- Name: TABLE event_poll; Type: ACL; Schema: public; Owner: giventa_event_management
 --
 
 GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.event_poll TO giventa_event_management;
@@ -3439,7 +3108,7 @@ GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.ev
 --
 -- TOC entry 3970 (class 0 OID 0)
 -- Dependencies: 244
--- Name: TABLE event_poll_option; Type: ACL; Schema: public; Owner: nextjs_template_boot
+-- Name: TABLE event_poll_option; Type: ACL; Schema: public; Owner: giventa_event_management
 --
 
 GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.event_poll_option TO giventa_event_management;
@@ -3448,7 +3117,7 @@ GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.ev
 --
 -- TOC entry 3971 (class 0 OID 0)
 -- Dependencies: 245
--- Name: TABLE event_poll_response; Type: ACL; Schema: public; Owner: nextjs_template_boot
+-- Name: TABLE event_poll_response; Type: ACL; Schema: public; Owner: giventa_event_management
 --
 
 GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.event_poll_response TO giventa_event_management;
@@ -3457,7 +3126,7 @@ GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.ev
 --
 -- TOC entry 3978 (class 0 OID 0)
 -- Dependencies: 241
--- Name: TABLE event_ticket_transaction; Type: ACL; Schema: public; Owner: nextjs_template_boot
+-- Name: TABLE event_ticket_transaction; Type: ACL; Schema: public; Owner: giventa_event_management
 --
 
 GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.event_ticket_transaction TO giventa_event_management;
@@ -3466,7 +3135,7 @@ GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.ev
 --
 -- TOC entry 3980 (class 0 OID 0)
 -- Dependencies: 240
--- Name: TABLE event_ticket_type; Type: ACL; Schema: public; Owner: nextjs_template_boot
+-- Name: TABLE event_ticket_type; Type: ACL; Schema: public; Owner: giventa_event_management
 --
 
 GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.event_ticket_type TO giventa_event_management;
@@ -3475,7 +3144,7 @@ GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.ev
 --
 -- TOC entry 3982 (class 0 OID 0)
 -- Dependencies: 232
--- Name: TABLE event_type_details; Type: ACL; Schema: public; Owner: nextjs_template_boot
+-- Name: TABLE event_type_details; Type: ACL; Schema: public; Owner: giventa_event_management
 --
 
 GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.event_type_details TO giventa_event_management;
@@ -3484,7 +3153,7 @@ GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.ev
 --
 -- TOC entry 3984 (class 0 OID 0)
 -- Dependencies: 252
--- Name: TABLE qr_code_usage; Type: ACL; Schema: public; Owner: nextjs_template_boot
+-- Name: TABLE qr_code_usage; Type: ACL; Schema: public; Owner: giventa_event_management
 --
 
 GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.qr_code_usage TO giventa_event_management;
@@ -3493,7 +3162,7 @@ GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.qr
 --
 -- TOC entry 3987 (class 0 OID 0)
 -- Dependencies: 229
--- Name: TABLE tenant_organization; Type: ACL; Schema: public; Owner: nextjs_template_boot
+-- Name: TABLE tenant_organization; Type: ACL; Schema: public; Owner: giventa_event_management
 --
 
 GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.tenant_organization TO giventa_event_management;
@@ -3502,7 +3171,7 @@ GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.te
 --
 -- TOC entry 3989 (class 0 OID 0)
 -- Dependencies: 231
--- Name: TABLE tenant_settings; Type: ACL; Schema: public; Owner: nextjs_template_boot
+-- Name: TABLE tenant_settings; Type: ACL; Schema: public; Owner: giventa_event_management
 --
 
 GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.tenant_settings TO giventa_event_management;
@@ -3511,7 +3180,7 @@ GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.te
 --
 -- TOC entry 3990 (class 0 OID 0)
 -- Dependencies: 242
--- Name: TABLE user_payment_transaction; Type: ACL; Schema: public; Owner: nextjs_template_boot
+-- Name: TABLE user_payment_transaction; Type: ACL; Schema: public; Owner: giventa_event_management
 --
 
 GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.user_payment_transaction TO giventa_event_management;
@@ -3520,25 +3189,18 @@ GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.us
 --
 -- TOC entry 3992 (class 0 OID 0)
 -- Dependencies: 230
--- Name: TABLE user_profile; Type: ACL; Schema: public; Owner: nextjs_template_boot
+-- Name: TABLE user_profile; Type: ACL; Schema: public; Owner: giventa_event_management
 --
 
 GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.user_profile TO giventa_event_management;
 
 
---
--- TOC entry 3993 (class 0 OID 0)
--- Dependencies: 237
--- Name: TABLE user_registration_request; Type: ACL; Schema: public; Owner: nextjs_template_boot
---
-
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.user_registration_request TO giventa_event_management;
 
 
 --
 -- TOC entry 3994 (class 0 OID 0)
 -- Dependencies: 233
--- Name: TABLE user_subscription; Type: ACL; Schema: public; Owner: nextjs_template_boot
+-- Name: TABLE user_subscription; Type: ACL; Schema: public; Owner: giventa_event_management
 --
 
 GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.user_subscription TO giventa_event_management;
@@ -3547,7 +3209,7 @@ GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.us
 --
 -- TOC entry 3995 (class 0 OID 0)
 -- Dependencies: 236
--- Name: TABLE user_task; Type: ACL; Schema: public; Owner: nextjs_template_boot
+-- Name: TABLE user_task; Type: ACL; Schema: public; Owner: giventa_event_management
 --
 
 GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.user_task TO giventa_event_management;

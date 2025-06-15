@@ -3,6 +3,19 @@ description:
 globs:
 alwaysApply: false
 ---
+- **Delete Icon Standard (MANDATORY):**
+  - For all delete actions, always use `FaTrashAlt` from `react-icons/fa` and the class `icon-btn icon-btn-delete`.
+  - **Never use `FaTrash` for delete actions.**
+  - Example:
+    ```jsx
+    // ✅ DO: Use FaTrashAlt for delete
+    import { FaTrashAlt } from 'react-icons/fa';
+    <button className="icon-btn icon-btn-delete"><FaTrashAlt /></button>
+    // ❌ DON'T: Use FaTrash for delete
+    import { FaTrash } from 'react-icons/fa';
+    <button className="icon-btn icon-btn-delete"><FaTrash /></button>
+    ```
+
 - **Consistent Icon Button and Tooltip/Popover UI for Admin Pages**
   - Use `.icon-btn` (plus `.icon-btn-edit`, `.icon-btn-delete`, `.icon-btn-upload`) for all action icons (edit, delete, upload, etc.) for consistent size, color, and hover/focus effects.
   - **For delete actions, always use `FaTrashAlt` from `react-icons/fa` for the correct grilled/trash-can look.**

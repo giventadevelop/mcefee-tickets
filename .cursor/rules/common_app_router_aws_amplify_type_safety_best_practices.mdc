@@ -1,0 +1,31 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+- **Dynamic Route Params Must Be Awaited or Unwrapped**
+  - In the Next.js App Router, `params` is a Promise.
+  - In server components, always use `const { id } = await params;`
+  - In client components, always use `const { id } = use(params);`
+  - Do NOT access `params.id` directly.
+  - See: https://nextjs.org/docs/messages/sync-dynamic-apis
+  - Example:
+    ```tsx
+    // Server component
+    export default async function Page({ params }) {
+      const { id } = await params;
+      // ...
+    }
+    // Client component
+    import { use } from "react";
+    export default function Page({ params }) {
+      const { id } = use(params);
+      // ...
+    }
+    ```
+  - **Rationale:** Prevents runtime errors and ensures forward compatibility with future Next.js versions.
+
+
+
+
+

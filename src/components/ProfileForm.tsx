@@ -348,7 +348,7 @@ export default function ProfileForm() {
       )}
 
       <div className="border rounded-lg p-4 bg-gray-50 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">
               First Name *
@@ -360,11 +360,10 @@ export default function ProfileForm() {
               value={formData.firstName}
               onChange={handleChange}
               required
-              className="mt-1 block w-full border border-gray-400 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+              className="mt-1 block w-full border border-gray-400 rounded-xl focus:border-blue-500 focus:ring-blue-500 px-4 py-3 text-base"
             />
           </div>
-
-          <div>
+          <div className="md:col-span-2">
             <label htmlFor="lastName" className="block text-sm font-medium text-gray-700">
               Last Name *
             </label>
@@ -375,10 +374,11 @@ export default function ProfileForm() {
               value={formData.lastName}
               onChange={handleChange}
               required
-              className="mt-1 block w-full border border-gray-400 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+              className="mt-1 block w-full border border-gray-400 rounded-xl focus:border-blue-500 focus:ring-blue-500 px-4 py-3 text-base"
             />
           </div>
-
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-1 gap-4 mt-4">
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700">
               Email *
@@ -390,10 +390,11 @@ export default function ProfileForm() {
               value={formData.email}
               onChange={handleChange}
               required
-              className="mt-1 block w-full border border-gray-400 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+              className="mt-1 block w-full border border-gray-400 rounded-xl focus:border-blue-500 focus:ring-blue-500 px-4 py-3 text-base"
             />
           </div>
-
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-1 gap-4 mt-4">
           <div>
             <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
               Phone
@@ -404,11 +405,12 @@ export default function ProfileForm() {
               name="phone"
               value={formData.phone || ""}
               onChange={handleChange}
-              className="mt-1 block w-full border border-gray-400 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+              className="mt-1 block w-full border border-gray-400 rounded-xl focus:border-blue-500 focus:ring-blue-500 px-4 py-3 text-base"
             />
           </div>
-
-          <div>
+        </div>
+        <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+          <div className="md:col-span-2">
             <label htmlFor="addressLine1" className="block text-sm font-medium text-gray-700">
               Address Line 1
             </label>
@@ -418,10 +420,11 @@ export default function ProfileForm() {
               name="addressLine1"
               value={formData.addressLine1 || ""}
               onChange={handleChange}
-              className="mt-1 block w-full border border-gray-400 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+              className="mt-1 block w-full border border-gray-400 rounded-xl focus:border-blue-500 focus:ring-blue-500 px-4 py-3 text-base"
             />
           </div>
-
+        </div>
+        <div className="md:col-span-3 grid grid-cols-1 gap-4 mt-4">
           <div>
             <label htmlFor="addressLine2" className="block text-sm font-medium text-gray-700">
               Address Line 2
@@ -432,10 +435,11 @@ export default function ProfileForm() {
               name="addressLine2"
               value={formData.addressLine2 || ""}
               onChange={handleChange}
-              className="mt-1 block w-full border border-gray-400 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+              className="mt-1 block w-full border border-gray-400 rounded-xl focus:border-blue-500 focus:ring-blue-500 px-4 py-3 text-base"
             />
           </div>
-
+        </div>
+        <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
           <div>
             <label htmlFor="city" className="block text-sm font-medium text-gray-700">
               City
@@ -446,10 +450,9 @@ export default function ProfileForm() {
               name="city"
               value={formData.city || ""}
               onChange={handleChange}
-              className="mt-1 block w-full border border-gray-400 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+              className="mt-1 block w-full border border-gray-400 rounded-xl focus:border-blue-500 focus:ring-blue-500 px-4 py-3 text-base"
             />
           </div>
-
           <div>
             <label htmlFor="state" className="block text-sm font-medium text-gray-700">
               State
@@ -460,10 +463,11 @@ export default function ProfileForm() {
               name="state"
               value={formData.state || ""}
               onChange={handleChange}
-              className="mt-1 block w-full border border-gray-400 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+              className="mt-1 block w-full border border-gray-400 rounded-xl focus:border-blue-500 focus:ring-blue-500 px-4 py-3 text-base"
             />
           </div>
-
+        </div>
+        <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
           <div>
             <label htmlFor="zipCode" className="block text-sm font-medium text-gray-700">
               ZIP Code
@@ -474,10 +478,9 @@ export default function ProfileForm() {
               name="zipCode"
               value={formData.zipCode || ""}
               onChange={handleChange}
-              className="mt-1 block w-full border border-gray-400 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+              className="mt-1 block w-full border border-gray-400 rounded-xl focus:border-blue-500 focus:ring-blue-500 px-4 py-3 text-base"
             />
           </div>
-
           <div>
             <label htmlFor="country" className="block text-sm font-medium text-gray-700">
               Country
@@ -488,18 +491,18 @@ export default function ProfileForm() {
               name="country"
               value={formData.country || ""}
               onChange={handleChange}
-              className="mt-1 block w-full border border-gray-400 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+              className="mt-1 block w-full border border-gray-400 rounded-xl focus:border-blue-500 focus:ring-blue-500 px-4 py-3 text-base"
             />
           </div>
         </div>
       </div>
 
       <div className="my-6">
-        <div className="text-xs text-gray-500 mb-1">[optional] The following fields are for India-specific details.</div>
-        <div className="border rounded-lg p-4 bg-gray-50">
+        <div className="font-bold text-blue-700 mb-2 text-sm">[* The below fields are optional, your whereabouts in India]</div>
+        <div className="border rounded-lg p-4 bg-blue-50">
           <h3 className="text-base font-semibold mb-4">India Details</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
+            <div className="md:col-span-2">
               <label htmlFor="familyName" className="block text-sm font-medium text-gray-700">
                 Family Name
               </label>
@@ -509,24 +512,12 @@ export default function ProfileForm() {
                 name="familyName"
                 value={formData.familyName || ""}
                 onChange={handleChange}
-                className="mt-1 block w-full border border-gray-400 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+                className="mt-1 block w-full border border-gray-400 rounded-xl focus:border-blue-500 focus:ring-blue-500 px-4 py-3 text-base"
                 tabIndex={0}
               />
             </div>
-            <div>
-              <label htmlFor="cityTown" className="block text-sm font-medium text-gray-700">
-                City/Town
-              </label>
-              <input
-                type="text"
-                id="cityTown"
-                name="cityTown"
-                value={formData.cityTown || ""}
-                onChange={handleChange}
-                className="mt-1 block w-full border border-gray-400 rounded-lg focus:border-blue-500 focus:ring-blue-500"
-                tabIndex={0}
-              />
-            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-4 mt-4">
             <div>
               <label htmlFor="district" className="block text-sm font-medium text-gray-700">
                 District
@@ -537,10 +528,28 @@ export default function ProfileForm() {
                 name="district"
                 value={formData.district || ""}
                 onChange={handleChange}
-                className="mt-1 block w-full border border-gray-400 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+                className="mt-1 block w-full border border-gray-400 rounded-xl focus:border-blue-500 focus:ring-blue-500 px-4 py-3 text-base"
                 tabIndex={0}
               />
             </div>
+          </div>
+          <div className="grid grid-cols-1 gap-4 mt-4">
+            <div>
+              <label htmlFor="cityTown" className="block text-sm font-medium text-gray-700">
+                City/Town
+              </label>
+              <input
+                type="text"
+                id="cityTown"
+                name="cityTown"
+                value={formData.cityTown || ""}
+                onChange={handleChange}
+                className="mt-1 block w-full border border-gray-400 rounded-xl focus:border-blue-500 focus:ring-blue-500 px-4 py-3 text-base"
+                tabIndex={0}
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-4 mt-4">
             <div>
               <label htmlFor="educationalInstitution" className="block text-sm font-medium text-gray-700">
                 Educational Institution
@@ -551,21 +560,7 @@ export default function ProfileForm() {
                 name="educationalInstitution"
                 value={formData.educationalInstitution || ""}
                 onChange={handleChange}
-                className="mt-1 block w-full border border-gray-400 rounded-lg focus:border-blue-500 focus:ring-blue-500"
-                tabIndex={0}
-              />
-            </div>
-            <div className="md:col-span-2">
-              <label htmlFor="profileImageUrl" className="block text-sm font-medium text-gray-700">
-                Profile Image URL
-              </label>
-              <input
-                type="text"
-                id="profileImageUrl"
-                name="profileImageUrl"
-                value={formData.profileImageUrl || ""}
-                onChange={handleChange}
-                className="mt-1 block w-full border border-gray-400 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+                className="mt-1 block w-full border border-gray-400 rounded-xl focus:border-blue-500 focus:ring-blue-500 px-4 py-3 text-base"
                 tabIndex={0}
               />
             </div>

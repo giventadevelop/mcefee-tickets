@@ -19,7 +19,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-6 lg:px-8">
+    <div className="min-h-screen p-8 max-w-3xl mx-auto">
       <div className="space-y-8 py-8">
         <div className="flex items-center justify-between">
           <div>
@@ -27,12 +27,8 @@ export default function ProfilePage() {
             <h1 className="text-2xl font-bold text-gray-900">Profile Settings</h1>
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow p-6 sm:p-8">
-          <div className="flex justify-between items-center mb-6">
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900">Personal Information</h2>
-              <p className="mt-1 text-sm text-gray-500">Update your personal details and contact information.</p>
-            </div>
+        <div className="rounded-xl shadow p-8 sm:p-10" style={{ background: 'linear-gradient(135deg, #f0f4ff 0%, #e0f7fa 100%)' }}>
+          <div className="flex justify-end items-center mb-6">
             <a
               href="/dashboard"
               className="text-sm font-medium text-blue-600 hover:text-blue-500"
@@ -40,6 +36,7 @@ export default function ProfilePage() {
               Skip for now →
             </a>
           </div>
+          <p className="mb-6 text-sm text-gray-500 font-medium">Update your contact information.</p>
           <ProfileForm />
         </div>
       </div>

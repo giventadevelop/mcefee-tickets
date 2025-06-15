@@ -28,7 +28,10 @@ export function EventCard({ event, placeholderText }: EventCardProps) {
   return (
     <Link href={`/events/${event.id}`} className="block h-full group">
       <div className="event-item bg-gray-50 rounded-lg shadow-lg p-6 flex flex-col items-center h-full hover:shadow-2xl transition-shadow duration-200 cursor-pointer">
-        <div className="event-image w-full h-48 rounded-lg overflow-hidden mb-4 relative">
+        <div
+          className="event-image rounded-lg overflow-hidden mb-4 relative"
+          style={{ width: 300, minWidth: 300, maxWidth: 300, height: 180, minHeight: 180, maxHeight: 180 }}
+        >
           {event.thumbnailUrl ? (
             <Image
               src={event.thumbnailUrl}
@@ -37,8 +40,16 @@ export function EventCard({ event, placeholderText }: EventCardProps) {
               className="object-cover"
             />
           ) : (
-            <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-              <span className="font-bold text-gray-900 text-lg text-center px-2">
+            <div className="absolute inset-0 w-full h-full bg-gray-200 flex items-center justify-center">
+              <span
+                className="font-bold text-gray-900 text-lg text-center px-2 w-full overflow-hidden whitespace-nowrap"
+                style={{
+                  textOverflow: 'ellipsis',
+                  display: 'block',
+                  width: '100%',
+                }}
+                title={placeholderText || event.title || 'No image available'}
+              >
                 {placeholderText || event.title || 'No image available'}
               </span>
             </div>

@@ -725,7 +725,7 @@ export function MediaClientPage({ eventId, mediaList: initialMediaList, eventDet
                       <td className="p-2 border align-middle">{media.createdAt ? new Date(media.createdAt).toLocaleString() : ''}</td>
                       <td className="p-2 border align-middle flex gap-2 items-center justify-center">
                         <button
-                          className="icon-btn icon-btn-edit"
+                          className="icon-btn icon-btn-edit flex flex-col items-center"
                           title="Edit"
                           onClick={() => {
                             console.log('Edit icon clicked', media);
@@ -733,13 +733,15 @@ export function MediaClientPage({ eventId, mediaList: initialMediaList, eventDet
                           }}
                         >
                           <FaEdit />
+                          <span className="text-[10px] text-gray-600 mt-1">Edit</span>
                         </button>
                         <button
-                          className="icon-btn icon-btn-delete"
+                          className="icon-btn icon-btn-delete flex flex-col items-center"
                           onClick={() => handleDelete(media.id!)}
                           title="Delete"
                         >
                           <FaTrashAlt />
+                          <span className="text-[10px] text-gray-600 mt-1">Delete</span>
                         </button>
                       </td>
                     </tr>
@@ -837,7 +839,7 @@ export function MediaClientPage({ eventId, mediaList: initialMediaList, eventDet
                       <td className="p-2 border align-middle">{media.createdAt ? new Date(media.createdAt).toLocaleString() : ''}</td>
                       <td className="p-2 border align-middle flex gap-2 items-center justify-center">
                         <button
-                          className="icon-btn icon-btn-edit"
+                          className="icon-btn icon-btn-edit flex flex-col items-center"
                           title="Edit"
                           onClick={() => {
                             console.log('Edit icon clicked', media);
@@ -845,13 +847,15 @@ export function MediaClientPage({ eventId, mediaList: initialMediaList, eventDet
                           }}
                         >
                           <FaEdit />
+                          <span className="text-[10px] text-gray-600 mt-1">Edit</span>
                         </button>
                         <button
-                          className="icon-btn icon-btn-delete"
+                          className="icon-btn icon-btn-delete flex flex-col items-center"
                           onClick={() => handleDelete(media.id!)}
                           title="Delete"
                         >
                           <FaTrashAlt />
+                          <span className="text-[10px] text-gray-600 mt-1">Delete</span>
                         </button>
                       </td>
                     </tr>

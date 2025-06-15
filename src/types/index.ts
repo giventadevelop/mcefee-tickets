@@ -169,9 +169,19 @@ export interface EventTicketTypeDTO {
   event?: EventDetailsDTO;
 }
 
-export interface EventAttendeeDTO {
+/**
+ * DTO for event attendee registration and management.
+ * Matches backend OpenAPI schema.
+ */
+export type EventAttendeeDTO = {
   id?: number;
   tenantId?: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
+  eventId?: number;
+  attendeeId?: number;
   registrationStatus: string;
   registrationDate: string;
   confirmationDate?: string;
@@ -184,11 +194,34 @@ export interface EventAttendeeDTO {
   checkInStatus?: string;
   checkInTime?: string;
   notes?: string;
+  qrCodeData?: string;
+  qrCodeGenerated?: boolean;
+  qrCodeGeneratedAt?: string;
   createdAt: string;
   updatedAt: string;
-  event?: EventDetailsDTO;
-  attendee?: UserProfileDTO;
-}
+};
+
+/**
+ * DTO for event attendee guest management.
+ * Matches backend OpenAPI schema.
+ */
+export type EventAttendeeGuestDTO = {
+  id?: number;
+  tenantId?: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
+  ageGroup?: string;
+  relationship?: string;
+  specialRequirements?: string;
+  registrationStatus?: string;
+  checkInStatus?: string;
+  checkInTime?: string;
+  createdAt: string;
+  updatedAt: string;
+  primaryAttendee?: EventAttendeeDTO;
+};
 
 export interface EventPollDTO {
   id?: number;

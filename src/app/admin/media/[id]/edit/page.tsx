@@ -6,6 +6,8 @@ import { format } from 'date-fns-tz';
 import { eventMediaService } from "../../../../../../services/eventMediaService";
 import { useAuth } from "@clerk/nextjs";
 import type { UserProfileDTO } from "@/types";
+import { FaUsers, FaPhotoVideo, FaCalendarAlt } from 'react-icons/fa';
+import Link from "next/link";
 
 export default function EditMediaPage() {
   const router = useRouter();
@@ -122,22 +124,25 @@ export default function EditMediaPage() {
 
   return (
     <div className="max-w-xl mx-auto p-8 bg-white rounded shadow">
-      <div className="flex justify-end items-center mb-2">
-        <button
-          type="button"
-          className="bg-green-600 hover:bg-green-700 text-white font-semibold px-4 py-2 rounded shadow-sm border border-green-700 transition-colors flex items-center gap-2"
-          onClick={() => router.push("/admin/media")}
-        >
-          <span className="flex items-center mr-2">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13 19l-7-7 7-7" />
-            </svg>
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6 ml-[-6px]">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M17 19l-7-7 7-7" />
-            </svg>
-          </span>
-          Back to Media List
-        </button>
+      {/* Dashboard Card with Grid Buttons */}
+      <div className="flex justify-center mb-8">
+        <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-2xl">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            <Link href="/admin/manage-usage" className="flex flex-col items-center justify-center bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg shadow-sm px-4 py-4 transition font-semibold text-sm">
+              <FaUsers className="mb-2 text-2xl" />
+              <span>Manage Usage</span>
+              <span className="text-xs text-blue-500 mt-1">[Users]</span>
+            </Link>
+            <Link href="/admin/media" className="flex flex-col items-center justify-center bg-yellow-50 hover:bg-yellow-100 text-yellow-700 rounded-lg shadow-sm px-4 py-4 transition font-semibold text-sm">
+              <FaPhotoVideo className="mb-2 text-2xl" />
+              Manage Media Files
+            </Link>
+            <Link href="/admin" className="flex flex-col items-center justify-center bg-green-50 hover:bg-green-100 text-green-700 rounded-lg shadow-sm px-4 py-4 transition font-semibold text-sm">
+              <FaCalendarAlt className="mb-2 text-2xl" />
+              Manage Events
+            </Link>
+          </div>
+        </div>
       </div>
       {/* Header details table */}
       <div className="mb-4 overflow-x-auto">

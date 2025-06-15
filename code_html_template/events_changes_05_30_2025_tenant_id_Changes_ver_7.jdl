@@ -66,6 +66,14 @@ entity UserProfile {
     userStatus String maxlength(50),
     userRole String maxlength(50),
     reviewedByAdminAt LocalDate,
+    requestId String unique maxlength(255),
+    requestReason String maxlength(1000),
+    status String maxlength(50),
+    adminComments String maxlength(1000),
+    submittedAt ZonedDateTime,
+    reviewedAt ZonedDateTime,
+    approvedAt ZonedDateTime,
+    rejectedAt ZonedDateTime,
     createdAt ZonedDateTime required,
     updatedAt ZonedDateTime required
 }
@@ -237,19 +245,28 @@ entity EventMedia {
     id Long,
     tenantId String maxlength(255),
     title String required maxlength(255),
-    description String maxlength(255),
+    description TextBlob, // Use Text for parity with SQL
     eventMediaType String required maxlength(255),
     storageType String required maxlength(255),
-    fileUrl String maxlength(1200),
+    fileUrl String maxlength(2048),
     fileData Blob,
+    contentType String maxlength(255),
     fileSize Integer,
     isPublic Boolean,
     eventFlyer Boolean,
     isEventManagementOfficialDocument Boolean,
+    preSignedUrl String maxlength(2048),
+    preSignedUrlExpiresAt ZonedDateTime,
+    altText String maxlength(500),
+    displayOrder Integer,
+    downloadCount Integer,
+    isFeatured Boolean,
+    isHeroImage Boolean,
+    isActiveHeroImage Boolean,
     createdAt ZonedDateTime required,
     updatedAt ZonedDateTime required,
-    // COMMENT 3 ADDRESSED: Updated field length to match requirement
-    preSignedUrl String maxlength(2048)
+    eventId Long,
+    uploadedById Long
 }
 
 entity UserPaymentTransaction {
@@ -292,7 +309,10 @@ entity TenantSettings {
 entity EventAttendeeGuest {
     id Long,
     tenantId String maxlength(255),
-    guestName String required maxlength(255),
+    firstName String maxlength(255),
+    lastName String maxlength(255),
+    email String maxlength(255),
+    phone String maxlength(255),
     ageGroup String maxlength(20),
     relationship String maxlength(50),
     specialRequirements String maxlength(500),
@@ -321,6 +341,11 @@ entity EventGuestPricing {
 
 entity EventAttendee {
     id Long,
+    firstName String maxlength(255),
+    lastName String maxlength(255),
+    email String maxlength(255),
+    phone String maxlength(255),
+    isMember Boolean,
     tenantId String maxlength(255),
     registrationStatus String required maxlength(50), // PENDING, CONFIRMED, CANCELLED, WAITLISTED
     registrationDate ZonedDateTime required,
@@ -337,37 +362,6 @@ entity EventAttendee {
     qrCodeData String maxlength(1000), // QR code for check-in
     qrCodeGenerated Boolean,
     qrCodeGeneratedAt ZonedDateTime,
-    createdAt ZonedDateTime required,
-    updatedAt ZonedDateTime required
-}
-
-entity UserRegistrationRequest {
-    id Long,
-    tenantId String required maxlength(255),
-    requestId String required unique maxlength(255), // UUID for tracking
-    userId String required maxlength(255), // Clerk user ID from registration
-    firstName String maxlength(255),
-    lastName String maxlength(255),
-    email String required maxlength(255),
-    phone String maxlength(255),
-    addressLine1 String maxlength(255),
-    addressLine2 String maxlength(255),
-    city String maxlength(255),
-    state String maxlength(255),
-    zipCode String maxlength(255),
-    country String maxlength(255),
-    familyName String maxlength(255),
-    cityTown String maxlength(255),
-    district String maxlength(255),
-    educationalInstitution String maxlength(255),
-    profileImageUrl String maxlength(255),
-    requestReason String maxlength(1000), // Why they want to join
-    status String required maxlength(50), // PENDING, APPROVED, REJECTED
-    adminComments String maxlength(1000), // Admin decision notes
-    submittedAt ZonedDateTime required,
-    reviewedAt ZonedDateTime,
-    approvedAt ZonedDateTime,
-    rejectedAt ZonedDateTime,
     createdAt ZonedDateTime required,
     updatedAt ZonedDateTime required
 }
@@ -510,9 +504,6 @@ relationship ManyToOne {
     // Event Attendee relationships
     EventAttendee{event required} to EventDetails,
     EventAttendee{attendee required} to UserProfile,
-
-    // User Registration Request relationships
-    UserRegistrationRequest{reviewedBy} to UserProfile,
 
     // QR Code Usage relationships
     QrCodeUsage{attendee} to EventAttendee,
