@@ -99,7 +99,7 @@ export default function EventRegisterPage({ params }: { params: Promise<{ id: st
   };
 
   // Handle guest field changes
-  const handleGuestChange = (idx: number, e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleGuestChange = (idx: number, e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
     setGuests((prev) => prev.map((g, i) => i === idx ? { ...g, [name]: type === "checkbox" && e.target instanceof HTMLInputElement ? e.target.checked : value } : g));
   };
@@ -252,7 +252,10 @@ export default function EventRegisterPage({ params }: { params: Promise<{ id: st
           {/* Guests section */}
           <div className="md:col-span-2 mt-4">
             <div className="flex items-center justify-between mb-2">
-              <span className="font-semibold">Guests</span>
+              <span className="font-semibold">
+                Guests
+                <span className="text-blue-600 font-bold ml-2">[optional]</span>
+              </span>
               <button type="button" onClick={addGuest} className="icon-btn bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 font-semibold flex items-center min-w-[160px]">
                 <FaPlus className="mr-2" /> Add Guest
               </button>

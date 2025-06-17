@@ -133,10 +133,6 @@ export default function EditMediaPage() {
               <span>Manage Usage</span>
               <span className="text-xs text-blue-500 mt-1">[Users]</span>
             </Link>
-            <Link href="/admin/media" className="flex flex-col items-center justify-center bg-yellow-50 hover:bg-yellow-100 text-yellow-700 rounded-lg shadow-sm px-4 py-4 transition font-semibold text-sm">
-              <FaPhotoVideo className="mb-2 text-2xl" />
-              Manage Media Files
-            </Link>
             <Link href="/admin" className="flex flex-col items-center justify-center bg-green-50 hover:bg-green-100 text-green-700 rounded-lg shadow-sm px-4 py-4 transition font-semibold text-sm">
               <FaCalendarAlt className="mb-2 text-2xl" />
               Manage Events

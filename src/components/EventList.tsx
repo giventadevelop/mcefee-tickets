@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { EventDetailsDTO, EventTypeDetailsDTO, EventCalendarEntryDTO } from '@/types';
-import { FaEdit, FaTrashAlt, FaUpload, FaCalendarDay, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import { FaEdit, FaTrashAlt, FaUpload, FaCalendarDay, FaChevronLeft, FaChevronRight, FaPhotoVideo } from 'react-icons/fa';
 import { TicketTypeManager } from './TicketTypeManager';
 import { Modal } from './Modal';
 import { getTenantId } from '@/lib/env';
@@ -17,9 +17,10 @@ interface EventListProps {
   onNextPage?: () => void;
   page?: number;
   hasNextPage?: boolean;
+  boldEventIdLabel?: boolean;
 }
 
-export function EventList({ events, eventTypes: eventTypesProp, onEdit, onCancel, loading, showDetailsOnHover = false, onPrevPage, onNextPage, page, hasNextPage }: EventListProps) {
+export function EventList({ events, eventTypes: eventTypesProp, onEdit, onCancel, loading, showDetailsOnHover = false, onPrevPage, onNextPage, page, hasNextPage, boldEventIdLabel = false }: EventListProps) {
   const [hoveredEventId, setHoveredEventId] = useState<number | null>(null);
   const [calendarEvents, setCalendarEvents] = useState<EventCalendarEntryDTO[]>([]);
   const [eventTypes, setEventTypes] = useState<EventTypeDetailsDTO[]>(eventTypesProp || []);
@@ -59,6 +60,20 @@ export function EventList({ events, eventTypes: eventTypesProp, onEdit, onCancel
     return calendarEvents.find(ce => ce.event && ce.event.id === eventId);
   }
 
+  function toGoogleCalendarDate(date: string, time: string) {
+    if (!date || !time) return '';
+    const [year, month, day] = date.split('-');
+    let [hour, minute] = time.split(':');
+    let ampm = '';
+    if (minute && minute.includes(' ')) {
+      [minute, ampm] = minute.split(' ');
+    }
+    let h = parseInt(hour, 10);
+    if (ampm && ampm.toUpperCase() === 'PM' && h !== 12) h += 12;
+    if (ampm && ampm.toUpperCase() === 'AM' && h === 12) h = 0;
+    return `${year}${month}${day}T${String(h).padStart(2, '0')}${minute}00`;
+  }
+
   if (loading) return <div>Loading events...</div>;
   if (!events.length) return <div>No events found.</div>;
 
@@ -72,15 +87,19 @@ export function EventList({ events, eventTypes: eventTypesProp, onEdit, onCancel
       >
         <thead>
           <tr className="bg-blue-100 font-bold border-b-2 border-blue-300">
-            <th className="p-2 border">Title</th>
-            <th className="p-2 border">Type</th>
-            <th className="p-2 border">Start</th>
-            <th className="p-2 border">End</th>
-            <th className="p-2 border">Active</th>
-            <th className="p-2 border">Actions</th>
-            <th className="p-2 border">Media</th>
-            <th className="p-2 border">Calendar</th>
-            <th className="p-2 border">Tickets</th>
+            <th className="p-2 border" rowSpan={2}>Title</th>
+            <th className="p-2 border" rowSpan={2}>Type</th>
+            <th className="p-2 border" rowSpan={2}>Dates</th>
+            <th className="p-2 border" rowSpan={2}>Active</th>
+            <th className="p-2 border" colSpan={2}>Actions</th>
+            <th className="p-2 border" rowSpan={2}>Media</th>
+            <th className="p-2 border" rowSpan={2}>Upload</th>
+            <th className="p-2 border" rowSpan={2}>Calendar</th>
+            <th className="p-2 border" rowSpan={2}>Tickets</th>
+          </tr>
+          <tr className="bg-blue-50 font-bold border-b border-blue-200">
+            <th className="p-2 border text-xs font-bold text-center">Edit/View</th>
+            <th className="p-2 border text-xs font-bold text-center">Delete</th>
           </tr>
         </thead>
         <tbody>
@@ -98,7 +117,10 @@ export function EventList({ events, eventTypes: eventTypesProp, onEdit, onCancel
                   className="p-2 border font-medium align-middle"
                   onMouseEnter={() => showDetailsOnHover && setHoveredEventId(event.id ?? null)}
                 >
-                  {event.title}
+                  <div className="text-xs text-gray-500" style={boldEventIdLabel ? { fontWeight: 700 } : {}}>
+                    {boldEventIdLabel ? <b>Event ID:</b> : 'Event ID:'} {event.id}
+                  </div>
+                  <div><span className="font-bold">Title:</span> {event.title}</div>
                 </td>
                 <td
                   className="p-2 border align-middle"
@@ -107,48 +129,68 @@ export function EventList({ events, eventTypes: eventTypesProp, onEdit, onCancel
                   {getEventTypeName(event) || <span className="text-gray-400 italic">Unknown</span>}
                 </td>
                 <td
-                  className="p-2 border align-middle w-32"
+                  className="p-2 border align-middle w-40"
                   onMouseEnter={() => showDetailsOnHover && setHoveredEventId(event.id ?? null)}
                 >
-                  {formatDateLocal(event.startDate)} {event.startTime}
+                  <div>
+                    <span className="font-semibold">{formatDateLocal(event.startDate)}</span> {event.startTime}
+                  </div>
+                  <div className="text-xs text-gray-500">to</div>
+                  <div>
+                    <span className="font-semibold">{formatDateLocal(event.endDate)}</span> {event.endTime}
+                  </div>
                 </td>
-                <td className="p-2 border align-middle w-32">{formatDateLocal(event.endDate)} {event.endTime}</td>
                 <td className="p-2 border text-center align-middle">
                   <span className={`px-2 py-1 rounded text-xs font-bold ${isActive ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'}`}>{isActive ? 'Yes' : 'No'}</span>
                 </td>
-                <td className="p-2 border align-middle">
-                  <div className="flex gap-4 items-center justify-center">
-                    <button className="relative group flex flex-col items-center text-blue-600 hover:text-blue-800 focus:outline-none" onClick={() => onEdit(event)}>
-                      <FaEdit />
-                      <span className="text-[10px] text-gray-600 mt-1">Edit</span>
-                    </button>
-                    <button className="relative group flex flex-col items-center text-red-600 hover:text-red-800 focus:outline-none" onClick={() => onCancel(event)}>
-                      <FaTrashAlt />
-                      <span className="text-[10px] text-gray-600 mt-1">Delete</span>
-                    </button>
-                  </div>
+                <td className="p-2 border text-center align-middle">
+                  <button className="flex flex-col items-center text-blue-600 hover:text-blue-800 focus:outline-none" onClick={() => onEdit(event)}>
+                    <FaEdit className="w-7 h-7" />
+                    <span className="text-[10px] text-gray-600 mt-1 block font-bold">Edit/View,<br />Event Details</span>
+                  </button>
+                </td>
+                <td className="p-2 border text-center align-middle">
+                  <button className="flex flex-col items-center text-red-600 hover:text-red-800 focus:outline-none" onClick={() => onCancel(event)}>
+                    <FaTrashAlt className="w-7 h-7" />
+                    <span className="text-[10px] text-gray-600 mt-1 block font-bold">Delete</span>
+                  </button>
                 </td>
                 <td className="p-2 border text-center align-middle">
                   <span className="relative group flex flex-col items-center">
                     <a href={`/admin/events/${event.id}/media`} className="inline-block w-full h-full">
-                      <FaUpload className="text-green-600 hover:text-green-800 mx-auto" />
-                      <span className="text-[10px] text-gray-600 mt-1 block">List or upload media files</span>
+                      <FaPhotoVideo className="text-green-600 hover:text-green-800 mx-auto w-7 h-7" />
+                      <span className="text-[10px] text-gray-600 mt-1 block font-bold">List Media files</span>
                     </a>
                   </span>
                 </td>
                 <td className="p-2 border text-center align-middle">
+                  <a href={`/admin/events/${event.id}/media`} className="inline-block w-full h-full">
+                    <FaUpload className="text-blue-600 hover:text-blue-800 mx-auto w-7 h-7" />
+                    <span className="text-[10px] text-gray-600 mt-1 block font-bold">Upload<br />Media Files</span>
+                  </a>
+                </td>
+                <td className="p-2 border text-center align-middle">
                   <span className="relative group flex flex-col items-center">
-                    {calendarEvent && calendarEvent.calendarLink ? (
-                      <a href={calendarEvent.calendarLink} target="_blank" rel="noopener noreferrer" className="inline-block w-full h-full">
-                        <img src="/images/icons8-calendar.gif" alt="Calendar" className="w-7 h-7 rounded shadow mx-auto" />
-                        <span className="text-[10px] text-gray-600 mt-1 block">View Calendar</span>
-                      </a>
-                    ) : (
-                      <span className="text-gray-400 cursor-not-allowed inline-block">
-                        <img src="/images/icons8-calendar.gif" alt="Calendar" className="w-7 h-7 rounded shadow opacity-50 mx-auto" />
-                        <span className="text-[10px] text-gray-600 mt-1 block">View Calendar</span>
-                      </span>
-                    )}
+                    {(() => {
+                      let calendarLink = '';
+                      if (calendarEvent && calendarEvent.calendarLink) {
+                        calendarLink = calendarEvent.calendarLink;
+                      } else {
+                        // Generate Google Calendar URL on the fly
+                        const start = toGoogleCalendarDate(event.startDate, event.startTime);
+                        const end = toGoogleCalendarDate(event.endDate, event.endTime);
+                        const text = encodeURIComponent(event.title);
+                        const details = encodeURIComponent(event.description || '');
+                        const location = encodeURIComponent(event.location || '');
+                        calendarLink = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${start}/${end}&details=${details}&location=${location}`;
+                      }
+                      return (
+                        <a href={calendarLink} target="_blank" rel="noopener noreferrer" className="inline-block w-full h-full">
+                          <img src="/images/icons8-calendar.gif" alt="Calendar" className="w-7 h-7 rounded shadow mx-auto" />
+                          <span className="text-[10px] text-gray-600 mt-1 block">View Calendar</span>
+                        </a>
+                      );
+                    })()}
                   </span>
                 </td>
                 <td className="p-2 border text-center align-middle">
@@ -162,6 +204,7 @@ export function EventList({ events, eventTypes: eventTypesProp, onEdit, onCancel
                     Manage Ticket Types
                   </button>
                 </td>
+
                 {showDetailsOnHover && hoveredEventId === event.id && (
                   <td
                     colSpan={8}

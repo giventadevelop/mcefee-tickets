@@ -10,7 +10,12 @@ const nextConfig = {
 
   // Enable image optimization
   images: {
-    domains: ['eventapp-media-bucket.s3.us-east-2.amazonaws.com'], // Added S3 bucket domain for external images
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'eventapp-media-bucket.s3.us-east-2.amazonaws.com',
+      },
+    ],
     formats: ['image/avif', 'image/webp'],
   },
 

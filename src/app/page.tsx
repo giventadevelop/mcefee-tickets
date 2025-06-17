@@ -347,19 +347,14 @@ export default async function Page() {
               <div className="text-center text-red-600 font-bold py-8">
                 Sorry, we couldn't load events at this time. Please try again later.
               </div>
-            ) : events.length === 0 ? (
-              <div className="text-center text-gray-500 py-8">
-                No events found.
-              </div>
-            ) : (
-              <div className="flex justify-center w-full">
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8 max-w-6xl w-full">
-                  {events.map((event) => {
-                    if (event.id === 4650 || event.id === 4552) {
-                      // eslint-disable-next-line no-console
-                      console.log('Event debug:', event.id, event);
-                    }
-                    return (
+            ) : (() => {
+              // Find upcoming and past events
+              const today = new Date();
+              const upcomingEvents = events.filter(event => event.startDate && new Date(event.startDate) >= today);
+              if (upcomingEvents.length > 0) {
+                return (
+                  <div className="flex flex-wrap justify-center gap-8 max-w-6xl mx-auto">
+                    {upcomingEvents.slice(0, 6).map((event) => (
                       <div
                         key={event.id}
                         className="flex justify-center"
@@ -367,11 +362,39 @@ export default async function Page() {
                       >
                         <EventCard event={event} placeholderText={event.placeholderText} />
                       </div>
-                    );
-                  })}
+                    ))}
+                  </div>
+                );
+              }
+              // If no upcoming, check for past events
+              const pastEvents = events
+                .filter(event => event.startDate && new Date(event.startDate) < today)
+                .sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
+              if (pastEvents.length > 0) {
+                return (
+                  <>
+                    <div className="text-center text-blue-700 font-bold text-2xl mb-6">Past Events</div>
+                    <div className="flex flex-wrap justify-center gap-8 max-w-6xl mx-auto">
+                      {pastEvents.slice(0, 6).map((event) => (
+                        <div
+                          key={event.id}
+                          className="flex justify-center"
+                          style={{ width: 350, minWidth: 350, maxWidth: 350, height: 500, minHeight: 500, maxHeight: 500 }}
+                        >
+                          <EventCard event={event} placeholderText={event.placeholderText} />
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                );
+              }
+              // No events at all
+              return (
+                <div className="text-center text-gray-500 py-8">
+                  No events found.
                 </div>
-              </div>
-            )}
+              );
+            })()}
             <div className="text-center mt-8">
               <Link href="/events" className="inline-block bg-yellow-400 text-gray-900 px-8 py-3 rounded-lg font-semibold text-lg shadow hover:bg-yellow-300 transition">
                 View All Events

@@ -2,15 +2,19 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { EventForm, defaultEvent } from '@/components/EventForm';
-import type { EventDetailsDTO, EventTypeDetailsDTO } from '@/types';
+import type { EventDetailsDTO, EventTypeDetailsDTO, UserProfileDTO } from '@/types';
 import Link from 'next/link';
 import { FaUsers, FaPhotoVideo, FaCalendarAlt } from 'react-icons/fa';
+import { createCalendarEventServer } from '../../ApiServerActions';
+import { useAuth, useUser } from '@clerk/nextjs';
 
 export default function CreateEventPage() {
   const router = useRouter();
   const [eventTypes, setEventTypes] = useState<EventTypeDetailsDTO[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { userId } = useAuth();
+  const { user } = useUser();
 
   useEffect(() => {
     fetch('/api/proxy/event-type-details')
@@ -34,6 +38,21 @@ export default function CreateEventPage() {
         body: JSON.stringify(eventToSend),
       });
       if (!res.ok) throw new Error('Failed to create event');
+      const newEvent = await res.json();
+      let userProfile: UserProfileDTO | null = null;
+      if (userId) {
+        const profileRes = await fetch(`/api/proxy/user-profiles/by-user/${userId}`);
+        if (profileRes.ok) {
+          userProfile = await profileRes.json();
+        }
+      }
+      try {
+        if (userProfile) {
+          await createCalendarEventServer(newEvent, userProfile);
+        }
+      } catch (calendarErr: any) {
+        setError('Event created, but failed to create calendar entry: ' + (calendarErr?.message || 'Unknown error'));
+      }
       router.push('/admin');
     } catch (e: any) {
       setError(e.message || 'Failed to create event');

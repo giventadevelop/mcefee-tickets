@@ -131,6 +131,7 @@ export function MediaClientPage({ eventId, mediaList: initialMediaList, eventDet
   const [editLoading, setEditLoading] = useState(false);
   const [isTooltipHovered, setIsTooltipHovered] = useState(false);
   const [tooltipType, setTooltipType] = useState<'officialDocs' | 'uploadedMedia' | null>(null);
+  const uploadedMediaSectionRef = useRef<HTMLDivElement>(null);
   useEffect(() => { setMounted(true); }, []);
 
   // Helper to infer eventMediaType from file extension
@@ -419,15 +420,11 @@ export function MediaClientPage({ eventId, mediaList: initialMediaList, eventDet
     <div className="p-8 max-w-4xl mx-auto bg-white rounded shadow">
       <div className="flex justify-center mb-8">
         <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-2xl">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 justify-center">
             <Link href="/admin/manage-usage" className="flex flex-col items-center justify-center bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg shadow-sm px-4 py-4 transition font-semibold text-sm">
               <FaUsers className="mb-2 text-2xl" />
               <span>Manage Usage</span>
               <span className="text-xs text-blue-500 mt-1">[Users]</span>
-            </Link>
-            <Link href="/admin/media" className="flex flex-col items-center justify-center bg-yellow-50 hover:bg-yellow-100 text-yellow-700 rounded-lg shadow-sm px-4 py-4 transition font-semibold text-sm">
-              <FaPhotoVideo className="mb-2 text-2xl" />
-              Manage Media Files
             </Link>
             <Link href="/admin" className="flex flex-col items-center justify-center bg-green-50 hover:bg-green-100 text-green-700 rounded-lg shadow-sm px-4 py-4 transition font-semibold text-sm">
               <FaCalendarAlt className="mb-2 text-2xl" />
@@ -436,8 +433,8 @@ export function MediaClientPage({ eventId, mediaList: initialMediaList, eventDet
           </div>
         </div>
       </div>
-      {/* Upload Files button at the top */}
-      <div className="flex justify-end mb-4">
+      {/* Upload Files and Go to Uploaded Media buttons at the top */}
+      <div className="flex justify-end mb-4 gap-2">
         <button
           type="button"
           className="bg-green-600 hover:bg-green-700 text-white font-semibold px-4 py-2 rounded shadow-sm border border-green-700 transition-colors flex items-center gap-2"
@@ -445,6 +442,16 @@ export function MediaClientPage({ eventId, mediaList: initialMediaList, eventDet
         >
           <FaUpload className="w-5 h-5 mr-1" />
           Upload Files
+        </button>
+        <button
+          type="button"
+          className="bg-yellow-600 hover:bg-yellow-700 text-white font-semibold px-4 py-2 rounded shadow-sm border border-yellow-700 transition-colors flex items-center gap-2"
+          onClick={() => uploadedMediaSectionRef.current?.scrollIntoView({ behavior: 'smooth' })}
+        >
+          <FaPhotoVideo className="w-5 h-5 mr-1" />
+          <span className="text-left">
+            Go to / View<br />Uploaded Media Files
+          </span>
         </button>
       </div>
       <h1 className="text-2xl font-bold mb-4">
@@ -663,7 +670,7 @@ export function MediaClientPage({ eventId, mediaList: initialMediaList, eventDet
       {/* Official Documents Table */}
       <div className="mt-8">
         <div className="mb-2 text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded px-4 py-2">
-          Mouse over the first 3 columns (Title, Type, Preview) to see full details about the item. Use the × button to close the tooltip.
+          Mouse over the first 2 columns (Title, Type) to see full details about the item. Use the × button to close the tooltip.
         </div>
         <h2 className="text-lg font-semibold mb-2">Official Documents</h2>
         {officialDocsList.length === 0 ? (
@@ -702,9 +709,7 @@ export function MediaClientPage({ eventId, mediaList: initialMediaList, eventDet
                         {media.eventMediaType}
                       </td>
                       <td
-                        className="p-2 border align-middle text-center relative hover:bg-blue-50 cursor-pointer"
-                        onMouseEnter={e => handleCellMouseEnter(media, e, 'officialDocs')}
-                        onMouseLeave={handleCellMouseLeave}
+                        className="p-2 border align-middle text-center relative"
                       >
                         {media.fileUrl && media.contentType?.startsWith('image') && (
                           <a href={media.fileUrl} target="_blank" rel="noopener noreferrer">
@@ -772,9 +777,9 @@ export function MediaClientPage({ eventId, mediaList: initialMediaList, eventDet
       </div>
 
       {/* Uploaded Media Table */}
-      <div className="mt-8">
+      <div ref={uploadedMediaSectionRef} className="mt-8">
         <div className="mb-2 text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded px-4 py-2">
-          Mouse over the first 3 columns (Title, Type, Preview) to see full details about the item. Use the × button to close the tooltip.
+          Mouse over the first 2 columns (Title, Type) to see full details about the item. Use the × button to close the tooltip.
         </div>
         <h2 className="text-lg font-semibold mb-2">Uploaded Media</h2>
         <div className="flex items-center gap-4 mb-2">
@@ -816,9 +821,7 @@ export function MediaClientPage({ eventId, mediaList: initialMediaList, eventDet
                         {media.eventMediaType}
                       </td>
                       <td
-                        className="p-2 border align-middle text-center relative hover:bg-green-50 cursor-pointer"
-                        onMouseEnter={e => handleCellMouseEnter(media, e, 'uploadedMedia')}
-                        onMouseLeave={handleCellMouseLeave}
+                        className="p-2 border align-middle text-center relative"
                       >
                         {media.fileUrl && media.contentType?.startsWith('image') && (
                           <a href={media.fileUrl} target="_blank" rel="noopener noreferrer">

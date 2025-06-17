@@ -72,6 +72,21 @@ export default function EventsPage() {
     fetchEvents();
   }, [page]);
 
+  // Helper to generate Google Calendar URL
+  function toGoogleCalendarDate(date: string, time: string) {
+    if (!date || !time) return '';
+    const [year, month, day] = date.split('-');
+    let [hour, minute] = time.split(':');
+    let ampm = '';
+    if (minute && minute.includes(' ')) {
+      [minute, ampm] = minute.split(' ');
+    }
+    let h = parseInt(hour, 10);
+    if (ampm && ampm.toUpperCase() === 'PM' && h !== 12) h += 12;
+    if (ampm && ampm.toUpperCase() === 'AM' && h === 12) h = 0;
+    return `${year}${month}${day}T${String(h).padStart(2, '0')}${minute}00`;
+  }
+
   return (
     <div>
       {/* Hero Section (copied from home page) */}
@@ -241,6 +256,26 @@ export default function EventsPage() {
                           <span className="font-semibold">Location:</span> {event.location}
                         </div>
                         <div className="mb-1 text-sm text-gray-700">{event.description}</div>
+                        {(() => {
+                          const today = new Date();
+                          const eventDate = event.startDate ? new Date(event.startDate) : null;
+                          const isUpcoming = eventDate && eventDate >= today;
+                          if (!isUpcoming) return null;
+                          const start = toGoogleCalendarDate(event.startDate, event.startTime);
+                          const end = toGoogleCalendarDate(event.endDate, event.endTime);
+                          const text = encodeURIComponent(event.title);
+                          const details = encodeURIComponent(event.description || '');
+                          const location = encodeURIComponent(event.location || '');
+                          const calendarLink = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${start}/${end}&details=${details}&location=${location}`;
+                          return (
+                            <div className="flex flex-col items-center mt-3">
+                              <a href={calendarLink} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center group">
+                                <img src="/images/icons8-calendar.gif" alt="Calendar" className="w-7 h-7 rounded shadow mx-auto" />
+                                <span className="text-xs text-blue-700 font-semibold mt-1">Add to Calendar</span>
+                              </a>
+                            </div>
+                          );
+                        })()}
                       </td>
                     </tr>
                   ))}

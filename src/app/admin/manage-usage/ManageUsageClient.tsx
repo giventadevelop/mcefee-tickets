@@ -3,7 +3,7 @@ import { useEffect, useState, useRef } from 'react';
 import type { UserProfileDTO } from '@/types';
 import Link from 'next/link';
 import ReactDOM from 'react-dom';
-import { FaEye, FaCheck, FaEdit, FaTimes, FaUsers, FaPhotoVideo, FaCalendarAlt } from 'react-icons/fa';
+import { FaEye, FaCheck, FaEdit, FaTimes, FaUsers, FaPhotoVideo, FaCalendarAlt, FaUpload, FaDownload } from 'react-icons/fa';
 import * as XLSX from 'xlsx';
 import { getTenantId } from '@/lib/env';
 import { fetchUsersServer, patchUserProfileServer, bulkUploadUsersServer } from './ApiServerActions';
@@ -427,15 +427,11 @@ export default function ManageUsageClient({ adminProfile }: { adminProfile: User
     <div className="max-w-6xl mx-auto p-8">
       <div className="flex justify-center mb-8">
         <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-2xl">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 justify-center">
             <Link href="/admin/manage-usage" className="flex flex-col items-center justify-center bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg shadow-sm px-4 py-4 transition font-semibold text-sm">
               <FaUsers className="mb-2 text-2xl" />
               <span>Manage Usage</span>
               <span className="text-xs text-blue-500 mt-1">[Users]</span>
-            </Link>
-            <Link href="/admin/media" className="flex flex-col items-center justify-center bg-yellow-50 hover:bg-yellow-100 text-yellow-700 rounded-lg shadow-sm px-4 py-4 transition font-semibold text-sm">
-              <FaPhotoVideo className="mb-2 text-2xl" />
-              Manage Media Files
             </Link>
             <Link href="/admin" className="flex flex-col items-center justify-center bg-green-50 hover:bg-green-100 text-green-700 rounded-lg shadow-sm px-4 py-4 transition font-semibold text-sm">
               <FaCalendarAlt className="mb-2 text-2xl" />
@@ -448,11 +444,12 @@ export default function ManageUsageClient({ adminProfile }: { adminProfile: User
       {/* Bulk Upload Button */}
       <div className="mb-4 flex items-center gap-4">
         <button
-          className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700 font-semibold"
+          className="icon-btn icon-btn-upload bg-green-600 text-white hover:bg-green-700 font-semibold px-8 py-2 rounded flex items-center gap-2"
           onClick={() => fileInputRef.current?.click()}
           disabled={bulkLoading}
         >
-          {bulkLoading ? 'Uploading...' : 'Bulk Upload Users from Excel'}
+          <FaUpload className="w-5 h-5 text-white" />
+          <span className="text-white">{bulkLoading ? 'Uploading...' : 'Bulk Upload Users from Excel'}</span>
         </button>
         <input
           type="file"
@@ -469,42 +466,54 @@ export default function ManageUsageClient({ adminProfile }: { adminProfile: User
         <a
           href="/user-bulk-upload-template.xlsx"
           download
-          className="ml-4 text-blue-600 underline text-sm"
+          className="icon-btn icon-btn-download bg-blue-600 text-white hover:bg-blue-700 font-semibold px-6 py-2 rounded flex items-center gap-2 ml-2"
         >
-          Download Excel Template
+          <FaDownload className="w-5 h-5" />
+          Download Excel Template for Users list to Upload
         </a>
       </div>
-      <div className="flex flex-wrap gap-4 mb-4 items-center">
-        <select
-          className="border px-3 py-2 rounded"
-          value={searchField}
-          onChange={e => setSearchField(e.target.value)}
-        >
-          {SEARCH_FIELDS.map(f => (
-            <option key={f.value} value={f.value}>{f.label}</option>
-          ))}
-        </select>
-        <input
-          type="text"
-          placeholder={`Search by ${SEARCH_FIELDS.find(f => f.value === searchField)?.label.toLowerCase()}`}
-          className="border px-3 py-2 rounded w-64"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
-        <select className="border px-3 py-2 rounded" value={status} onChange={e => setStatus(e.target.value)}>
-          <option value="">All Statuses</option>
-          <option value="ACTIVE">Active</option>
-          <option value="PENDING_APPROVAL">Pending Approval</option>
-          <option value="REJECTED">Rejected</option>
-          <option value="APPROVED">Approved</option>
-        </select>
-        <select className="border px-3 py-2 rounded" value={role} onChange={e => setRole(e.target.value)}>
-          <option value="">All Roles</option>
-          <option value="ADMIN">Admin</option>
-          <option value="MEMBER">Member</option>
-          <option value="ORGANIZER">Organizer</option>
-        </select>
+      <div className="mb-6">
+        <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+          <div className="text-lg font-semibold text-blue-800 mb-4">Search Users</div>
+          <div className="flex flex-wrap gap-4 items-end">
+            <select
+              className="border px-3 py-2 rounded"
+              value={searchField}
+              onChange={e => setSearchField(e.target.value)}
+            >
+              {SEARCH_FIELDS.map(f => (
+                <option key={f.value} value={f.value}>{f.label}</option>
+              ))}
+            </select>
+            <input
+              type="text"
+              placeholder={`Search by ${SEARCH_FIELDS.find(f => f.value === searchField)?.label.toLowerCase()}`}
+              className="border px-3 py-2 rounded w-64"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+            <select className="border px-3 py-2 rounded" value={status} onChange={e => setStatus(e.target.value)}>
+              <option value="">All Statuses</option>
+              <option value="ACTIVE">Active</option>
+              <option value="PENDING_APPROVAL">Pending Approval</option>
+              <option value="REJECTED">Rejected</option>
+              <option value="APPROVED">Approved</option>
+            </select>
+            <select className="border px-3 py-2 rounded" value={role} onChange={e => setRole(e.target.value)}>
+              <option value="">All Roles</option>
+              <option value="ADMIN">Admin</option>
+              <option value="MEMBER">Member</option>
+              <option value="ORGANIZER">Organizer</option>
+            </select>
+            <button className="ml-auto px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 font-semibold" onClick={() => {
+              setSearch('');
+              setStatus('');
+              setRole('');
+            }}>Clear</button>
+          </div>
+        </div>
       </div>
+      <div className="text-lg font-semibold text-blue-800 mb-2">Search Users</div>
       <div className="mb-4">
         <div className="flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 shadow-sm">
           <div className="flex-shrink-0 pt-1">

@@ -4,11 +4,8 @@ if (!process.env.NEXT_PUBLIC_API_BASE_URL) {
   throw new Error('NEXT_PUBLIC_API_BASE_URL is not set');
 }
 
-export default async function SuccessPage({
-  searchParams: { session_id },
-}: {
-  searchParams: { session_id?: string };
-}) {
+export default async function SuccessPage({ searchParams }: { searchParams: { session_id?: string } }) {
+  const { session_id } = searchParams;
   if (!session_id) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
@@ -93,7 +90,7 @@ export default async function SuccessPage({
                   </div>
 
                   <p className="text-gray-600 mt-4">
-                    <span className="font-medium">Total Amount:</span> ${(session.amount_total || 0) / 100}
+                    <span className="font-medium">Total Amount:</span> ${((session.amount_total || 0) / 100).toFixed(2)}
                   </p>
                   <p className="text-gray-600">
                     <span className="font-medium">Status:</span>{" "}
