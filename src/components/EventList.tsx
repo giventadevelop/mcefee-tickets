@@ -157,7 +157,7 @@ export function EventList({ events, eventTypes: eventTypesProp, onEdit, onCancel
                 </td>
                 <td className="p-2 border text-center align-middle">
                   <span className="relative group flex flex-col items-center">
-                    <a href={`/admin/events/${event.id}/media`} className="inline-block w-full h-full">
+                    <a href={`/admin/events/${event.id}/media/list`} className="inline-block w-full h-full">
                       <FaPhotoVideo className="text-green-600 hover:text-green-800 mx-auto w-7 h-7" />
                       <span className="text-[10px] text-gray-600 mt-1 block font-bold">List Media files</span>
                     </a>
@@ -194,15 +194,19 @@ export function EventList({ events, eventTypes: eventTypesProp, onEdit, onCancel
                   </span>
                 </td>
                 <td className="p-2 border text-center align-middle">
-                  <button
-                    className="px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-700 text-xs"
-                    onClick={() => {
-                      setSelectedEventId(event.id ?? null);
-                      setShowTicketTypeModal(true);
-                    }}
-                  >
-                    Manage Ticket Types
-                  </button>
+                  {event.admissionType === 'ticketed' ? (
+                    <button
+                      className="px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-700 text-xs"
+                      onClick={() => {
+                        setSelectedEventId(event.id ?? null);
+                        setShowTicketTypeModal(true);
+                      }}
+                    >
+                      Manage Ticket Types
+                    </button>
+                  ) : (
+                    <span className="text-gray-400 text-xs">—</span>
+                  )}
                 </td>
 
                 {showDetailsOnHover && hoveredEventId === event.id && (

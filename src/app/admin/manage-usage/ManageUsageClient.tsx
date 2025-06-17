@@ -430,7 +430,7 @@ export default function ManageUsageClient({ adminProfile }: { adminProfile: User
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 justify-center">
             <Link href="/admin/manage-usage" className="flex flex-col items-center justify-center bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg shadow-sm px-4 py-4 transition font-semibold text-sm">
               <FaUsers className="mb-2 text-2xl" />
-              <span>Manage Usage</span>
+              <span>Manage Users [Usage]</span>
               <span className="text-xs text-blue-500 mt-1">[Users]</span>
             </Link>
             <Link href="/admin" className="flex flex-col items-center justify-center bg-green-50 hover:bg-green-100 text-green-700 rounded-lg shadow-sm px-4 py-4 transition font-semibold text-sm">
