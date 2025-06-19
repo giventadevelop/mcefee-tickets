@@ -1,0 +1,126 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# Form Field and Checkbox Styling Standards
+
+- **Page Layout Standards**
+  - Use `max-w-5xl mx-auto px-8 py-8` for main container width and centering (80% width)
+  - Use consistent padding: `px-8 py-8` for outer containers
+  - Example:
+    ```tsx
+    // ✅ DO: Use consistent page layout
+    <div className="max-w-5xl mx-auto px-8 py-8">
+      {/* Form content */}
+    </div>
+    ```
+
+- **Form Field Standards**
+  - **Input Field Styling**
+    ```tsx
+    // ✅ DO: Use consistent input field styling
+    <input
+      type="text"
+      className="mt-1 block w-full border border-gray-400 rounded-xl focus:border-blue-500 focus:ring-blue-500 px-4 py-3 text-base"
+    />
+    ```
+  - **Label Styling**
+    ```tsx
+    // ✅ DO: Use consistent label styling
+    <label className="block text-sm font-medium text-gray-700">
+      Field Label
+    </label>
+    ```
+
+- **Checkbox Standards**
+  - **Size and Styling**
+    ```tsx
+    // ✅ DO: Use consistent checkbox styling
+    <label className="flex flex-col items-center">
+      <span className="relative flex items-center justify-center">
+        <input
+          type="checkbox"
+          className="custom-checkbox"
+          checked={isChecked}
+          onChange={handleChange}
+        />
+        <span className="custom-checkbox-tick">
+          {isChecked && (
+            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" strokeWidth="4" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l5 5L19 7" />
+            </svg>
+          )}
+        </span>
+      </span>
+      <span className="mt-2 text-xs text-center select-none break-words max-w-[6rem]">Checkbox Label</span>
+    </label>
+    ```
+  - **Checkbox Group Layout**
+    ```tsx
+    // ✅ DO: Use consistent checkbox group layout
+    <div className="custom-grid-table mt-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem' }}>
+      {/* Checkbox items */}
+    </div>
+    ```
+
+- **CSS Requirements**
+  ```css
+  /* Required in globals.css */
+  .custom-checkbox {
+    @apply h-6 w-6 border-2 border-gray-400 rounded-lg cursor-pointer appearance-none relative;
+  }
+
+  .custom-checkbox:checked {
+    @apply bg-blue-600 border-blue-600;
+  }
+
+  .custom-checkbox-tick {
+    @apply absolute inset-0 flex items-center justify-center pointer-events-none;
+  }
+
+  .custom-checkbox:checked + .custom-checkbox-tick svg {
+    @apply block text-white;
+  }
+
+  .custom-checkbox:not(:checked) + .custom-checkbox-tick svg {
+    @apply hidden;
+  }
+
+  .custom-checkbox:focus {
+    @apply outline-none ring-2 ring-blue-500 ring-offset-2;
+  }
+
+  .custom-checkbox:hover:not(:disabled) {
+    @apply border-blue-500;
+  }
+
+  .custom-checkbox:disabled {
+    @apply opacity-50 cursor-not-allowed;
+  }
+
+  .custom-grid-table {
+    @apply grid grid-cols-3 gap-4;
+  }
+
+  .custom-grid-cell {
+    @apply flex flex-col items-center justify-center p-2;
+  }
+  ```
+
+- **Anti-patterns**
+  ```tsx
+  // ❌ DON'T: Use small checkboxes
+  <input type="checkbox" className="h-4 w-4" />
+
+  // ❌ DON'T: Use inconsistent styling
+  <input type="checkbox" className="rounded border-gray-300" />
+
+  // ❌ DON'T: Skip the custom-checkbox class
+  <input type="checkbox" className="h-6 w-6 rounded" />
+  ```
+
+- **References**
+  - See `src/styles/globals.css` for CSS implementation
+  - See `src/app/admin/events/[id]/media/list/page.tsx` for usage example
+  - See `src/app/admin/events/[id]/edit/page.tsx` for reference implementation
