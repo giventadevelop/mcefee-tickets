@@ -1,17 +1,16 @@
 # Task ID: 1
-# Title: Set up project infrastructure
+# Title: Set up shared data models and types
 # Status: done
 # Dependencies: None
 # Priority: high
-# Description: Initialize the project structure with Spring Boot backend, React/Next.js frontend, and PostgreSQL database configuration
+# Description: Create TypeScript definitions for all DTOs to be used across the application.
 # Details:
-Create the initial project structure including:
-- Initialize Spring Boot project with JHipster
-- Set up PostgreSQL database with tenant isolation
-- Configure React/Next.js frontend
-- Set up Clerk authentication integration
-- Configure AWS S3 for media storage
-- Set up development environment
+Create the following in src/types/index.ts:
+- EventDetailsDTO
+- EventTicketTypeDTO
+- DiscountCodeDTO
+- EventTicketTransactionDTO
+- Any other supporting interfaces needed for the ticket purchasing flow
 
 # Test Strategy:
-Verify that the development environment can be started without errors and all components (frontend, backend, database) are properly connected.
+Verify that all types are properly defined and exported. Ensure they match the backend API specifications.

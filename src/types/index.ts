@@ -152,8 +152,7 @@ export interface EventWithMedia extends EventDetailsDTO {
 }
 
 /**
- * DTO for ticket type data exchanged with the backend.
- * Matches backend OpenAPI schema.
+ * DTO for event ticket type, matches backend schema.
  */
 export interface EventTicketTypeDTO {
   id?: number;
@@ -163,6 +162,7 @@ export interface EventTicketTypeDTO {
   price: number;
   code: string;
   availableQuantity?: number;
+  soldQuantity?: number;
   isActive?: boolean;
   createdAt: string;
   updatedAt: string;

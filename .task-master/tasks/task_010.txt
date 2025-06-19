@@ -1,17 +1,16 @@
 # Task ID: 10
-# Title: Implement event registration form
+# Title: Implement Stripe webhook handling
 # Status: pending
 # Dependencies: 8 ⏱️, 9 ⏱️
 # Priority: high
-# Description: Create frontend form for registering to events
+# Description: Create webhook endpoint to process Stripe payment events and update transaction status.
 # Details:
-Create EventRegistrationForm.tsx with:
-- Attendee type selection (MEMBER, GUEST, FAMILY)
-- Guest details form for adding guests
-- Special requirements fields
-- Emergency contact information
-- Event-specific fields (transportation, volunteer opportunities)
-- Form validation and submission
+- Create webhook endpoint for Stripe events
+- Implement signature verification for webhook security
+- Handle payment success events
+- Handle payment failure events
+- Update transaction status based on payment events
+- Decrement ticket inventory on successful payment
 
 # Test Strategy:
-Test form validation, guest addition functionality, and submission process.
+Test webhook with Stripe test events. Verify transaction status updates correctly. Test inventory decrements correctly.

@@ -2,25 +2,16 @@
 -- This script populates every table with at least 6 rows of sample data.
 -- Enum/lookup values are used where appropriate. Foreign key dependencies are respected.
 
--- 1. discount_code (parent for event_discount_code, event_ticket_transaction)
-INSERT INTO public.discount_code (id, code, description, discount_type, discount_value, max_uses, uses_count, valid_from, valid_to, is_active, created_at, updated_at)
-VALUES
-(1, 'SPRING10', '10% off Spring events', 'PERCENT', 10.00, 100, 5, '2025-03-01', '2025-06-01', true, now(), now()),
-(2, 'VIP50', '50% off for VIPs', 'PERCENT', 50.00, 10, 2, '2025-04-01', '2025-08-01', true, now(), now()),
-(3, 'FREERUN', 'Free entry for Charity Run', 'AMOUNT', 100.00, 50, 10, '2025-05-01', '2025-06-02', true, now(), now()),
-(4, 'EARLYBIRD', 'Early bird discount', 'PERCENT', 20.00, 200, 20, '2025-01-01', '2025-04-10', true, now(), now()),
-(5, 'SUMMERFEST', 'Summer Fest special', 'PERCENT', 15.00, 150, 15, '2025-07-01', '2025-08-16', true, now(), now()),
-(6, 'FAMILY5', 'Family Picnic 5% off', 'PERCENT', 5.00, 50, 3, '2025-07-01', '2025-07-21', true, now(), now());
-
 -- 22. event_type_details (parent for event_details)
-INSERT INTO public.event_type_details (id, tenant_id, name, description, is_active, created_at, updated_at)
-VALUES
-(1, 'tenant_demo_001', 'Gala', 'Formal gala event', true, now(), now()),
-(2, 'tenant_demo_001', 'Conference', 'Tech conference', true, now(), now()),
-(3, 'tenant_demo_001', 'Run', 'Charity run', true, now(), now()),
-(4, 'tenant_demo_001', 'Picnic', 'Family picnic', true, now(), now()),
-(5, 'tenant_demo_001', 'Dinner', 'VIP dinner', true, now(), now()),
-(6, 'tenant_demo_001', 'Festival', 'Summer festival', true, now(), now());
+ INSERT INTO public.event_type_details (id, tenant_id, name, description, is_active, created_at, updated_at)
+ VALUES
+ (1, 'tenant_demo_001', 'Gala', 'Formal gala event', true, now(), now()),
+ (2, 'tenant_demo_001', 'Conference', 'Tech conference', true, now(), now()),
+ (3, 'tenant_demo_001', 'Run', 'Charity run', true, now(), now()),
+ (4, 'tenant_demo_001', 'Picnic', 'Family picnic', true, now(), now()),
+ (5, 'tenant_demo_001', 'Dinner', 'VIP dinner', true, now(), now()),
+ (6, 'tenant_demo_001', 'Festival', 'Summer festival', true, now(), now());
+
 -- 2. user_profile (parent for user_subscription, event_attendee, etc.)
 INSERT INTO public.user_profile (id, tenant_id, user_id, first_name, last_name, email, phone, address_line_1, city, state, zip_code, country, user_status, user_role, created_at, updated_at)
 VALUES
@@ -32,15 +23,27 @@ VALUES
 (6, 'tenant_demo_001', 'user006', 'Frank', 'Miller', 'frank.miller@example.com', '555-1006', '987 Birch Blvd', 'Springfield', 'IL', '62706', 'USA', 'BANNED', 'MEMBER', now(), now());
 
 -- 3. event_details (parent for event_attendee, event_guest_pricing, event_media, etc.)
-INSERT INTO public.event_details (
-  id, tenant_id, title, caption, description, start_date, end_date, start_time, end_time, location, capacity, admission_type, is_active, max_guests_per_attendee, allow_guests, require_guest_approval, enable_guest_pricing, registration_deadline, cancellation_deadline, created_by_id, event_type_id, created_at, updated_at
-) VALUES
-(1, 'tenant_demo_001', 'Spring Gala', 'Annual Spring Gala', 'A celebration of spring with music and food.', '2025-08-10', '2025-08-10', '18:00', '23:00', 'Grand Hall', 200, 'TICKETED', true, 2, true, false, true, '2025-08-05 23:59', '2025-08-05 23:59', 1, 1, now(), now()),
-(2, 'tenant_demo_001', 'Tech Conference', '2025 Tech Innovations', 'A conference on the latest in technology.', '2025-08-16', '2025-08-16', '09:00', '17:00', 'Convention Center', 500, 'TICKETED', true, 1, true, true, false, '2025-08-12 23:59', '2025-08-12 23:59', 2, 2, now(), now()),
-(3, 'tenant_demo_001', 'Charity Run', '5K Charity Run', 'A 5K run to raise funds for charity.', '2025-09-01', '2025-09-01', '07:00', '12:00', 'City Park', 300, 'DONATION_BASED', true, 0, false, false, false, '2025-08-28 23:59', '2025-08-28 23:59', 3, 3, now(), now()),
-(4, 'tenant_demo_001', 'Family Picnic', 'Community Family Picnic', 'A fun picnic for families in the community.', '2025-09-10', '2025-09-10', '11:00', '16:00', 'Lakeside Park', 150, 'FREE', true, 4, true, false, false, '2025-09-05 23:59', '2025-09-05 23:59', 4, 4, now(), now()),
-(5, 'tenant_demo_001', 'VIP Dinner', 'Exclusive VIP Dinner', 'A dinner event for VIP guests.', '2025-09-15', '2025-09-15', '19:00', '22:00', 'Skyline Restaurant', 50, 'INVITATION_ONLY', true, 0, false, true, false, '2025-09-12 23:59', '2025-09-12 23:59', 5, 5, now(), now()),
-(6, 'tenant_demo_001', 'Summer Fest', 'Summer Festival', 'A festival with games, food, and music.', '2025-09-20', '2025-09-20', '10:00', '20:00', 'Downtown Plaza', 400, 'TICKETED', true, 3, true, true, true, '2025-09-12 23:59', '2025-09-12 23:59', 6, 6, now(), now());
+--INSERT INTO public.event_details (
+--  id, tenant_id, title, caption, description, start_date, end_date, start_time, end_time, location, capacity, admission_type, is_active, max_guests_per_attendee, allow_guests, require_guest_approval, enable_guest_pricing, registration_deadline, cancellation_deadline, created_by_id, event_type_id, created_at, updated_at
+--) VALUES
+--(1, 'tenant_demo_001', 'Spring Gala', 'Annual Spring Gala', 'A celebration of spring with music and food.', '2025-08-10', '2025-08-10', '18:00', '23:00', 'Grand Hall', 200, 'TICKETED', true, 2, true, false, true, '2025-08-05 23:59', '2025-08-05 23:59', 1, 1, now(), now()),
+--(2, 'tenant_demo_001', 'Tech Conference', '2025 Tech Innovations', 'A conference on the latest in technology.', '2025-08-16', '2025-08-16', '09:00', '17:00', 'Convention Center', 500, 'TICKETED', true, 1, true, true, false, '2025-08-12 23:59', '2025-08-12 23:59', 2, 2, now(), now()),
+--(3, 'tenant_demo_001', 'Charity Run', '5K Charity Run', 'A 5K run to raise funds for charity.', '2025-09-01', '2025-09-01', '07:00', '12:00', 'City Park', 300, 'DONATION_BASED', true, 0, false, false, false, '2025-08-28 23:59', '2025-08-28 23:59', 3, 3, now(), now()),
+--(4, 'tenant_demo_001', 'Family Picnic', 'Community Family Picnic', 'A fun picnic for families in the community.', '2025-09-10', '2025-09-10', '11:00', '16:00', 'Lakeside Park', 150, 'FREE', true, 4, true, false, false, '2025-09-05 23:59', '2025-09-05 23:59', 4, 4, now(), now()),
+--(5, 'tenant_demo_001', 'VIP Dinner', 'Exclusive VIP Dinner', 'A dinner event for VIP guests.', '2025-09-15', '2025-09-15', '19:00', '22:00', 'Skyline Restaurant', 50, 'INVITATION_ONLY', true, 0, false, true, false, '2025-09-12 23:59', '2025-09-12 23:59', 5, 5, now(), now()),
+--(6, 'tenant_demo_001', 'Summer Fest', 'Summer Festival', 'A festival with games, food, and music.', '2025-09-20', '2025-09-20', '10:00', '20:00', 'Downtown Plaza', 400, 'TICKETED', true, 3, true, true, true, '2025-09-12 23:59', '2025-09-12 23:59', 6, 6, now(), now());
+
+INSERT INTO public.event_details (id,tenant_id,title,caption,description,start_date,end_date,start_time,end_time,"location",directions_to_venue,capacity,admission_type,is_active,max_guests_per_attendee,allow_guests,require_guest_approval,enable_guest_pricing,registration_deadline,cancellation_deadline,minimum_age,maximum_age,requires_approval,enable_waitlist,external_registration_url,created_by_id,event_type_id,created_at,updated_at,is_registration_required,is_sports_event,is_live) VALUES
+	 (1,'tenant_demo_001','Tech Conference','2025 Tech Innovations','A conference on the latest in technology.','2025-08-16','2025-08-16','09:00','17:00','Convention Center',NULL,500,'TICKETED',true,1,true,true,false,'2025-08-12 23:59:00','2025-08-12 23:59:00',NULL,NULL,false,true,NULL,2,2,'2025-06-14 23:13:02.565996','2025-06-14 23:13:02.565996',false,false,false),
+	 (2,'tenant_demo_001','Charity Run','5K Charity Run','A 5K run to raise funds for charity.','2025-09-01','2025-09-01','07:00','12:00','City Park',NULL,300,'DONATION_BASED',true,0,false,false,false,'2025-08-28 23:59:00','2025-08-28 23:59:00',NULL,NULL,false,true,NULL,3,3,'2025-06-14 23:13:02.565996','2025-06-14 23:13:02.565996',false,false,false),
+	 (3,'tenant_demo_001','Family Picnic','Community Family Picnic','A fun picnic for families in the community.','2025-09-10','2025-09-10','11:00','16:00','Lakeside Park',NULL,150,'FREE',true,4,true,false,false,'2025-09-05 23:59:00','2025-09-05 23:59:00',NULL,NULL,false,true,NULL,4,4,'2025-06-14 23:13:02.565996','2025-06-14 23:13:02.565996',false,false,false),
+	 (4,'tenant_demo_001','VIP Dinner','Exclusive VIP Dinner','A dinner event for VIP guests.','2025-09-15','2025-09-15','19:00','22:00','Skyline Restaurant',NULL,50,'INVITATION_ONLY',true,0,false,true,false,'2025-09-12 23:59:00','2025-09-12 23:59:00',NULL,NULL,false,true,NULL,5,5,'2025-06-14 23:13:02.565996','2025-06-14 23:13:02.565996',false,false,false),
+	 (5,'tenant_demo_001','Summer Fest','Summer Festival','A festival with games, food, and music.','2025-09-20','2025-09-20','10:00','20:00','Downtown Plaza',NULL,400,'TICKETED',true,3,true,true,true,'2025-09-12 23:59:00','2025-09-12 23:59:00',NULL,NULL,false,true,NULL,6,6,'2025-06-14 23:13:02.565996','2025-06-14 23:13:02.565996',false,false,false),
+	 (6,'tenant_demo_001','Spring Gala','Annual Spring Gala','A celebration of spring with music and food.','2025-08-10','2025-08-10','18:00','23:00','Grand Hall',NULL,200,'TICKETED',true,2,true,false,true,'2025-08-05 23:59:00','2025-08-05 23:59:00',NULL,NULL,false,true,NULL,1,1,'2025-06-14 23:13:02.565996','2025-06-14 23:19:16.458888',true,false,false),
+	 (7,'tenant_demo_001','Spring Gala','Annual Spring Gala','A celebration of spring with music and food.','2025-08-10','2025-08-10','18:00','23:00','Grand Hall',NULL,200,'TICKETED',true,2,true,false,true,'2025-08-05 23:59:00','2025-08-05 23:59:00',NULL,NULL,false,true,NULL,1,1,'2025-06-14 23:13:02.565996','2025-06-14 23:19:16.458888',true,false,false),
+	 (8,'tenant_demo_001','Spring Gala','Annual Spring Gala','A celebration of spring with music and food.','2025-08-10','2025-08-10','18:00','23:00','Grand Hall',NULL,200,'TICKETED',true,2,true,false,true,'2025-08-05 23:59:00','2025-08-05 23:59:00',NULL,NULL,false,true,NULL,1,1,'2025-06-14 23:13:02.565996','2025-06-14 23:19:16.458888',true,false,false),
+	 (9,'tenant_demo_001','Spring Gala','Annual Spring Gala','A celebration of spring with music and food.','2025-08-10','2025-08-10','18:00','23:00','Grand Hall',NULL,200,'TICKETED',true,2,true,false,true,'2025-08-05 23:59:00','2025-08-05 23:59:00',NULL,NULL,false,true,NULL,1,1,'2025-06-14 23:13:02.565996','2025-06-14 23:19:16.458888',true,false,false),
+	 (10,'tenant_demo_001','Spring Gala','Annual Spring Gala','A celebration of spring with music and food.','2025-08-10','2025-08-10','18:00','23:00','Grand Hall',NULL,200,'TICKETED',true,2,true,false,true,'2025-08-05 23:59:00','2025-08-05 23:59:00',NULL,NULL,false,true,NULL,1,1,'2025-06-14 23:13:02.565996','2025-06-14 23:19:16.458888',true,false,false);
 
 -- 4. event_guest_pricing (child of event_details)
 INSERT INTO public.event_guest_pricing (id, tenant_id, event_id, age_group, price, is_active, valid_from, valid_to, description, max_guests, pricing_tier, early_bird_price, early_bird_deadline, group_discount_threshold, group_discount_percentage, created_at, updated_at)
@@ -82,7 +85,6 @@ VALUES
 (5, 'tenant_demo_001', 4, 5, 'CANCELLED', now(), 'SUPER_ADMIN', 'NO_SHOW', now(), now(), 'Eve', 'Davis', 'eve.davis@example.com', '555-1005', false),
 (6, 'tenant_demo_001', 5, 6, 'CONFIRMED', now(), 'MEMBER', 'CHECKED_IN', now(), now(), 'Frank', 'Miller', 'frank.miller@example.com', '555-1006', true);
 
-
 -- 8. event_attendee_guest (child of event_attendee)
 INSERT INTO public.event_attendee_guest (id, tenant_id, primary_attendee_id, age_group, relationship, registration_status, check_in_status, created_at, updated_at, first_name, last_name, email, phone)
 VALUES
@@ -93,7 +95,6 @@ VALUES
 (5, 'tenant_demo_001', 5,  'ADULT', 'COLLEAGUE', 'CANCELLED', 'NO_SHOW', now(), now(), 'Sam', 'Guest', 'sam.guest@example.com', '555-2005'),
 (6, 'tenant_demo_001', 6,  'CHILD', 'RELATIVE', 'CONFIRMED', 'CHECKED_IN', now(), now(), 'Nina', 'Guest', 'nina.guest@example.com', '555-2006');
 
-
 -- 9. event_calendar_entry (child of event_details)
 INSERT INTO public.event_calendar_entry (id, tenant_id, calendar_provider, external_event_id, calendar_link, sync_status, last_sync_at, sync_error_message, created_at, updated_at, event_id, created_by_id)
 VALUES
@@ -103,11 +104,6 @@ VALUES
 (4, 'tenant_demo_001', 'Google', 'gcal_4', 'https://calendar.google.com/event4', 'PENDING', now(), NULL, now(), now(), 4, 4),
 (5, 'tenant_demo_001', 'Outlook', 'outlook_5', 'https://outlook.com/event5', 'COMPLETED', now(), NULL, now(), now(), 5, 5),
 (6, 'tenant_demo_001', 'Apple', 'apple_6', 'https://apple.com/event6', 'FAILED', now(), 'Error syncing', now(), now(), 6, 6);
-
--- 10. event_discount_code (link table)
-INSERT INTO public.event_discount_code (event_id, discount_code_id)
-VALUES
-(1, 1), (2, 2), (3, 3), (4, 4), (5, 5), (6, 6);
 
 -- 11. event_live_update (child of event_details)
 INSERT INTO public.event_live_update (id, event_id, update_type, content_text, content_image_url, content_video_url, content_link_url, metadata, display_order, is_default, created_at, updated_at)
@@ -130,15 +126,31 @@ VALUES
 (6, 6, 'IMAGE', 'https://example.com/image6.jpg', 6, NULL, now(), now());
 
 -- 13. event_media (child of event_details)
-INSERT INTO public.event_media (
-  tenant_id, title, description, event_media_type, storage_type, file_url, file_data, file_data_content_type, content_type, file_size, is_public, event_flyer, is_event_management_official_document, pre_signed_url, pre_signed_url_expires_at, alt_text, display_order, download_count, is_featured, is_hero_image, is_active_hero_image, created_at, updated_at, event_id, uploaded_by_id
-) VALUES
-('tenant_demo_001','Spring Gala Flyer','This is a high-resolution flyer for the Spring Gala event, featuring the event schedule, sponsors, and venue map. Please use this for all promotional materials.','IMAGE','LOCAL','https://example.com/flyer1.jpg',NULL,'image/jpeg',NULL,1024,TRUE,TRUE,FALSE,NULL,NULL,'Spring Gala official flyer',0,0,FALSE,FALSE,FALSE,now(),now(),1,1),
-('tenant_demo_001','Tech Conference Brochure','Comprehensive brochure for the Tech Conference, including speaker bios, session details, and exhibitor information. Designed for both print and digital distribution.','PDF','S3','https://example.com/brochure2.pdf',NULL,'application/pdf',NULL,2048,TRUE,FALSE,TRUE,NULL,NULL,'Tech Conference 2025 Brochure',1,0,FALSE,FALSE,FALSE,now(),now(),2,2),
-('tenant_demo_001','Charity Run Poster','Official poster for the Charity Run event. Includes route map, safety instructions, and sponsor logos. Suitable for display at partner locations.','IMAGE','LOCAL','https://example.com/poster3.jpg',NULL,'image/jpeg',NULL,512,TRUE,FALSE,FALSE,NULL,NULL,'Charity Run 2025 Poster',2,0,FALSE,FALSE,FALSE,now(),now(),3,3),
-('tenant_demo_001','Family Picnic Map','Detailed map for the Family Picnic, showing picnic areas, restrooms, parking, and activity zones. Provided as a downloadable image for attendees.','IMAGE','S3','https://example.com/map4.jpg',NULL,'image/jpeg',NULL,256,TRUE,FALSE,FALSE,NULL,NULL,'Family Picnic Map',3,0,FALSE,FALSE,FALSE,now(),now(),4,4),
-('tenant_demo_001','VIP Dinner Menu','Menu for the VIP Dinner event, listing all courses, wine pairings, and chef notes. Designed for table display and guest reference.','PDF','LOCAL','https://example.com/menu5.pdf',NULL,'application/pdf',NULL,128,TRUE,FALSE,TRUE,NULL,NULL,'VIP Dinner Menu',4,0,FALSE,FALSE,FALSE,now(),now(),5,5),
-('tenant_demo_001','Summer Fest Banner','Large digital banner for Summer Fest, used for online promotion and event entrance. Features event branding and key highlights.','IMAGE','S3','https://example.com/banner6.jpg',NULL,'image/jpeg',NULL,2048,TRUE,TRUE,FALSE,NULL,NULL,'Summer Fest Banner',5,0,FALSE,FALSE,FALSE,now(),now(),6,6);
+--INSERT INTO public.event_media (id, tenant_id, title, description, event_media_type, storage_type, file_url, file_size, is_public, event_flyer, is_event_management_official_document, created_at, updated_at, event_id, uploaded_by_id)
+--VALUES
+--(1, 'tenant_demo_001', 'Spring Gala Flyer', 'Flyer for Spring Gala', 'IMAGE', 'LOCAL', 'https://example.com/flyer1.jpg', 1024, true, true, false, now(), now(), 1, 1),
+--(2, 'tenant_demo_001', 'Tech Conference Brochure', 'Brochure for Tech Conference', 'PDF', 'S3', 'https://example.com/brochure2.pdf', 2048, true, false, true, now(), now(), 2, 2),
+--(3, 'tenant_demo_001', 'Charity Run Poster', 'Poster for Charity Run', 'IMAGE', 'LOCAL', 'https://example.com/poster3.jpg', 512, true, false, false, now(), now(), 3, 3),
+--(4, 'tenant_demo_001', 'Family Picnic Map', 'Map for Family Picnic', 'IMAGE', 'S3', 'https://example.com/map4.jpg', 256, true, false, false, now(), now(), 4, 4),
+--(5, 'tenant_demo_001', 'VIP Dinner Menu', 'Menu for VIP Dinner', 'PDF', 'LOCAL', 'https://example.com/menu5.pdf', 128, true, false, true, now(), now(), 5, 5),
+--(6, 'tenant_demo_001', 'Summer Fest Banner', 'Banner for Summer Fest', 'IMAGE', 'S3', 'https://example.com/banner6.jpg', 2048, true, true, false, now(), now(), 6, 6);
+
+INSERT INTO public.event_media (tenant_id,title,description,event_media_type,storage_type,file_url,file_data,file_data_content_type,content_type,file_size,is_public,event_flyer,is_event_management_official_document,pre_signed_url,pre_signed_url_expires_at,alt_text,display_order,download_count,is_featured_image,is_hero_image,is_active_hero_image,created_at,updated_at,event_id,uploaded_by_id) VALUES
+	 ('tenant_demo_001','birthday_party.jfif',NULL,'image/jpeg','S3','https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/1/birthday_party_1750026379828_bacbecdc.jfif',NULL,'image/jpeg',NULL,17757,true,true,false,'https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/1/birthday_party_1750026379828_bacbecdc.jfif?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20250615T222620Z&X-Amz-SignedHeaders=host&X-Amz-Expires=3600&X-Amz-Credential=AKIATIT5HARDKCWNLQMU%2F20250615%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Signature=a8d7ab16523489684d14fdd1e5bfa063183664cb6788e5d0a54bc85142721fbc',NULL,NULL,NULL,NULL,false,false,false,'2025-06-15 22:26:20.4035','2025-06-15 22:26:20.4035',1,1),
+	 ('tenant_demo_001','street_fair.jfif','115941','image/jpeg','S3','https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/1/street_fair_1750026381257_f70e40cf.jfif',NULL,'image/jpeg',NULL,10551,true,true,false,'https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/1/street_fair_1750026381257_f70e40cf.jfif?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20250615T222621Z&X-Amz-SignedHeaders=host&X-Amz-Expires=3600&X-Amz-Credential=AKIATIT5HARDKCWNLQMU%2F20250615%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Signature=7b739490bda78d4127fbeb267d77856a11cc59a83b24e90c666a76783393e15d',NULL,NULL,NULL,NULL,false,false,false,'2025-06-15 22:26:21.363353','2025-06-15 22:26:21.363353',1,1),
+	 ('tenant_demo_001','night_party.jfif','115942','image/jpeg','S3','https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/1/night_party_1750026381113_69263496.jfif',NULL,'image/jpeg',NULL,8851,true,true,false,'https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/1/night_party_1750026381113_69263496.jfif?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20250615T222621Z&X-Amz-SignedHeaders=host&X-Amz-Expires=3599&X-Amz-Credential=AKIATIT5HARDKCWNLQMU%2F20250615%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Signature=976a14bab785e95765850160c250285fa2408035afc3b3eb7354e497769c5ffa',NULL,NULL,NULL,NULL,false,false,false,'2025-06-15 22:26:21.256044','2025-06-15 22:26:21.256044',1,1),
+	 ('tenant_demo_001','music_fest.jfif','115943','image/jpeg','S3','https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/1/music_fest_1750026380991_16eac442.jfif',NULL,'image/jpeg',NULL,13369,true,true,false,'https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/1/music_fest_1750026380991_16eac442.jfif?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20250615T222621Z&X-Amz-SignedHeaders=host&X-Amz-Expires=3600&X-Amz-Credential=AKIATIT5HARDKCWNLQMU%2F20250615%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Signature=fe05c34013a10da60e63df0cc7bcf34a493ff96dbd9a732408bebcff759afe96',NULL,NULL,NULL,NULL,false,false,false,'2025-06-15 22:26:21.112602','2025-06-15 22:26:21.112602',1,1),
+	 ('tenant_demo_001','mens_party.jfif','115944','image/jpeg','S3','https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/1/mens_party_1750026380857_14c08f34.jfif',NULL,'image/jpeg',NULL,11908,true,true,false,'https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/1/mens_party_1750026380857_14c08f34.jfif?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20250615T222620Z&X-Amz-SignedHeaders=host&X-Amz-Expires=3599&X-Amz-Credential=AKIATIT5HARDKCWNLQMU%2F20250615%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Signature=9b8f1373e82b4c9ef900736e3955434b27150e958e7816aa6e65bd9ae42e1080',NULL,NULL,NULL,NULL,false,false,false,'2025-06-15 22:26:20.990864','2025-06-15 22:26:20.990864',1,1),
+	 ('tenant_demo_001','kanj_cine_star_nite_2025.avif','115945','image/avif','S3','https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/1/kanj_cine_star_nite_2025_1750026380584_8b2bfa97.avif',NULL,'image/avif',NULL,76564,true,true,false,'https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/1/kanj_cine_star_nite_2025_1750026380584_8b2bfa97.avif?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20250615T222620Z&X-Amz-SignedHeaders=host&X-Amz-Expires=3599&X-Amz-Credential=AKIATIT5HARDKCWNLQMU%2F20250615%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Signature=c73013131cf421a28789e4fa611ce521b4c6d2f7998fa2e72551c10aa70e8070',NULL,NULL,NULL,NULL,false,false,false,'2025-06-15 22:26:20.856032','2025-06-15 22:26:20.856032',1,1),
+	 ('tenant_demo_001','glow_party.jfif','115946','image/jpeg','S3','https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/1/glow_party_1750026380446_f58e53cd.jfif',NULL,'image/jpeg',NULL,14345,true,true,false,'https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/1/glow_party_1750026380446_f58e53cd.jfif?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20250615T222620Z&X-Amz-SignedHeaders=host&X-Amz-Expires=3600&X-Amz-Credential=AKIATIT5HARDKCWNLQMU%2F20250615%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Signature=67f5380e4492f8716887259519c3d1e98ac6b969079e15f80396d38c6a1a4273',NULL,NULL,NULL,NULL,false,false,false,'2025-06-15 22:26:20.583355','2025-06-15 22:26:20.583355',1,1),
+	 ('tenant_demo_001','zxz','115947','image/jpeg','S3','https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/1/event-poster-music-event_1749958343913_61cef052.jpg',NULL,'image/jpeg',NULL,26137,true,true,false,'https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/1/event-poster-music-event_1749958343913_61cef052.jpg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20250615T033224Z&X-Amz-SignedHeaders=host&X-Amz-Expires=3599&X-Amz-Credential=AKIATIT5HARDKCWNLQMU%2F20250615%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Signature=f4a4017dbd783d610b73d436526f49fede315bf8f99b7c11e11f765fa0bcd712',NULL,NULL,NULL,NULL,false,false,false,'2025-06-15 03:32:24.279795','2025-06-15 03:32:24.279795',1,1),
+	 ('tenant_demo_001','xcxcxcxxcxcxc','115948','image/jpeg','S3','https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/4500/glow_party_1750045122643_236bc54f.jfif',NULL,'image/jpeg',NULL,14345,true,true,false,'https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/4500/glow_party_1750045122643_236bc54f.jfif?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20250616T033843Z&X-Amz-SignedHeaders=host&X-Amz-Expires=3600&X-Amz-Credential=AKIATIT5HARDKCWNLQMU%2F20250616%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Signature=f58364d96ff6d0a6127e70f1bd13fa54fe5dda93961360cfb8f3048cc208ee3f',NULL,NULL,NULL,NULL,false,false,false,'2025-06-16 03:38:43.045378','2025-06-16 03:38:43.045378',1,1),
+	 ('tenant_demo_001','kanj_cine_star_nite_2025.avif',NULL,'image/avif','S3','https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/4500/kanj_cine_star_nite_2025_1750045123063_470db4ac.avif',NULL,'image/avif',NULL,76564,true,true,false,'https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/4500/kanj_cine_star_nite_2025_1750045123063_470db4ac.avif?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20250616T033843Z&X-Amz-SignedHeaders=host&X-Amz-Expires=3599&X-Amz-Credential=AKIATIT5HARDKCWNLQMU%2F20250616%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Signature=96f8190f8b95f7185b5d7f92423c3682577db0728032abee59b781f82e280718',NULL,NULL,NULL,NULL,false,false,false,'2025-06-16 03:38:43.228752','2025-06-16 03:38:43.228752',2,1);
+INSERT INTO public.event_media (tenant_id,title,description,event_media_type,storage_type,file_url,file_data,file_data_content_type,content_type,file_size,is_public,event_flyer,is_event_management_official_document,pre_signed_url,pre_signed_url_expires_at,alt_text,display_order,download_count,is_featured_image,is_hero_image,is_active_hero_image,created_at,updated_at,event_id,uploaded_by_id) VALUES
+	 ('tenant_demo_001','mens_party.jfif',NULL,'image/jpeg','S3','https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/4500/mens_party_1750045123229_c2447fa3.jfif',NULL,'image/jpeg',NULL,11908,true,true,false,'https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/4500/mens_party_1750045123229_c2447fa3.jfif?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20250616T033843Z&X-Amz-SignedHeaders=host&X-Amz-Expires=3599&X-Amz-Credential=AKIATIT5HARDKCWNLQMU%2F20250616%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Signature=74d7c46ca459bfa5e451dd145e63b4b845b87fb8979796ee8dfd77e77262864c',NULL,NULL,NULL,NULL,false,false,false,'2025-06-16 03:38:43.330859','2025-06-16 03:38:43.330859',1,1),
+	 ('tenant_demo_001','music_fest.jfif',NULL,'image/jpeg','S3','https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/4500/music_fest_1750045123331_4703ef82.jfif',NULL,'image/jpeg',NULL,13369,true,true,false,'https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/4500/music_fest_1750045123331_4703ef82.jfif?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20250616T033843Z&X-Amz-SignedHeaders=host&X-Amz-Expires=3600&X-Amz-Credential=AKIATIT5HARDKCWNLQMU%2F20250616%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Signature=ccafab0578292825faf548600cc8c7b7b97623ed7dff502f5bc3da8d9be5dd2c',NULL,NULL,NULL,NULL,false,false,false,'2025-06-16 03:38:43.437199','2025-06-16 03:38:43.437199',1,1),
+	 ('tenant_demo_001','night_party.jfif',NULL,'image/jpeg','S3','https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/4500/night_party_1750045123438_59d4ca6c.jfif',NULL,'image/jpeg',NULL,8851,true,true,false,'https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/4500/night_party_1750045123438_59d4ca6c.jfif?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20250616T033843Z&X-Amz-SignedHeaders=host&X-Amz-Expires=3600&X-Amz-Credential=AKIATIT5HARDKCWNLQMU%2F20250616%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Signature=89011e0a4126acad5b6e6a9c231c6813f3079fca0ad3a8bf3276fedb8b69b948',NULL,NULL,NULL,NULL,false,false,false,'2025-06-16 03:38:43.540827','2025-06-16 03:38:43.540827',1,1);
+
 
 -- 14. event_organizer (child of event_details, user_profile)
 INSERT INTO public.event_organizer (id, tenant_id, title, designation, contact_email, contact_phone, is_primary, display_order, bio, profile_image_url, created_at, updated_at, event_id, organizer_id)
@@ -180,6 +192,17 @@ VALUES
 (5, 'tenant_demo_001', 'Vote for Topic B', NULL, false, now(), now(), 2, 5, 5),
 (6, 'tenant_demo_001', 'Fun games', 'Fun', false, now(), now(), 4, 6, 6);
 
+
+-- 1. discount_code (parent for event_discount_code, event_ticket_transaction)
+INSERT INTO public.discount_code (id, code, description, discount_type, discount_value, max_uses, uses_count, valid_from, valid_to, is_active, created_at, updated_at, event_id, tenant_id)
+VALUES
+(1, 'SPRING10', '10% off Spring events', 'PERCENT', 10.00, 100, 5, '2025-03-01', '2025-06-01', true, now(), now(), 1, 'tenant_demo_001'),
+(2, 'VIP50', '50% off for VIPs', 'PERCENT', 50.00, 10, 2, '2025-04-01', '2025-08-01', true, now(), now(), 2, 'tenant_demo_001'),
+(3, 'FREERUN', 'Free entry for Charity Run', 'AMOUNT', 100.00, 50, 10, '2025-05-01', '2025-06-02', true, now(), now(), 3, 'tenant_demo_001'),
+(4, 'EARLYBIRD', 'Early bird discount', 'PERCENT', 20.00, 200, 20, '2025-01-01', '2025-04-10', true, now(), now(), 4, 'tenant_demo_001'),
+(5, 'SUMMERFEST', 'Summer Fest special', 'PERCENT', 15.00, 150, 15, '2025-07-01', '2025-08-16', true, now(), now(), 5, 'tenant_demo_001'),
+(6, 'FAMILY5', 'Family Picnic 5% off', 'PERCENT', 5.00, 50, 3, '2025-07-01', '2025-07-21', true, now(), now(), 6, 'tenant_demo_001');
+
 -- 18. event_score_card (child of event_details)
 INSERT INTO public.event_score_card (id, event_id, team_a_name, team_b_name, team_a_score, team_b_score, remarks, created_at, updated_at)
 VALUES
@@ -203,7 +226,7 @@ VALUES
 -- 20. event_ticket_type (child of event_details)
 INSERT INTO public.event_ticket_type (id, tenant_id, event_id, code, name, description, price, available_quantity, sold_quantity, is_active, created_at, updated_at)
 VALUES
-(1, 'tenant_demo_001', 1, 'STD', 'Standard', 'Standard ticket for Spring Gala', 50.00, 100, 10, true, now(), now()),
+(1, 'tenant_demo_001', 6, 'STD', 'Standard', 'Standard ticket for Spring Gala', 50.00, 100, 10, true, now(), now()),
 (2, 'tenant_demo_001', 2, 'VIP', 'VIP', 'VIP ticket for Tech Conference', 200.00, 50, 5, true, now(), now()),
 (3, 'tenant_demo_001', 3, 'RUN', 'Runner', 'Runner ticket for Charity Run', 0.00, 300, 100, true, now(), now()),
 (4, 'tenant_demo_001', 4, 'FAM', 'Family', 'Family ticket for Picnic', 20.00, 30, 10, true, now(), now()),
@@ -295,6 +318,8 @@ VALUES
 (4, 'tenant_demo_001', 'DELETE', 'Delete Old Data', 4, 10, 10, 0, 0, 'Deleted old data', NULL, 500, now(), now()),
 (5, 'tenant_demo_001', 'UPDATE', 'Update Settings', 5, 5, 5, 0, 0, 'Updated settings', NULL, 100, now(), now()),
 (6, 'tenant_demo_001', 'IMPORT', 'Import Events', 6, 60, 59, 1, 0, 'Imported events', '1 error', 3000, now(), now());
+
+
 
 -- 31. databasechangelog (standalone)
 INSERT INTO public.databasechangelog (id, author, filename, dateexecuted, orderexecuted, exectype, md5sum, description, comments, tag, liquibase, contexts, labels, deployment_id)

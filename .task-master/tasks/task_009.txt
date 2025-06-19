@@ -1,18 +1,16 @@
 # Task ID: 9
-# Title: Event search feature
+# Title: Implement checkout process
 # Status: pending
-# Dependencies: 8 ⏱️
+# Dependencies: 7 ⏱️, 8 ⏱️
 # Priority: high
-# Description: Implement search feature for events browsing in http://localhost:3000/admin similar to that of in the  http://localhost:3000/admin/manage-usage page for users above the events list table.
+# Description: Create the checkout flow to collect user information and initiate payment.
 # Details:
-
-- Event listing with filtering and sorting
-  search by title , caption, start date, list eventvent between dates, admission type.
-- put the start and end date in the same column in the event listing
-- in the listing add another column with the media upload button  which technically takes the user to the same link as List media files for the event http://localhost:3000/admin/events/10/media
-- change the Edit  label to 'Edit/View Event Details'
-- change the labe List or upload media files  to List Media files
-- make sure Responsive design for mobile and desktop
+- Create checkout form to collect necessary user information
+- Implement client and server-side validation
+- Create transaction record in event_ticket_transaction with pending status
+- Initiate Stripe Checkout session
+- Redirect user to Stripe payment page
+- Follow custom-forms-checkbox-grid.mdc for form elements
 
 # Test Strategy:
-Test filtering, sorting, and search functionality. Verify responsive design on different screen sizes.
+Test the complete checkout flow. Verify form validation works correctly. Ensure transaction is created with pending status.

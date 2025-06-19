@@ -1,21 +1,14 @@
 # Task ID: 7
-# Title: Create database schema for event management
+# Title: Implement real-time price calculation
 # Status: pending
-# Dependencies: 2 ✅
-# Priority: high
-# Description: Implement database tables and entities for event registration and attendance
+# Dependencies: 5 ⏱️, 6 ⏱️
+# Priority: medium
+# Description: Create a system for calculating and displaying subtotal, discounts, and total in real-time.
 # Details:
-Create the following database tables and entities:
-- event_details
-- event_attendee
-- event_attendee_guest
-- event_guest_pricing
-- event_organizer
-- event_admin
-- qr_code_usage
-- bulk_operation_log
-
-Implement proper relationships and constraints between tables.
+- Implement price calculation logic
+- Update UI components to display subtotal, discount amount, and total
+- Ensure calculations update in real-time as users change selections
+- Format currency values appropriately
 
 # Test Strategy:
-Verify database schema with test data. Test relationships between events, attendees, and guests.
+Test calculations with various ticket combinations and discount scenarios. Verify all displayed values are accurate and update in real-time.

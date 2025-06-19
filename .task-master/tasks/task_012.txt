@@ -1,16 +1,14 @@
 # Task ID: 12
-# Title: Implement QR code system for check-in
+# Title: Implement ticket issuance
 # Status: pending
-# Dependencies: 8 ⏱️, 11 ⏱️
+# Dependencies: 10 ⏱️
 # Priority: medium
-# Description: Create QR code generation and scanning system for event check-in
+# Description: Create system to issue tickets after successful payment.
 # Details:
-Implement:
-- QRCodeGenerator.tsx for creating attendee QR codes
-- QR code scanning interface for organizers
-- Backend API for validating and processing check-ins
-- Real-time check-in status updates
-- Offline check-in capability
+- Update event_ticket_transaction status on successful payment
+- Create records in appropriate tables for issued tickets
+- Generate ticket identifiers/barcodes
+- Prepare ticket data for email delivery
 
 # Test Strategy:
-Test QR code generation, scanning functionality, and check-in process in both online and offline modes.
+Verify tickets are correctly issued after payment. Check database records for accuracy.

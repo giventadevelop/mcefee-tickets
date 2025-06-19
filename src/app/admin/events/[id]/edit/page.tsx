@@ -46,17 +46,17 @@ export default function EditEventPage() {
   if (!event) return <div className="p-8">Loading event details...</div>;
 
   return (
-    <div className="min-h-screen p-8 max-w-2xl mx-auto">
+    <div className="min-h-screen p-8 max-w-3xl mx-auto">
       {/* Dashboard Card with Grid Buttons */}
       <div className="flex justify-center mb-8">
-        <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-2xl">
+        <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-3xl">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
             <Link href="/admin/manage-usage" className="flex flex-col items-center justify-center bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg shadow-sm px-4 py-4 transition font-semibold text-sm">
               <FaUsers className="mb-2 text-2xl" />
               <span>Manage Usage</span>
               <span className="text-xs text-blue-500 mt-1">[Users]</span>
             </Link>
-            <Link href="/admin/media" className="flex flex-col items-center justify-center bg-yellow-50 hover:bg-yellow-100 text-yellow-700 rounded-lg shadow-sm px-4 py-4 transition font-semibold text-sm">
+            <Link href={`/admin/events/${eventId}/media/list`} className="flex flex-col items-center justify-center bg-yellow-50 hover:bg-yellow-100 text-yellow-700 rounded-lg shadow-sm px-4 py-4 transition font-semibold text-sm">
               <FaPhotoVideo className="mb-2 text-2xl" />
               Manage Media Files
             </Link>

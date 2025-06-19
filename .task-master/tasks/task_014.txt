@@ -1,16 +1,14 @@
 # Task ID: 14
-# Title: Implement analytics and reporting
+# Title: Implement inventory management
 # Status: pending
-# Dependencies: 8 ⏱️, 11 ⏱️
-# Priority: medium
-# Description: Create analytics dashboard and reporting tools for events
+# Dependencies: 10 ⏱️
+# Priority: high
+# Description: Create system to track and update ticket inventory in real-time.
 # Details:
-Create:
-- AnalyticsDashboard.tsx with event statistics and charts
-- AttendeeReportsPage.tsx for detailed attendee reports
-- ExportUtilities.ts for exporting data in various formats (CSV, Excel)
-- EventPollComponent.tsx for post-event surveys
-- Implement filtering and date range selection for reports
+- Implement inventory checking before checkout
+- Update inventory after successful payment
+- Handle edge cases like concurrent purchases
+- Implement UI updates for sold-out tickets
 
 # Test Strategy:
-Test report generation, data export functionality, and chart rendering with various data sets.
+Test inventory updates with concurrent transactions. Verify sold-out states display correctly.

@@ -1,15 +1,16 @@
 # Task ID: 6
-# Title: Implement notification system
+# Title: Implement discount code functionality
 # Status: pending
-# Dependencies: 3 ✅, 5 ⏱️
+# Dependencies: 2 ✅, 5 ⏱️
 # Priority: medium
-# Description: Create notification service for user registration status updates
+# Description: Add the ability to enter and validate discount codes with real-time price updates.
 # Details:
-Implement NotificationService.ts for:
-- Email notifications for registration submission confirmation
-- Status update notifications (approval/rejection)
-- Admin notifications for new registration requests
-- Integration with email service provider
+- Create discount code input field
+- Implement API call to validate discount codes
+- Update UI to show discount amount when valid code is applied
+- Show appropriate error messages for invalid codes
+- Update total price calculation to include discounts
+- Handle edge cases (expired codes, usage limits, etc.)
 
 # Test Strategy:
-Test email delivery, template rendering, and notification triggers for different scenarios.
+Test with valid and invalid discount codes. Verify price updates correctly. Test all error cases and edge conditions.

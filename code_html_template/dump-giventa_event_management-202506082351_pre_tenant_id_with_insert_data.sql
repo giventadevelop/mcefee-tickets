@@ -566,8 +566,7 @@ CREATE TABLE public.discount_code (
     valid_to timestamp without time zone,
     is_active boolean DEFAULT true,
     created_at timestamp without time zone DEFAULT now(),
-    updated_at timestamp without time zone DEFAULT now()
-);
+    updated_at timestamp without time zone DEFAULT now());
 
 
 ALTER TABLE public.discount_code OWNER TO giventa_event_management;
@@ -1483,6 +1482,8 @@ CREATE TABLE public.event_ticket_type (
     name character varying(255) NOT NULL,
     description text,
     price numeric(21,2) NOT NULL,
+    is_service_fee_included boolean DEFAULT false,
+    service_fee numeric(21,2) NOT NULL,
     code character varying(255) NOT NULL,
     available_quantity integer,
     sold_quantity integer DEFAULT 0,

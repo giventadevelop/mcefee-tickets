@@ -1,8 +1,3 @@
----
-description:
-globs:
-alwaysApply: false
----
 - **Desktop and Responsive Form/Grid/Table Layout Standards**
   - Use `max-w-5xl mx-auto p-4` for main container width and centering.
   - Use `grid grid-cols-1 md:grid-cols-2` or `md:grid-cols-3` for responsive column layout.

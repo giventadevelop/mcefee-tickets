@@ -1,17 +1,17 @@
 # Task ID: 2
-# Title: Create database schema for user registration
+# Title: Implement Next.js API proxy routes
 # Status: done
 # Dependencies: 1 ✅
 # Priority: high
-# Description: Implement database tables and entities for user registration workflow
+# Description: Create API routes in Next.js to proxy requests to the backend Spring Boot API.
 # Details:
-Create the following database tables and entities:
-- user_registration_request
-- tenant_organization
-- user_profile
-- event_admin_audit_log
+Create the following API routes:
+- /api/event-details/[id]
+- /api/event-ticket-types (with query param support)
+- /api/discount-codes (with query param support)
+- /api/event-ticket-transactions
 
-Implement proper relationships and constraints between tables.
+Ensure all routes follow the nextjs_api_routes.mdc pattern.
 
 # Test Strategy:
-Verify database schema with test data. Ensure proper tenant isolation and referential integrity.
+Test each API route to ensure it correctly proxies requests to the backend and returns the expected responses.

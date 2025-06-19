@@ -1,15 +1,15 @@
 # Task ID: 8
-# Title: Implement backend for event management
+# Title: Set up Stripe integration
 # Status: pending
-# Dependencies: 7 ⏱️
+# Dependencies: 2 ✅
 # Priority: high
-# Description: Create Spring Boot controllers, services, and repositories for event registration and attendance
+# Description: Integrate with Stripe Checkout for secure payment processing.
 # Details:
-Implement the following components:
-- Event registration endpoints (GET /api/events/public, POST /api/event-attendee/register, etc.)
-- Event management endpoints (GET /api/events/{id}/attendees, POST /api/events/{id}/check-in, etc.)
-- Services for event registration, attendee management, and check-in
-- Repositories for event-related entities
+- Set up Stripe client and server libraries
+- Configure environment variables for Stripe API keys
+- Create helper functions for creating Stripe Checkout sessions
+- Implement redirect to Stripe Checkout
+- Handle Stripe callback URLs
 
 # Test Strategy:
-Create unit tests for service layer and integration tests for API endpoints. Test all event registration states.
+Test Stripe integration in test mode. Verify successful redirects to Stripe and back to the application.

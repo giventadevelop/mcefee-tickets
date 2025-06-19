@@ -276,7 +276,25 @@ export default async function Page() {
               <div className="pointer-events-none absolute left-0 top-0 h-full w-8" style={{ background: 'linear-gradient(to right, rgba(248,250,252,1) 0%, rgba(248,250,252,0) 100%)', zIndex: 20 }} />
               <div className="pointer-events-none absolute right-0 top-0 h-full w-8" style={{ background: 'linear-gradient(to left, rgba(248,250,252,1) 0%, rgba(248,250,252,0) 100%)', zIndex: 20 }} />
             </div>
-            {nextEvent && nextEvent.isRegistrationRequired && (
+            {nextEvent && nextEvent.admissionType === 'ticketed' && (
+              <Link
+                href={`/events/${nextEvent.id}/tickets`}
+                className="absolute bottom-6 right-6 z-10"
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <Image
+                  src="/images/buy_tickets_click_here_red.webp"
+                  alt="Buy Tickets"
+                  width={160}
+                  height={60}
+                  style={{ opacity: 0.7, width: '160px', height: 'auto' }}
+                  className="rounded shadow"
+                  priority
+                />
+              </Link>
+            )}
+            {/* If not ticketed but registration required, show Register button as before */}
+            {nextEvent && nextEvent.admissionType !== 'ticketed' && nextEvent.isRegistrationRequired && (
               <Link
                 href={`/events/${nextEvent.id}/register`}
                 className="absolute bottom-6 right-6 z-10 bg-blue-600 text-white px-6 py-3 rounded-lg shadow-lg hover:bg-blue-700 transition"
@@ -308,13 +326,16 @@ export default async function Page() {
                   <h4 className="text-xl font-bold mb-1 text-gray-900">{nextEvent.title}</h4>
                   <div className="text-sm text-gray-600 mb-1">
                     {formatDateLocal(nextEvent.startDate)}
+                    {nextEvent.admissionType === 'ticketed' && nextEvent.startTime && (
+                      <span className="ml-2">| Start: {nextEvent.startTime}</span>
+                    )}
                   </div>
                   {nextEvent.description && (
                     <div className="text-gray-700 text-sm mb-2 line-clamp-3">{nextEvent.description}</div>
                   )}
                   {nextEvent.admissionType === 'ticketed' && (
                     <a
-                      href={`/events/${nextEvent.id}`}
+                      href={`/events/${nextEvent.id}/tickets`}
                       className="button bg-yellow-400 text-gray-900 px-4 py-2 rounded font-semibold text-sm shadow hover:bg-yellow-300 transition mt-2 inline-block"
                     >
                       Buy Tickets

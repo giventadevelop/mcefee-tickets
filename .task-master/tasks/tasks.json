@@ -4,255 +4,213 @@
     "version": "1.5.0",
     "source": ".task-master/PRD.txt",
     "description": "Tasks generated from PRD",
-    "totalTasksGenerated": 20,
-    "tasksIncluded": 20
+    "totalTasksGenerated": 18,
+    "tasksIncluded": 18
   },
   "tasks": [
     {
       "id": 1,
-      "title": "Set up project infrastructure",
-      "description": "Initialize the project structure with Spring Boot backend, React/Next.js frontend, and PostgreSQL database configuration",
+      "title": "Set up shared data models and types",
+      "description": "Create TypeScript definitions for all DTOs to be used across the application.",
       "status": "done",
       "dependencies": [],
       "priority": "high",
-      "details": "Create the initial project structure including:\n- Initialize Spring Boot project with JHipster\n- Set up PostgreSQL database with tenant isolation\n- Configure React/Next.js frontend\n- Set up Clerk authentication integration\n- Configure AWS S3 for media storage\n- Set up development environment",
-      "testStrategy": "Verify that the development environment can be started without errors and all components (frontend, backend, database) are properly connected."
+      "details": "Create the following in src/types/index.ts:\n- EventDetailsDTO\n- EventTicketTypeDTO\n- DiscountCodeDTO\n- EventTicketTransactionDTO\n- Any other supporting interfaces needed for the ticket purchasing flow",
+      "testStrategy": "Verify that all types are properly defined and exported. Ensure they match the backend API specifications."
     },
     {
       "id": 2,
-      "title": "Create database schema for user registration",
-      "description": "Implement database tables and entities for user registration workflow",
+      "title": "Implement Next.js API proxy routes",
+      "description": "Create API routes in Next.js to proxy requests to the backend Spring Boot API.",
       "status": "done",
       "dependencies": [
         1
       ],
       "priority": "high",
-      "details": "Create the following database tables and entities:\n- user_registration_request\n- tenant_organization\n- user_profile\n- event_admin_audit_log\n\nImplement proper relationships and constraints between tables.",
-      "testStrategy": "Verify database schema with test data. Ensure proper tenant isolation and referential integrity."
+      "details": "Create the following API routes:\n- /api/event-details/[id]\n- /api/event-ticket-types (with query param support)\n- /api/discount-codes (with query param support)\n- /api/event-ticket-transactions\n\nEnsure all routes follow the nextjs_api_routes.mdc pattern.",
+      "testStrategy": "Test each API route to ensure it correctly proxies requests to the backend and returns the expected responses."
     },
     {
       "id": 3,
-      "title": "Implement backend for user registration requests",
-      "description": "Create Spring Boot controllers, services, and repositories for user registration workflow",
+      "title": "Create Hero Section with Buy Tickets CTA",
+      "description": "Implement a visually prominent 'Buy Tickets' call-to-action in the event hero section.",
       "status": "done",
-      "dependencies": [
-        2
-      ],
+      "dependencies": [],
       "priority": "high",
-      "details": "Implement the following components:\n- UserRegistrationController.java with endpoints for submitting, retrieving, approving, and rejecting registration requests\n- UserRegistrationRequestEntity.java\n- UserRegistrationRepository.java\n- UserRegistrationService.java with business logic for processing registrations",
-      "testStrategy": "Create unit tests for service layer and integration tests for API endpoints. Test all registration states (PENDING, UNDER_REVIEW, APPROVED, REJECTED)."
+      "details": "- Design and implement a visually appealing hero section\n- Add a prominent 'Buy Tickets' button\n- Ensure the button links to the ticketing page for the selected event\n- Make the component responsive for all device sizes",
+      "testStrategy": "Verify the CTA is visually prominent, responsive, and correctly routes users to the ticketing page."
     },
     {
       "id": 4,
-      "title": "Create user registration request form",
-      "description": "Implement the frontend form for users to request registration to an organization",
+      "title": "Build Ticketing Page layout",
+      "description": "Create the main ticketing page that displays event details and available ticket types.",
       "status": "pending",
       "dependencies": [
-        3
+        1,
+        2
       ],
       "priority": "high",
-      "details": "Create UserRegistrationRequestForm.tsx with:\n- Form fields for personal information (name, email, phone)\n- Address information fields\n- Optional fields for Indian-specific information\n- Profile image upload with AWS S3 integration\n- Request reason text area\n- Form validation\n- Submission handling",
-      "testStrategy": "Test form validation, submission, and error handling. Verify image upload functionality."
+      "details": "- Create page layout with event details section\n- Implement responsive card layout for ticket types\n- Add quantity selectors for each ticket type\n- Include discount code input field\n- Add checkout button\n- Ensure all UI elements follow design guidelines",
+      "testStrategy": "Test the layout on multiple screen sizes. Verify all UI elements are displayed correctly and match the design specifications."
     },
     {
       "id": 5,
-      "title": "Implement admin review interface",
-      "description": "Create admin dashboard for reviewing and processing user registration requests",
+      "title": "Implement ticket selection functionality",
+      "description": "Add functionality to select ticket quantities and update the UI accordingly.",
       "status": "pending",
       "dependencies": [
-        3,
         4
       ],
       "priority": "high",
-      "details": "Create the following components:\n- AdminReviewPanel.tsx for reviewing individual requests\n- BulkApprovalComponent.tsx for processing multiple requests\n- AdminReviewService.ts for API integration\n- Implement filtering and sorting of pending requests\n- Add approval/rejection functionality with comments",
-      "testStrategy": "Test approval and rejection workflows, bulk operations, and filtering functionality."
+      "details": "- Implement quantity selectors for each ticket type\n- Add client-side validation for maximum quantities\n- Update subtotal in real-time as quantities change\n- Disable checkout button when no tickets are selected\n- Follow custom-forms-checkbox-grid.mdc for form elements",
+      "testStrategy": "Test quantity selection with various inputs. Verify real-time updates to subtotal. Test validation for maximum quantities."
     },
     {
       "id": 6,
-      "title": "Implement notification system",
-      "description": "Create notification service for user registration status updates",
+      "title": "Implement discount code functionality",
+      "description": "Add the ability to enter and validate discount codes with real-time price updates.",
       "status": "pending",
       "dependencies": [
-        3,
+        2,
         5
       ],
       "priority": "medium",
-      "details": "Implement NotificationService.ts for:\n- Email notifications for registration submission confirmation\n- Status update notifications (approval/rejection)\n- Admin notifications for new registration requests\n- Integration with email service provider",
-      "testStrategy": "Test email delivery, template rendering, and notification triggers for different scenarios."
+      "details": "- Create discount code input field\n- Implement API call to validate discount codes\n- Update UI to show discount amount when valid code is applied\n- Show appropriate error messages for invalid codes\n- Update total price calculation to include discounts\n- Handle edge cases (expired codes, usage limits, etc.)",
+      "testStrategy": "Test with valid and invalid discount codes. Verify price updates correctly. Test all error cases and edge conditions."
     },
     {
       "id": 7,
-      "title": "Create database schema for event management",
-      "description": "Implement database tables and entities for event registration and attendance",
+      "title": "Implement real-time price calculation",
+      "description": "Create a system for calculating and displaying subtotal, discounts, and total in real-time.",
+      "status": "pending",
+      "dependencies": [
+        5,
+        6
+      ],
+      "priority": "medium",
+      "details": "- Implement price calculation logic\n- Update UI components to display subtotal, discount amount, and total\n- Ensure calculations update in real-time as users change selections\n- Format currency values appropriately",
+      "testStrategy": "Test calculations with various ticket combinations and discount scenarios. Verify all displayed values are accurate and update in real-time."
+    },
+    {
+      "id": 8,
+      "title": "Set up Stripe integration",
+      "description": "Integrate with Stripe Checkout for secure payment processing.",
       "status": "pending",
       "dependencies": [
         2
       ],
       "priority": "high",
-      "details": "Create the following database tables and entities:\n- event_details\n- event_attendee\n- event_attendee_guest\n- event_guest_pricing\n- event_organizer\n- event_admin\n- qr_code_usage\n- bulk_operation_log\n\nImplement proper relationships and constraints between tables.",
-      "testStrategy": "Verify database schema with test data. Test relationships between events, attendees, and guests."
-    },
-    {
-      "id": 8,
-      "title": "Implement backend for event management",
-      "description": "Create Spring Boot controllers, services, and repositories for event registration and attendance",
-      "status": "pending",
-      "dependencies": [
-        7
-      ],
-      "priority": "high",
-      "details": "Implement the following components:\n- Event registration endpoints (GET /api/events/public, POST /api/event-attendee/register, etc.)\n- Event management endpoints (GET /api/events/{id}/attendees, POST /api/events/{id}/check-in, etc.)\n- Services for event registration, attendee management, and check-in\n- Repositories for event-related entities",
-      "testStrategy": "Create unit tests for service layer and integration tests for API endpoints. Test all event registration states."
+      "details": "- Set up Stripe client and server libraries\n- Configure environment variables for Stripe API keys\n- Create helper functions for creating Stripe Checkout sessions\n- Implement redirect to Stripe Checkout\n- Handle Stripe callback URLs",
+      "testStrategy": "Test Stripe integration in test mode. Verify successful redirects to Stripe and back to the application."
     },
     {
       "id": 9,
-      "title": "Create event discovery page",
-      "description": "Implement frontend page for browsing available events",
+      "title": "Implement checkout process",
+      "description": "Create the checkout flow to collect user information and initiate payment.",
       "status": "pending",
       "dependencies": [
+        7,
         8
       ],
       "priority": "high",
-      "details": "Create EventDiscoveryPage.tsx with:\n- Event listing with filtering and sorting\n- Event details view\n- Calendar view integration\n- Search functionality\n- Responsive design for mobile and desktop",
-      "testStrategy": "Test filtering, sorting, and search functionality. Verify responsive design on different screen sizes."
+      "details": "- Create checkout form to collect necessary user information\n- Implement client and server-side validation\n- Create transaction record in event_ticket_transaction with pending status\n- Initiate Stripe Checkout session\n- Redirect user to Stripe payment page\n- Follow custom-forms-checkbox-grid.mdc for form elements",
+      "testStrategy": "Test the complete checkout flow. Verify form validation works correctly. Ensure transaction is created with pending status."
     },
     {
       "id": 10,
-      "title": "Implement event registration form",
-      "description": "Create frontend form for registering to events",
+      "title": "Implement Stripe webhook handling",
+      "description": "Create webhook endpoint to process Stripe payment events and update transaction status.",
       "status": "pending",
       "dependencies": [
         8,
         9
       ],
       "priority": "high",
-      "details": "Create EventRegistrationForm.tsx with:\n- Attendee type selection (MEMBER, GUEST, FAMILY)\n- Guest details form for adding guests\n- Special requirements fields\n- Emergency contact information\n- Event-specific fields (transportation, volunteer opportunities)\n- Form validation and submission",
-      "testStrategy": "Test form validation, guest addition functionality, and submission process."
+      "details": "- Create webhook endpoint for Stripe events\n- Implement signature verification for webhook security\n- Handle payment success events\n- Handle payment failure events\n- Update transaction status based on payment events\n- Decrement ticket inventory on successful payment",
+      "testStrategy": "Test webhook with Stripe test events. Verify transaction status updates correctly. Test inventory decrements correctly."
     },
     {
       "id": 11,
-      "title": "Create event organizer dashboard",
-      "description": "Implement dashboard for event organizers to manage events and attendees",
+      "title": "Create confirmation and error pages",
+      "description": "Implement pages to show payment confirmation or errors to users.",
       "status": "pending",
       "dependencies": [
-        8
+        9
       ],
       "priority": "medium",
-      "details": "Create EventOrganizerDashboard.tsx with:\n- Event overview statistics\n- Attendee management panel\n- Check-in functionality\n- QR code generation\n- Bulk operations for attendees\n- Export functionality",
-      "testStrategy": "Test dashboard functionality, attendee management features, and export capabilities."
+      "details": "- Create success confirmation page\n- Create error/cancellation page\n- Implement loading states during payment processing\n- Add clear messaging and next steps for users\n- Include option to retry payment on error/cancel",
+      "testStrategy": "Test both success and error flows. Verify appropriate information is displayed to users."
     },
     {
       "id": 12,
-      "title": "Implement QR code system for check-in",
-      "description": "Create QR code generation and scanning system for event check-in",
+      "title": "Implement ticket issuance",
+      "description": "Create system to issue tickets after successful payment.",
       "status": "pending",
       "dependencies": [
-        8,
-        11
+        10
       ],
       "priority": "medium",
-      "details": "Implement:\n- QRCodeGenerator.tsx for creating attendee QR codes\n- QR code scanning interface for organizers\n- Backend API for validating and processing check-ins\n- Real-time check-in status updates\n- Offline check-in capability",
-      "testStrategy": "Test QR code generation, scanning functionality, and check-in process in both online and offline modes."
+      "details": "- Update event_ticket_transaction status on successful payment\n- Create records in appropriate tables for issued tickets\n- Generate ticket identifiers/barcodes\n- Prepare ticket data for email delivery",
+      "testStrategy": "Verify tickets are correctly issued after payment. Check database records for accuracy."
     },
     {
       "id": 13,
-      "title": "Create mobile-friendly check-in interface",
-      "description": "Implement responsive check-in interface for mobile devices",
+      "title": "Implement email notification system",
+      "description": "Set up email delivery for ticket confirmations and receipts.",
       "status": "pending",
       "dependencies": [
         12
       ],
       "priority": "medium",
-      "details": "Create CheckInInterface.tsx with:\n- Mobile-optimized UI for check-in process\n- Camera integration for QR scanning\n- Quick search for manual check-in\n- Offline mode with sync capability\n- Real-time attendee count updates",
-      "testStrategy": "Test on various mobile devices, verify offline functionality, and test synchronization when coming back online."
+      "details": "- Integrate with email service\n- Design email templates for ticket confirmation\n- Implement email sending logic after successful payment\n- Include ticket details and receipt in email",
+      "testStrategy": "Test email delivery with various ticket scenarios. Verify all information in emails is accurate."
     },
     {
       "id": 14,
-      "title": "Implement analytics and reporting",
-      "description": "Create analytics dashboard and reporting tools for events",
+      "title": "Implement inventory management",
+      "description": "Create system to track and update ticket inventory in real-time.",
       "status": "pending",
       "dependencies": [
-        8,
-        11
+        10
       ],
-      "priority": "medium",
-      "details": "Create:\n- AnalyticsDashboard.tsx with event statistics and charts\n- AttendeeReportsPage.tsx for detailed attendee reports\n- ExportUtilities.ts for exporting data in various formats (CSV, Excel)\n- EventPollComponent.tsx for post-event surveys\n- Implement filtering and date range selection for reports",
-      "testStrategy": "Test report generation, data export functionality, and chart rendering with various data sets."
+      "priority": "high",
+      "details": "- Implement inventory checking before checkout\n- Update inventory after successful payment\n- Handle edge cases like concurrent purchases\n- Implement UI updates for sold-out tickets",
+      "testStrategy": "Test inventory updates with concurrent transactions. Verify sold-out states display correctly."
     },
     {
       "id": 15,
-      "title": "Create database schema for analytics and audit logs",
-      "description": "Implement database tables for tracking user activities and event analytics",
+      "title": "Create admin reporting views",
+      "description": "Implement reporting interfaces for event organizers to track sales and inventory.",
       "status": "pending",
       "dependencies": [
-        7
+        12,
+        14
       ],
-      "priority": "medium",
-      "details": "Create the following database tables:\n- user_payment_transaction (for future paid events)\n- event_poll\n- event_poll_option\n- event_poll_response\n- Ensure proper audit logging across the system",
-      "testStrategy": "Verify database schema with test data. Ensure comprehensive audit logging for all operations."
+      "priority": "low",
+      "details": "- Create admin dashboard for ticket sales\n- Implement reporting on discount code usage\n- Add inventory tracking and alerts\n- Create transaction history view\n- Add export functionality for reports",
+      "testStrategy": "Verify reports show accurate data. Test with various event scenarios and data volumes."
     },
     {
       "id": 16,
-      "title": "Implement event feedback and survey system",
-      "description": "Create system for collecting post-event feedback from attendees",
+      "title": "Implement comprehensive error handling",
+      "description": "Add robust error handling throughout the ticket purchasing flow.",
       "status": "pending",
       "dependencies": [
-        8,
-        15
+        9,
+        10,
+        11,
+        12
       ],
-      "priority": "low",
-      "details": "Implement:\n- Event poll creation interface for organizers\n- Survey distribution system (email, in-app)\n- Survey response collection and storage\n- Survey results analysis and reporting\n- Integration with analytics dashboard",
-      "testStrategy": "Test survey creation, distribution, response collection, and reporting functionality."
+      "priority": "medium",
+      "details": "- Implement client-side error handling\n- Add server-side error handling\n- Create user-friendly error messages\n- Add logging for debugging\n- Handle edge cases like network failures, timeouts, etc.",
+      "testStrategy": "Test various error scenarios. Verify appropriate error messages are displayed. Check logs for debugging information."
     },
     {
       "id": 17,
-      "title": "Optimize for mobile devices",
-      "description": "Ensure responsive design and mobile optimization across all interfaces",
+      "title": "Perform end-to-end testing",
+      "description": "Test the complete ticket purchasing flow from selection to confirmation.",
       "status": "pending",
       "dependencies": [
-        4,
-        9,
-        10,
-        13
-      ],
-      "priority": "medium",
-      "details": "Implement:\n- Responsive design for all forms and pages\n- Mobile-specific UI optimizations\n- Touch-friendly controls\n- Progressive Web App features\n- Offline functionality where appropriate",
-      "testStrategy": "Test on various mobile devices and screen sizes. Verify offline capabilities and touch interactions."
-    },
-    {
-      "id": 18,
-      "title": "Implement waitlist functionality",
-      "description": "Create waitlist system for events that reach capacity",
-      "status": "pending",
-      "dependencies": [
-        8,
-        10
-      ],
-      "priority": "medium",
-      "details": "Implement:\n- Capacity management for events\n- Waitlist registration process\n- Automatic promotion from waitlist when spots open\n- Notification system for waitlist status changes\n- Admin interface for managing waitlists",
-      "testStrategy": "Test capacity limits, waitlist registration, promotion process, and notifications."
-    },
-    {
-      "id": 19,
-      "title": "Create bulk operations for attendee management",
-      "description": "Implement functionality for bulk actions on attendees",
-      "status": "pending",
-      "dependencies": [
-        8,
-        11
-      ],
-      "priority": "low",
-      "details": "Create BulkOperationsPanel.tsx with:\n- Bulk check-in functionality\n- Bulk email to attendees\n- Bulk status changes\n- Bulk export of attendee data\n- Logging of bulk operations",
-      "testStrategy": "Test bulk operations with various data sets, verify logging, and ensure performance with large attendee lists."
-    },
-    {
-      "id": 20,
-      "title": "Implement comprehensive testing",
-      "description": "Create unit, integration, and end-to-end tests for the entire system",
-      "status": "pending",
-      "dependencies": [
-        1,
-        2,
         3,
         4,
         5,
@@ -265,15 +223,23 @@
         12,
         13,
         14,
-        15,
-        16,
-        17,
-        18,
-        19
+        16
       ],
       "priority": "high",
-      "details": "Implement:\n- Unit tests for all services and components\n- Integration tests for API endpoints\n- End-to-end tests for critical user flows\n- Performance testing for high-load scenarios\n- Security testing for authentication and authorization",
-      "testStrategy": "Achieve minimum 80% test coverage. Focus on critical paths for user registration, event registration, and check-in processes."
+      "details": "- Test the complete user journey\n- Verify all components work together correctly\n- Test edge cases and error scenarios\n- Verify database state after transactions\n- Test on multiple browsers and devices",
+      "testStrategy": "Perform manual and automated end-to-end testing of the complete flow. Verify all components integrate correctly."
+    },
+    {
+      "id": 18,
+      "title": "Optimize performance",
+      "description": "Optimize the ticket purchasing flow for speed and reliability.",
+      "status": "pending",
+      "dependencies": [
+        17
+      ],
+      "priority": "low",
+      "details": "- Optimize API calls\n- Implement caching where appropriate\n- Optimize client-side rendering\n- Add loading states for better UX\n- Test and optimize for mobile performance",
+      "testStrategy": "Measure performance metrics before and after optimization. Test on various devices and network conditions."
     }
   ]
 }
