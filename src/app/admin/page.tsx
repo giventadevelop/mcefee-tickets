@@ -1,131 +1,25 @@
 'use client';
 import { EventDetailsDTO, EventTypeDetailsDTO, UserProfileDTO, EventCalendarEntryDTO } from '@/types';
 import React, { useState, useEffect } from 'react';
-import { EventForm, defaultEvent } from '@/components/EventForm';
 import { EventList } from '@/components/EventList';
 import { useAuth } from "@clerk/nextjs";
-import { Modal } from '@/components/Modal';
-import { FaChevronLeft, FaChevronRight, FaUsers, FaPhotoVideo, FaCalendarAlt, FaPlus } from 'react-icons/fa';
+import { FaUsers, FaCalendarAlt, FaPlus } from 'react-icons/fa';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
-  fetchEventsServer,
-  fetchEventTypesServer,
-  createEventServer,
-  updateEventServer,
-  cancelEventServer,
-  createCalendarEventServer,
-  findCalendarEventByEventIdServer,
-  updateCalendarEventForEventServer,
-  deleteCalendarEventForEventServer,
   fetchEventsFilteredServer,
+  fetchEventTypesServer,
+  cancelEventServer,
+  deleteCalendarEventForEventServer,
 } from './ApiServerActions';
 
-// Helper to convert date and time to Google Calendar format
-function toGoogleCalendarDate(date: string, time: string) {
-  // date: '2025-05-21', time: '11:53 PM'
-  if (!date || !time) return '';
-  const [year, month, day] = date.split('-');
-  let [hour, minute] = time.split(':');
-  let ampm = '';
-  if (minute && minute.includes(' ')) {
-    [minute, ampm] = minute.split(' ');
-  }
-  let h = parseInt(hour, 10);
-  if (ampm && ampm.toUpperCase() === 'PM' && h !== 12) h += 12;
-  if (ampm && ampm.toUpperCase() === 'AM' && h === 12) h = 0;
-  return `${year}${month}${day}T${String(h).padStart(2, '0')}${minute}00`;
-}
-
-async function createCalendarEvent(event: EventDetailsDTO, userProfile: UserProfileDTO) {
-  const now = new Date().toISOString();
-  // Use correct Google Calendar date format
-  const start = toGoogleCalendarDate(event.startDate, event.startTime);
-  const end = toGoogleCalendarDate(event.endDate, event.endTime);
-  const text = encodeURIComponent(event.title);
-  const details = encodeURIComponent(event.description || '');
-  const location = encodeURIComponent(event.location || '');
-  const calendarLink = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${start}/${end}&details=${details}&location=${location}`;
-  const calendarEvent: EventCalendarEntryDTO = {
-    calendarProvider: 'GOOGLE',
-    calendarLink,
-    createdAt: now,
-    updatedAt: now,
-    event,
-    createdBy: userProfile,
-  };
-  const res = await fetch('/api/proxy/event-calendar-entries', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(calendarEvent),
-  });
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Failed to create calendar event: ${err}`);
-  }
-  return await res.json();
-}
-
-async function findCalendarEventByEventId(eventId: number): Promise<EventCalendarEntryDTO | null> {
-  const res = await fetch(`/api/proxy/event-calendar-entries?size=1000`);
-  if (!res.ok) return null;
-  const data = await res.json();
-  if (!Array.isArray(data)) return null;
-  return data.find((ce: EventCalendarEntryDTO) => ce.event && ce.event.id === eventId) || null;
-}
-
-async function updateCalendarEventForEvent(event: EventDetailsDTO, userProfile: UserProfileDTO) {
-  if (!event.id) return;
-  const calendarEvent = await findCalendarEventByEventId(event.id);
-  if (!calendarEvent || !calendarEvent.id) return;
-  const now = new Date().toISOString();
-  // Use correct Google Calendar date format
-  const start = toGoogleCalendarDate(event.startDate, event.startTime);
-  const end = toGoogleCalendarDate(event.endDate, event.endTime);
-  const text = encodeURIComponent(event.title);
-  const details = encodeURIComponent(event.description || '');
-  const location = encodeURIComponent(event.location || '');
-  const calendarLink = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${start}/${end}&details=${details}&location=${location}`;
-  const updatedCalendarEvent: EventCalendarEntryDTO = {
-    ...calendarEvent,
-    calendarLink,
-    updatedAt: now,
-    event,
-    createdBy: userProfile,
-  };
-  const res = await fetch(`/api/proxy/event-calendar-entries/${calendarEvent.id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(updatedCalendarEvent),
-  });
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Failed to update calendar event: ${err}`);
-  }
-  return await res.json();
-}
-
-async function deleteCalendarEventForEvent(event: EventDetailsDTO) {
-  if (!event.id) return;
-  const calendarEvent = await findCalendarEventByEventId(event.id);
-  if (!calendarEvent || !calendarEvent.id) return;
-  const res = await fetch(`/api/proxy/event-calendar-entries/${calendarEvent.id}`, {
-    method: 'DELETE',
-  });
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Failed to delete calendar event: ${err}`);
-  }
-}
 
 export default function AdminPage() {
   const { userId } = useAuth();
   const router = useRouter();
-  const [userProfile, setUserProfile] = useState<UserProfileDTO | null>(null);
   const [events, setEvents] = useState<EventDetailsDTO[]>([]);
   const [eventTypes, setEventTypes] = useState<EventTypeDetailsDTO[]>([]);
   const [loading, setLoading] = useState(true);
-  const [formLoading, setFormLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(0);
   const pageSize = 5;
@@ -143,7 +37,6 @@ export default function AdminPage() {
     setLoading(true);
     setError(null);
     try {
-      // Build filter params based on searchField
       const filterParams: any = {
         startDate: searchStartDate,
         endDate: searchEndDate,
@@ -168,36 +61,24 @@ export default function AdminPage() {
 
   useEffect(() => {
     loadAll(page);
-    if (!userId) return;
-    const fetchProfile = async () => {
-      try {
-        const res = await fetch(`/api/proxy/user-profiles/by-user/${userId}`);
-        if (!res.ok) throw new Error('Failed to fetch user profile');
-        const data = await res.json();
-        setUserProfile(Array.isArray(data) ? data[0] : data);
-      } catch (e) {
-        setUserProfile(null);
-      }
-    };
-    fetchProfile();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, userId, searchTitle, searchId, searchCaption, searchField, searchStartDate, searchEndDate, searchAdmissionType, sort]);
+  }, [page, searchTitle, searchId, searchCaption, searchField, searchStartDate, searchEndDate, searchAdmissionType, sort]);
 
   async function handleCancel(event: EventDetailsDTO) {
-    setFormLoading(true);
+    setLoading(true);
     setError(null);
     try {
       await cancelEventServer(event);
       try {
         await deleteCalendarEventForEventServer(event);
       } catch (calendarErr) {
-        setError((prev) => (prev ? prev + '\n' : '') + (calendarErr instanceof Error ? calendarErr.message : String(calendarErr)));
+        setError((prev) => (prev ? prev + '\\n' : '') + (calendarErr instanceof Error ? calendarErr.message : String(calendarErr)));
       }
       await loadAll(page);
     } catch (e: any) {
       setError(e.message || 'Failed to cancel event');
     } finally {
-      setFormLoading(false);
+      setLoading(false);
     }
   }
 
@@ -209,10 +90,17 @@ export default function AdminPage() {
     setPage((p) => p + 1);
   }
 
+  if (!userId) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <p>Loading...</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen p-8">
+    <div className="max-w-5xl mx-auto px-8 py-8">
       <h1 className="text-3xl font-bold text-gray-900 mb-8">Admin Event Management</h1>
-      {/* Dashboard Card with Grid Buttons */}
       <div className="flex justify-center mb-8">
         <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-2xl">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 justify-center">
@@ -227,7 +115,6 @@ export default function AdminPage() {
           </div>
         </div>
       </div>
-      {/* Event Search/Filter Bar */}
       <div className="mb-6">
         <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
           <div className="text-lg font-semibold text-blue-800 mb-4">Search Events</div>
@@ -293,7 +180,6 @@ export default function AdminPage() {
           </div>
         </div>
       </div>
-      {/* After the dashboard card, add the Create Event button aligned right */}
       <div className="flex justify-end mb-6">
         <Link
           href="/admin/events/new"
@@ -306,7 +192,7 @@ export default function AdminPage() {
       {error && <div className="bg-red-50 text-red-500 p-3 rounded mb-4">{error}</div>}
       <div>
         <h2 className="text-xl font-semibold mb-4">All Events</h2>
-        <div className="border rounded p-4 bg-white shadow-sm min-h-[200px]">
+        <div className="bg-white rounded-lg shadow-md p-6">
           <EventList
             events={events}
             eventTypes={eventTypes}

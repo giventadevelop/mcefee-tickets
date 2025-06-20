@@ -1,11 +1,13 @@
 "use client";
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect, useCallback } from "react";
 import { EventMediaDTO, EventDetailsDTO } from "@/types";
-import { FaEdit, FaTrashAlt, FaUsers, FaPhotoVideo, FaCalendarAlt } from 'react-icons/fa';
+import { FaEdit, FaTrashAlt, FaUsers, FaPhotoVideo, FaCalendarAlt, FaSave, FaTimes } from 'react-icons/fa';
 import { deleteMediaServer, editMediaServer } from '../ApiServerActions';
 import { createPortal } from "react-dom";
 import Link from 'next/link';
 import { useRouter, useParams } from "next/navigation";
+import { Modal } from "@/components/Modal";
+import { getTenantId } from '@/lib/env';
 
 // Tooltip component (reuse from MediaClientPage)
 function MediaDetailsTooltip({ media, anchorRect, onClose, onTooltipMouseEnter, onTooltipMouseLeave, tooltipType }: { media: EventMediaDTO | null, anchorRect: DOMRect | null, onClose: () => void, onTooltipMouseEnter: () => void, onTooltipMouseLeave: () => void, tooltipType: 'officialDocs' | 'uploadedMedia' | null }) {
@@ -67,6 +69,219 @@ function MediaDetailsTooltip({ media, anchorRect, onClose, onTooltipMouseEnter, 
   );
 }
 
+interface EditMediaModalProps {
+  media: EventMediaDTO;
+  onClose: () => void;
+  onSave: (updated: Partial<EventMediaDTO>) => void;
+  loading: boolean;
+}
+
+type MediaCheckboxName = 'isPublic' | 'eventFlyer' | 'isEventManagementOfficialDocument' | 'isFeaturedImage' | 'isHeroImage' | 'isActiveHeroImage' | 'isFeaturedVideo';
+
+function EditMediaModal({ media, onClose, onSave, loading }: EditMediaModalProps) {
+  const [form, setForm] = useState<Partial<EventMediaDTO>>(() => ({
+    ...media,
+    isPublic: Boolean(media.isPublic),
+    eventFlyer: Boolean(media.eventFlyer),
+    isEventManagementOfficialDocument: Boolean(media.isEventManagementOfficialDocument),
+    isFeaturedImage: Boolean(media.isFeaturedImage),
+    isHeroImage: Boolean(media.isHeroImage),
+    isActiveHeroImage: Boolean(media.isActiveHeroImage),
+    isFeaturedVideo: Boolean(media.isFeaturedVideo),
+    featuredVideoUrl: media.featuredVideoUrl || '',
+  }));
+
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Prevent double submission
+    if (loading) return;
+
+    try {
+      console.log('Form submitted with values:', form);
+
+      // Clean up the payload
+      const payload = {
+        ...form,
+        updatedAt: new Date().toISOString(),
+        // Remove any undefined/null values
+        ...Object.fromEntries(
+          Object.entries(form)
+            .filter(([_, v]) => v !== undefined && v !== null)
+            .map(([k, v]) => [k, typeof v === 'boolean' ? Boolean(v) : v])
+        ),
+      };
+
+      console.log('Submitting payload:', payload);
+      await onSave(payload);
+    } catch (error) {
+      console.error('Error in form submission:', error);
+    }
+  }, [form, onSave, loading]);
+
+  const handleCheckboxChange = useCallback((name: MediaCheckboxName) => {
+    setForm(prev => {
+      const newValue = !prev[name];
+      console.log(`Toggling ${name} from ${prev[name]} to ${newValue}`);
+      // Special handling for related checkboxes
+      let updates: Partial<EventMediaDTO> = { [name]: newValue };
+
+      // If turning off isHeroImage, also turn off isActiveHeroImage
+      if (name === 'isHeroImage' && !newValue) {
+        updates.isActiveHeroImage = false;
+      }
+      // If turning on isActiveHeroImage, also turn on isHeroImage
+      if (name === 'isActiveHeroImage' && newValue) {
+        updates.isHeroImage = true;
+      }
+      // If turning on isEventManagementOfficialDocument, turn off eventFlyer and isFeaturedImage
+      if (name === 'isEventManagementOfficialDocument' && newValue) {
+        updates.eventFlyer = false;
+        updates.isFeaturedImage = false;
+      }
+      // If turning on eventFlyer or isFeaturedImage, turn off isEventManagementOfficialDocument
+      if ((name === 'eventFlyer' || name === 'isFeaturedImage') && newValue) {
+        updates.isEventManagementOfficialDocument = false;
+      }
+
+      if (name === 'isFeaturedVideo' && !newValue) {
+        updates.featuredVideoUrl = '';
+      }
+
+      return { ...prev, ...updates };
+    });
+  }, []);
+
+  return (
+    <Modal open={true} onClose={onClose} title="Edit Media">
+      <form onSubmit={handleSubmit} className="max-w-5xl mx-auto space-y-6">
+        <div className="space-y-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700" htmlFor="title">
+              Title
+            </label>
+            <input
+              id="title"
+              type="text"
+              value={form.title || ''}
+              onChange={(e) => setForm(prev => ({ ...prev, title: e.target.value }))}
+              className="mt-1 block w-full border border-gray-400 rounded-xl focus:border-blue-500 focus:ring-blue-500 px-4 py-3 text-base"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700" htmlFor="description">
+              Description
+            </label>
+            <textarea
+              id="description"
+              value={form.description || ''}
+              onChange={(e) => setForm(prev => ({ ...prev, description: e.target.value }))}
+              rows={3}
+              className="mt-1 block w-full border border-gray-400 rounded-xl focus:border-blue-500 focus:ring-blue-500 px-4 py-3 text-base"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700" htmlFor="altText">
+              Alt Text
+            </label>
+            <input
+              id="altText"
+              type="text"
+              value={form.altText || ''}
+              onChange={(e) => setForm(prev => ({ ...prev, altText: e.target.value }))}
+              className="mt-1 block w-full border border-gray-400 rounded-xl focus:border-blue-500 focus:ring-blue-500 px-4 py-3 text-base"
+            />
+          </div>
+
+          {form.isFeaturedVideo && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700" htmlFor="featuredVideoUrl">
+                Featured Video URL
+              </label>
+              <input
+                id="featuredVideoUrl"
+                type="text"
+                value={form.featuredVideoUrl || ''}
+                onChange={(e) => setForm(prev => ({ ...prev, featuredVideoUrl: e.target.value }))}
+                className="mt-1 block w-full border border-gray-400 rounded-xl focus:border-blue-500 focus:ring-blue-500 px-4 py-3 text-base"
+                placeholder="https://www.youtube.com/watch?v=..."
+              />
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-4">
+              Media Properties
+            </label>
+            <div className="custom-grid-table mt-4" style={{ gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
+              {[
+                { name: 'isPublic' as const, label: 'Public' },
+                { name: 'eventFlyer' as const, label: 'Event Flyer' },
+                { name: 'isEventManagementOfficialDocument' as const, label: 'Official Doc' },
+                { name: 'isFeaturedImage' as const, label: 'Featured Image' },
+                { name: 'isHeroImage' as const, label: 'Hero Image' },
+                { name: 'isActiveHeroImage' as const, label: 'Active Hero' },
+                { name: 'isFeaturedVideo' as const, label: 'Featured Video' },
+              ].map(({ name, label }) => (
+                <label key={name} className="flex flex-col items-center">
+                  <span className="relative flex items-center justify-center">
+                    <input
+                      type="checkbox"
+                      className="custom-checkbox"
+                      checked={Boolean(form[name])}
+                      onChange={() => handleCheckboxChange(name)}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                    <span className="custom-checkbox-tick">
+                      {Boolean(form[name]) && (
+                        <svg className="w-6 h-6 text-black" fill="none" stroke="currentColor" strokeWidth="4" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l5 5L19 7" />
+                        </svg>
+                      )}
+                    </span>
+                  </span>
+                  <span className="mt-2 text-xs text-center select-none break-words max-w-[6rem]">{label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex justify-end space-x-4 pt-6 border-t">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex items-center justify-center px-6 py-2.5 bg-teal-100 text-teal-800 hover:bg-teal-200 rounded-lg font-medium text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 min-w-[100px] disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={loading}
+          >
+            <FaTimes className="mr-2" />
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            className="flex items-center justify-center px-6 py-2.5 bg-blue-600 text-white hover:bg-blue-700 rounded-lg font-medium text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 min-w-[100px] disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={loading}
+          >
+            {loading ? (
+              'Saving...'
+            ) : (
+              <>
+                <FaSave className="mr-2" />
+                Save
+              </>
+            )}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
 export default function EventMediaListPage() {
   const params = useParams();
   const eventId = params?.id as string;
@@ -75,20 +290,20 @@ export default function EventMediaListPage() {
   const [officialDocsList, setOfficialDocsList] = useState<EventMediaDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [editMedia, setEditMedia] = useState<EventMediaDTO | null>(null);
+  const [editLoading, setEditLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState<number | null>(null);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [tooltipMedia, setTooltipMedia] = useState<EventMediaDTO | null>(null);
+  const [tooltipAnchorRect, setTooltipAnchorRect] = useState<DOMRect | null>(null);
+  const [isTooltipHovered, setIsTooltipHovered] = useState(false);
+  const [tooltipType, setTooltipType] = useState<'officialDocs' | 'uploadedMedia' | null>(null);
   // Pagination and filter state
   const [mediaPage, setMediaPage] = useState(0);
   const mediaPageSize = 10;
   const [showOnlyEventFlyers, setShowOnlyEventFlyers] = useState(false);
   const [officialDocsPage, setOfficialDocsPage] = useState(0);
   const officialDocsPageSize = 10;
-  // Tooltip state
-  const [tooltipMedia, setTooltipMedia] = useState<EventMediaDTO | null>(null);
-  const [tooltipAnchorRect, setTooltipAnchorRect] = useState<DOMRect | null>(null);
-  const [isTooltipHovered, setIsTooltipHovered] = useState(false);
-  const [tooltipType, setTooltipType] = useState<'officialDocs' | 'uploadedMedia' | null>(null);
-  // Edit modal state
-  const [editMedia, setEditMedia] = useState<EventMediaDTO | null>(null);
-  const [editLoading, setEditLoading] = useState(false);
   // Search/filter state for media
   const [searchField, setSearchField] = useState<'title' | 'type'>('title');
   const [searchTitle, setSearchTitle] = useState('');
@@ -141,20 +356,81 @@ export default function EventMediaListPage() {
     }
   }, [isTooltipHovered]);
 
-  async function handleEditSave(updated: Partial<EventMediaDTO>) {
+  // Ensure state updates are batched
+  const handleEditClick = useCallback((media: EventMediaDTO) => {
+    if (editLoading || deleteLoading) return;
+    console.log('Edit icon clicked', media);
+    setEditMedia(media);
+  }, [editLoading, deleteLoading]);
+
+  const handleEditClose = useCallback(() => {
+    if (editLoading) return;
+    console.log('Closing edit modal');
+    setEditMedia(null);
+  }, [editLoading]);
+
+  const handleSaveMedia = useCallback(async (updated: Partial<EventMediaDTO>) => {
     if (!editMedia?.id) return;
     setEditLoading(true);
+    setMessage(null); // Clear previous messages
+
     try {
-      await editMediaServer(editMedia.id, updated);
-      setMediaList((prev) => prev.map(m => m.id === editMedia.id ? { ...m, ...updated } : m));
-      setOfficialDocsList((prev) => prev.map(m => m.id === editMedia.id ? { ...m, ...updated } : m));
-      setEditMedia(null);
-    } catch (err: any) {
-      // Optionally show error
+      console.log('Starting save operation for media:', editMedia.id);
+
+      const cleanedPayload = {
+        ...updated,
+        eventId: Number(eventId),
+        id: editMedia.id,
+        isPublic: Boolean(updated.isPublic),
+        eventFlyer: Boolean(updated.eventFlyer),
+        isEventManagementOfficialDocument: Boolean(updated.isEventManagementOfficialDocument),
+        isFeaturedImage: Boolean(updated.isFeaturedImage),
+        isHeroImage: Boolean(updated.isHeroImage),
+        isActiveHeroImage: Boolean(updated.isActiveHeroImage),
+        isFeaturedVideo: Boolean(updated.isFeaturedVideo),
+        featuredVideoUrl: updated.featuredVideoUrl || '',
+      };
+
+      console.log('Calling editMediaServer with payload:', cleanedPayload);
+      const result = await editMediaServer(editMedia.id, cleanedPayload);
+      console.log('Save result:', result);
+
+      if (result) {
+        const updateList = (prev: EventMediaDTO[]) =>
+          prev.map(m => m.id === editMedia.id ? { ...m, ...result } : m);
+
+        setMediaList(updateList);
+        setOfficialDocsList(updateList);
+        setMessage({ type: 'success', text: 'Media updated successfully' });
+        setEditMedia(null);
+      } else {
+        // Handle cases where result is null or undefined
+        throw new Error('Received an empty response from the server.');
+      }
+    } catch (error) {
+      console.error('handleSaveMedia caught an error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+      setMessage({ type: 'error', text: `Failed to update media: ${errorMessage}` });
     } finally {
+      console.log('Finished save attempt, resetting loading state.');
       setEditLoading(false);
     }
-  }
+  }, [editMedia, eventId, setMessage]);
+
+  const handleDelete = useCallback(async (id: number) => {
+    if (editLoading || deleteLoading) return;
+    setDeleteLoading(id);
+    try {
+      await deleteMediaServer(id);
+      setMediaList((prev: EventMediaDTO[]) => prev.filter((m: EventMediaDTO) => m.id !== id));
+      setOfficialDocsList((prev: EventMediaDTO[]) => prev.filter((m: EventMediaDTO) => m.id !== id));
+      setMessage({ type: 'success', text: 'Media deleted successfully.' });
+    } catch (err: any) {
+      setMessage({ type: 'error', text: `Delete error: ${err.message}` });
+    } finally {
+      setDeleteLoading(null);
+    }
+  }, [editLoading, deleteLoading]);
 
   // Filtering and sorting logic
   function filterAndSortMedia(list: EventMediaDTO[]) {
@@ -196,7 +472,7 @@ export default function EventMediaListPage() {
   const hasNextMediaPage = (mediaPage + 1) * mediaPageSize < filteredMediaList.length;
 
   return (
-    <div className="min-h-screen p-8">
+    <div className="max-w-5xl mx-auto px-8 py-8">
       <div className="flex justify-center mb-8">
         <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-2xl">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 justify-center">
@@ -257,6 +533,27 @@ export default function EventMediaListPage() {
         <div>Loading media files...</div>
       ) : (
         <>
+          {/* Filter Section */}
+          <div className="flex items-center mb-4">
+            <label className="flex items-center space-x-2 cursor-pointer">
+              <span className="relative flex items-center justify-center">
+                <input
+                  type="checkbox"
+                  className="custom-checkbox"
+                  checked={showOnlyEventFlyers}
+                  onChange={(e) => setShowOnlyEventFlyers(e.target.checked)}
+                />
+                <span className="custom-checkbox-tick">
+                  {showOnlyEventFlyers && (
+                    <svg className="w-6 h-6 text-black" fill="none" stroke="currentColor" strokeWidth="4" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l5 5L19 7" />
+                    </svg>
+                  )}
+                </span>
+              </span>
+              <span className="text-sm font-medium text-gray-700">Show only event flyers</span>
+            </label>
+          </div>
           {/* Official Documents Table */}
           <div className="mt-8">
             <div className="mb-2 text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded px-4 py-2">
@@ -267,7 +564,7 @@ export default function EventMediaListPage() {
               <div className="text-gray-500">No official documents uploaded yet.</div>
             ) : (
               <div className="mb-8">
-                <table className="w-full border text-sm relative bg-white rounded shadow-md">
+                <table className="w-full border text-sm relative bg-white rounded shadow-md" onClick={(e) => e.stopPropagation()}>
                   <thead>
                     <tr className="bg-blue-100 font-bold border-b-2 border-blue-300">
                       <th className="p-2 border">Title</th>
@@ -279,18 +576,34 @@ export default function EventMediaListPage() {
                   </thead>
                   <tbody>
                     {pagedOfficialDocs.map((media) => (
-                      <tr key={media.id} className="border-b border-gray-300 relative">
+                      <tr key={media.id} className="border-b border-gray-300 relative" onClick={(e) => e.stopPropagation()}>
                         <td
                           className="p-2 border align-middle relative hover:bg-blue-50 cursor-pointer"
-                          onMouseEnter={e => handleCellMouseEnter(media, e, 'officialDocs')}
-                          onMouseLeave={handleCellMouseLeave}
+                          onMouseEnter={(e) => {
+                            if (!(e.target as HTMLElement).closest('button')) {
+                              handleCellMouseEnter(media, e, 'officialDocs');
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!(e.target as HTMLElement).closest('button')) {
+                              handleCellMouseLeave();
+                            }
+                          }}
                         >
                           {media.title}
                         </td>
                         <td
                           className="p-2 border align-middle relative hover:bg-blue-50 cursor-pointer"
-                          onMouseEnter={e => handleCellMouseEnter(media, e, 'officialDocs')}
-                          onMouseLeave={handleCellMouseLeave}
+                          onMouseEnter={(e) => {
+                            if (!(e.target as HTMLElement).closest('button')) {
+                              handleCellMouseEnter(media, e, 'officialDocs');
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!(e.target as HTMLElement).closest('button')) {
+                              handleCellMouseLeave();
+                            }
+                          }}
                         >
                           {media.eventMediaType}
                         </td>
@@ -312,21 +625,39 @@ export default function EventMediaListPage() {
                           )}
                         </td>
                         <td className="p-2 border align-middle">{media.createdAt ? new Date(media.createdAt).toLocaleString() : ''}</td>
-                        <td className="p-2 border align-middle flex gap-2 items-center justify-center">
+                        <td
+                          className="p-2 border align-middle flex gap-2 items-center justify-center"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                          }}
+                        >
                           <button
                             className="icon-btn icon-btn-edit flex flex-col items-center"
                             title="Edit"
-                            onClick={() => setEditMedia(media)}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleEditClick(media);
+                            }}
+                            disabled={editLoading || deleteLoading === media.id}
                           >
-                            <FaEdit />
+                            <FaEdit className={editLoading && editMedia?.id === media.id ? 'animate-spin' : ''} />
                             <span className="text-[10px] text-gray-600 mt-1">Edit</span>
                           </button>
                           <button
                             className="icon-btn icon-btn-delete flex flex-col items-center"
-                            onClick={() => handleDelete(media.id!)}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              if (confirm('Are you sure you want to delete this media?')) {
+                                handleDelete(media.id!);
+                              }
+                            }}
+                            disabled={editLoading || deleteLoading === media.id}
                             title="Delete"
                           >
-                            <FaTrashAlt />
+                            <FaTrashAlt className={deleteLoading === media.id ? 'animate-spin' : ''} />
                             <span className="text-[10px] text-gray-600 mt-1">Delete</span>
                           </button>
                         </td>
@@ -361,96 +692,11 @@ export default function EventMediaListPage() {
               Mouse over the first 2 columns (Title, Type) to see full details about the item. Use the × button to close the tooltip.
             </div>
             <h2 className="text-lg font-semibold mb-2">Uploaded Media</h2>
-            <div className="flex items-center gap-4 mb-2">
-              <label className="flex items-center gap-2 select-none">
-                <span className="relative flex items-center justify-center">
-                  <input
-                    type="checkbox"
-                    className="custom-checkbox"
-                    checked={showOnlyEventFlyers}
-                    onChange={e => setShowOnlyEventFlyers(e.target.checked)}
-                  />
-                  <span className="custom-checkbox-tick">
-                    {showOnlyEventFlyers && (
-                      <svg className="w-6 h-6 text-black" fill="none" stroke="currentColor" strokeWidth="4" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l5 5L19 7" />
-                      </svg>
-                    )}
-                  </span>
-                </span>
-                <span className="text-sm font-semibold">Show only event flyers</span>
-              </label>
-            </div>
-            {/* Media Search/Filter Bar (moved here) */}
-            <div className="mb-4">
-              <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-4">
-                <div className="text-base font-semibold text-blue-800 mb-2">Search Uploaded Media</div>
-                <div className="flex flex-wrap gap-4 items-end">
-                  <div>
-                    <label className="block text-xs font-semibold mb-1">Search By</label>
-                    <select className="border px-3 py-2 rounded w-40" value={searchField} onChange={e => setSearchField(e.target.value as 'title' | 'type')}>
-                      <option value="title">Title</option>
-                      <option value="type">Type</option>
-                    </select>
-                  </div>
-                  {searchField === 'title' && (
-                    <div>
-                      <label className="block text-xs font-semibold mb-1">Title</label>
-                      <input
-                        type="text"
-                        className="border px-3 py-2 rounded w-48"
-                        value={searchTitle}
-                        onChange={e => setSearchTitle(e.target.value)}
-                        placeholder="Search by title"
-                      />
-                    </div>
-                  )}
-                  {searchField === 'type' && (
-                    <div>
-                      <label className="block text-xs font-semibold mb-1">Type</label>
-                      <input
-                        type="text"
-                        className="border px-3 py-2 rounded w-48"
-                        value={searchType}
-                        onChange={e => setSearchType(e.target.value)}
-                        placeholder="Search by type"
-                      />
-                    </div>
-                  )}
-                  <div>
-                    <label className="block text-xs font-semibold mb-1">Start Date (from)</label>
-                    <input type="date" className="border px-3 py-2 rounded w-40" value={searchStartDate} onChange={e => setSearchStartDate(e.target.value)} />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold mb-1">End Date (to)</label>
-                    <input type="date" className="border px-3 py-2 rounded w-40" value={searchEndDate} onChange={e => setSearchEndDate(e.target.value)} />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold mb-1">Sort By</label>
-                    <select className="border px-3 py-2 rounded w-56" value={sort} onChange={e => setSort(e.target.value as typeof sort)}>
-                      <option value="uploadedAt,desc">Uploaded At (Latest)</option>
-                      <option value="uploadedAt,asc">Uploaded At (Earliest)</option>
-                      <option value="title,asc">Title (A-Z)</option>
-                      <option value="title,desc">Title (Z-A)</option>
-                      <option value="type,asc">Type (A-Z)</option>
-                      <option value="type,desc">Type (Z-A)</option>
-                    </select>
-                  </div>
-                  <button className="ml-auto px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 font-semibold" onClick={() => {
-                    setSearchTitle('');
-                    setSearchType('');
-                    setSearchStartDate('');
-                    setSearchEndDate('');
-                    setSort('uploadedAt,desc');
-                  }}>Clear</button>
-                </div>
-              </div>
-            </div>
             {mediaList.length === 0 ? (
               <div className="text-gray-500">No media uploaded yet.</div>
             ) : (
               <div className="mb-8">
-                <table className="w-full border text-sm relative bg-white rounded shadow-md">
+                <table className="w-full border text-sm relative bg-white rounded shadow-md" onClick={(e) => e.stopPropagation()}>
                   <thead>
                     <tr className="bg-green-100 font-bold border-b-2 border-green-300">
                       <th className="p-2 border">Title</th>
@@ -462,18 +708,34 @@ export default function EventMediaListPage() {
                   </thead>
                   <tbody>
                     {pagedMedia.map((media) => (
-                      <tr key={media.id} className="border-b border-gray-300 relative">
+                      <tr key={media.id} className="border-b border-gray-300 relative" onClick={(e) => e.stopPropagation()}>
                         <td
                           className="p-2 border align-middle relative hover:bg-green-50 cursor-pointer"
-                          onMouseEnter={e => handleCellMouseEnter(media, e, 'uploadedMedia')}
-                          onMouseLeave={handleCellMouseLeave}
+                          onMouseEnter={(e) => {
+                            if (!(e.target as HTMLElement).closest('button')) {
+                              handleCellMouseEnter(media, e, 'uploadedMedia');
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!(e.target as HTMLElement).closest('button')) {
+                              handleCellMouseLeave();
+                            }
+                          }}
                         >
                           {media.title}
                         </td>
                         <td
                           className="p-2 border align-middle relative hover:bg-green-50 cursor-pointer"
-                          onMouseEnter={e => handleCellMouseEnter(media, e, 'uploadedMedia')}
-                          onMouseLeave={handleCellMouseLeave}
+                          onMouseEnter={(e) => {
+                            if (!(e.target as HTMLElement).closest('button')) {
+                              handleCellMouseEnter(media, e, 'uploadedMedia');
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!(e.target as HTMLElement).closest('button')) {
+                              handleCellMouseLeave();
+                            }
+                          }}
                         >
                           {media.eventMediaType}
                         </td>
@@ -495,21 +757,39 @@ export default function EventMediaListPage() {
                           )}
                         </td>
                         <td className="p-2 border align-middle">{media.createdAt ? new Date(media.createdAt).toLocaleString() : ''}</td>
-                        <td className="p-2 border align-middle flex gap-2 items-center justify-center">
+                        <td
+                          className="p-2 border align-middle flex gap-2 items-center justify-center"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                          }}
+                        >
                           <button
                             className="icon-btn icon-btn-edit flex flex-col items-center"
                             title="Edit"
-                            onClick={() => setEditMedia(media)}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleEditClick(media);
+                            }}
+                            disabled={editLoading || deleteLoading === media.id}
                           >
-                            <FaEdit />
+                            <FaEdit className={editLoading && editMedia?.id === media.id ? 'animate-spin' : ''} />
                             <span className="text-[10px] text-gray-600 mt-1">Edit</span>
                           </button>
                           <button
                             className="icon-btn icon-btn-delete flex flex-col items-center"
-                            onClick={() => handleDelete(media.id!)}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              if (confirm('Are you sure you want to delete this media?')) {
+                                handleDelete(media.id!);
+                              }
+                            }}
+                            disabled={editLoading || deleteLoading === media.id}
                             title="Delete"
                           >
-                            <FaTrashAlt />
+                            <FaTrashAlt className={deleteLoading === media.id ? 'animate-spin' : ''} />
                             <span className="text-[10px] text-gray-600 mt-1">Delete</span>
                           </button>
                         </td>
@@ -540,18 +820,29 @@ export default function EventMediaListPage() {
           </div>
         </>
       )}
-      {/* Tooltip Portal */}
+      {editMedia && (
+        <EditMediaModal
+          media={editMedia}
+          onClose={() => setEditMedia(null)}
+          onSave={handleSaveMedia}
+          loading={editLoading}
+        />
+      )}
       {tooltipMedia && tooltipAnchorRect && (
         <MediaDetailsTooltip
           media={tooltipMedia}
           anchorRect={tooltipAnchorRect}
-          onClose={() => setIsTooltipHovered(false)}
+          onClose={() => setTooltipMedia(null)}
           onTooltipMouseEnter={() => setIsTooltipHovered(true)}
           onTooltipMouseLeave={() => setIsTooltipHovered(false)}
           tooltipType={tooltipType}
         />
       )}
-      {/* Edit modal would go here if needed */}
+      {message && (
+        <div className={`fixed bottom-4 right-4 p-4 rounded-md ${message.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+          {message.text}
+        </div>
+      )}
     </div>
   );
 }

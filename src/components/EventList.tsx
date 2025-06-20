@@ -1,10 +1,13 @@
+"use client";
+
 import React, { useState, useEffect } from 'react';
 import type { EventDetailsDTO, EventTypeDetailsDTO, EventCalendarEntryDTO } from '@/types';
-import { FaEdit, FaTrashAlt, FaUpload, FaCalendarDay, FaChevronLeft, FaChevronRight, FaPhotoVideo } from 'react-icons/fa';
+import { FaEdit, FaTrashAlt, FaUpload, FaCalendarDay, FaChevronLeft, FaChevronRight, FaPhotoVideo, FaTicketAlt } from 'react-icons/fa';
 import { TicketTypeManager } from './TicketTypeManager';
 import { Modal } from './Modal';
 import { getTenantId } from '@/lib/env';
 import { formatDateLocal } from '@/lib/date';
+import Link from 'next/link';
 
 interface EventListProps {
   events: EventDetailsDTO[];
@@ -195,15 +198,10 @@ export function EventList({ events, eventTypes: eventTypesProp, onEdit, onCancel
                 </td>
                 <td className="p-2 border text-center align-middle">
                   {event.admissionType === 'ticketed' ? (
-                    <button
-                      className="px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-700 text-xs"
-                      onClick={() => {
-                        setSelectedEventId(event.id ?? null);
-                        setShowTicketTypeModal(true);
-                      }}
-                    >
-                      Manage Ticket Types
-                    </button>
+                    <Link href={`/admin/events/${event.id}/ticket-types/list`} className="inline-block w-full h-full">
+                      <FaTicketAlt className="text-blue-600 hover:text-blue-800 mx-auto w-7 h-7" />
+                      <span className="text-[10px] text-gray-600 mt-1 block font-bold">Manage<br />Ticket Types</span>
+                    </Link>
                   ) : (
                     <span className="text-gray-400 text-xs">—</span>
                   )}
@@ -250,15 +248,6 @@ export function EventList({ events, eventTypes: eventTypesProp, onEdit, onCancel
           })}
         </tbody>
       </table>
-      {/* Modal for TicketTypeManager, rendered outside any form */}
-      {showTicketTypeModal && selectedEventId && (
-        <Modal open={showTicketTypeModal} onClose={() => setShowTicketTypeModal(false)}>
-          <div className="p-4">
-            <h2 className="text-lg font-bold mb-2">Manage Ticket Types</h2>
-            <TicketTypeManager eventId={selectedEventId} />
-          </div>
-        </Modal>
-      )}
       {/* Pagination controls if provided */}
       {(onPrevPage || onNextPage) && (
         <div className="flex justify-between items-center mt-4">

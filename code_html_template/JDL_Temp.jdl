@@ -175,6 +175,8 @@ entity EventTicketType {
     tenantId String maxlength(255),
     name String required maxlength(255),
     description String maxlength(255),
+    isServiceFeeIncluded Boolean,
+    serviceFee BigDecimal,
     price BigDecimal required,
     code String required maxlength(255),
     availableQuantity Integer,
@@ -260,7 +262,9 @@ entity EventMedia {
     altText String maxlength(500),
     displayOrder Integer,
     downloadCount Integer,
-    isFeatured Boolean,
+    is_featured_video Boolean,
+    featuredVideoUrl String maxlength(2048),
+    isFeaturedImage Boolean,
     isHeroImage Boolean,
     isActiveHeroImage Boolean,
     createdAt ZonedDateTime required,
@@ -392,22 +396,19 @@ entity DiscountCode {
     id Long,
     code String required maxlength(50),
     description String maxlength(255),
-    discountType String maxlength(20) required, // PERCENT or FIXED
+    discountType String maxlength(20) required default "PERCENT", // PERCENT or FIXED
     discountValue BigDecimal required,
     maxUses Integer,
-    usesCount Integer,
+    usesCount Integer default "0",
     validFrom ZonedDateTime,
     validTo ZonedDateTime,
-    isActive Boolean,
+    isActive Boolean default "true",
     createdAt ZonedDateTime required,
     updatedAt ZonedDateTime required,
     eventId Long required,
     tenantId String required maxlength(255)
 }
 
-// DiscountCode: code must be unique per eventId and tenantId
-
-// (Removed ManyToMany relationship between EventDetails and DiscountCode)
 
 entity EventScoreCard {
     id Long,

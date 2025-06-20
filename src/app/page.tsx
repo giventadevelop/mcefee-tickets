@@ -54,7 +54,7 @@ async function fetchEventsWithMedia(): Promise<EventWithMedia[]> {
         }
         // If no flyer, try isFeatured
         if (!mediaArray.length) {
-          const featuredRes = await fetch(`${baseUrl}/api/proxy/event-medias?eventId.equals=${event.id}&isFeatured.equals=true&tenantId.equals=${tenantId}`, { cache: 'no-store' });
+          const featuredRes = await fetch(`${baseUrl}/api/proxy/event-medias?eventId.equals=${event.id}&isFeaturedImage.equals=true&tenantId.equals=${tenantId}`, { cache: 'no-store' });
           if (featuredRes.ok) {
             const featuredData = await featuredRes.json();
             mediaArray = Array.isArray(featuredData) ? featuredData : (featuredData ? [featuredData] : []);

@@ -260,7 +260,9 @@ entity EventMedia {
     altText String maxlength(500),
     displayOrder Integer,
     downloadCount Integer,
-    isFeatured Boolean,
+    is_featured_video Boolean,
+    featuredVideoUrl String maxlength(2048),
+    isFeaturedImage Boolean,
     isHeroImage Boolean,
     isActiveHeroImage Boolean,
     createdAt ZonedDateTime required,
@@ -400,8 +402,14 @@ entity DiscountCode {
     validTo ZonedDateTime,
     isActive Boolean,
     createdAt ZonedDateTime required,
-    updatedAt ZonedDateTime required
+    updatedAt ZonedDateTime required,
+    eventId Long required,
+    tenantId String required maxlength(255)
 }
+
+// DiscountCode: code must be unique per eventId and tenantId
+
+// (Removed ManyToMany relationship between EventDetails and DiscountCode)
 
 entity EventScoreCard {
     id Long,
@@ -522,10 +530,6 @@ relationship ManyToOne {
     // Event Live Update relationships
     EventLiveUpdate{event required} to EventDetails,
     EventLiveUpdateAttachment{liveUpdate required} to EventLiveUpdate
-}
-
-relationship ManyToMany {
-    EventDetails{discountCodes} to DiscountCode{events}
 }
 
 // ADDITIONAL VALIDATION RULES (Comments for implementation)

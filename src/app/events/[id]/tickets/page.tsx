@@ -44,13 +44,18 @@ export default function TicketingPage() {
         }
         // 2. If no flyer, try featured
         if (!imageUrl) {
-          const featuredRes = await fetch(`/api/proxy/event-medias?eventId.equals=${eventId}&isFeatured.equals=true`);
-          if (featuredRes.ok) {
-            const featuredData = await featuredRes.json();
-            const featuredArray = Array.isArray(featuredData) ? featuredData : (featuredData ? [featuredData] : []);
-            if (featuredArray.length > 0 && featuredArray[0].fileUrl) {
-              imageUrl = featuredArray[0].fileUrl;
+          // Try to get featured image
+          let featuredImageUrl;
+          try {
+            const featuredRes = await fetch(`/api/proxy/event-medias?eventId.equals=${eventId}&isFeaturedImage.equals=true`);
+            if (featuredRes.ok) {
+              const featuredData = await featuredRes.json();
+              if (Array.isArray(featuredData) && featuredData.length > 0) {
+                featuredImageUrl = featuredData[0].fileUrl;
+              }
             }
+          } catch (error) {
+            console.error('Error fetching featured image:', error);
           }
         }
         // 3. Fallback to default

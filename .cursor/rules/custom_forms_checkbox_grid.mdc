@@ -6,13 +6,24 @@ alwaysApply: false
 # Form Field and Checkbox Styling Standards
 
 - **Page Layout Standards**
-  - Use `max-w-5xl mx-auto px-8 py-8` for main container width and centering (80% width)
-  - Use consistent padding: `px-8 py-8` for outer containers
+  - Use `max-w-5xl mx-auto px-8 py-8` for main page containers to enforce a consistent 80% width and center alignment on desktop views.
+  - This class should be applied to the top-level div inside your page component's return statement.
   - Example:
     ```tsx
     // ✅ DO: Use consistent page layout
     <div className="max-w-5xl mx-auto px-8 py-8">
-      {/* Form content */}
+      {/* All other page content goes here */}
+    </div>
+    ```
+
+- **Content Card Standards**
+  - For containers that wrap main content sections like tables, lists, or forms, use `bg-white rounded-lg shadow-md p-6`.
+  - This ensures a consistent card-based layout within the page, giving content a visually distinct and elevated container.
+  - Example:
+    ```tsx
+    // ✅ DO: Use a styled container for content sections
+    <div className="bg-white rounded-lg shadow-md p-6">
+      {/* Table, list, or form content */}
     </div>
     ```
 
@@ -44,10 +55,11 @@ alwaysApply: false
           className="custom-checkbox"
           checked={isChecked}
           onChange={handleChange}
+          onClick={(e) => e.stopPropagation()}
         />
         <span className="custom-checkbox-tick">
           {isChecked && (
-            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" strokeWidth="4" viewBox="0 0 24 24">
+            <svg className="w-6 h-6 text-black" fill="none" stroke="currentColor" strokeWidth="4" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l5 5L19 7" />
             </svg>
           )}
@@ -68,7 +80,7 @@ alwaysApply: false
   ```css
   /* Required in globals.css */
   .custom-checkbox {
-    @apply h-6 w-6 border-2 border-gray-400 rounded-lg cursor-pointer appearance-none relative;
+    @apply h-6 w-6 border-2 border-gray-400 rounded-lg cursor-pointer appearance-none relative bg-white;
   }
 
   .custom-checkbox:checked {
@@ -80,7 +92,7 @@ alwaysApply: false
   }
 
   .custom-checkbox:checked + .custom-checkbox-tick svg {
-    @apply block text-white;
+    @apply block text-black;
   }
 
   .custom-checkbox:not(:checked) + .custom-checkbox-tick svg {
@@ -118,9 +130,45 @@ alwaysApply: false
 
   // ❌ DON'T: Skip the custom-checkbox class
   <input type="checkbox" className="h-6 w-6 rounded" />
+
+  // ❌ DON'T: Use white checkmark color
+  <svg className="w-6 h-6 text-white" />
   ```
 
 - **References**
   - See `src/styles/globals.css` for CSS implementation
   - See `src/app/admin/events/[id]/media/list/page.tsx` for usage example
   - See `src/app/admin/events/[id]/edit/page.tsx` for reference implementation
+
+- **Button Styling and Icons**
+  - **Standard Buttons:** Use consistent styling for primary and secondary actions.
+  - **Icons:** Use icons from a standard library like `react-icons/fa` to improve usability. Icons should be placed before the text and have a small margin.
+  - **Cancel Button:** Use a distinct, non-destructive style for cancel buttons, such as a light teal background, to differentiate them from confirm actions.
+  - **Example Implementation:**
+    ```tsx
+    // ✅ DO: Use consistent button styling with icons
+    <button
+      type="submit"
+      className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md flex items-center gap-2"
+      disabled={isPending}
+    >
+      <FaSave />
+      {isPending ? 'Saving...' : 'Save Changes'}
+    </button>
+
+    <button
+      type="button"
+      onClick={onClose}
+      className="bg-teal-100 hover:bg-teal-200 text-teal-800 px-4 py-2 rounded-md flex items-center gap-2"
+      disabled={isPending}
+    >
+      <FaTimes />
+      Cancel
+    </button>
+    ```
+  - **Anti-patterns**
+    ```tsx
+    // ❌ DON'T: Use inconsistent colors or miss icons
+    <button className="bg-red-500 text-white">Save</button>
+    <button className="bg-gray-400">Cancel</button>
+    ```

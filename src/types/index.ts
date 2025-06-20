@@ -112,7 +112,7 @@ export interface EventMediaDTO {
   eventMediaType: string;
   storageType: string;
   fileUrl?: string;
-  fileData?: string | null; // base64 string or null
+  fileData?: Uint8Array;
   fileDataContentType?: string;
   contentType?: string;
   fileSize?: number;
@@ -120,17 +120,19 @@ export interface EventMediaDTO {
   eventFlyer?: boolean;
   isEventManagementOfficialDocument?: boolean;
   preSignedUrl?: string;
-  preSignedUrlExpiresAt?: string; // ISO string with offset
+  preSignedUrlExpiresAt?: string;
   altText?: string;
   displayOrder?: number;
   downloadCount?: number;
-  isFeatured?: boolean;
+  isFeaturedVideo?: boolean;
+  featuredVideoUrl?: string;
+  isFeaturedImage?: boolean;
   isHeroImage?: boolean;
   isActiveHeroImage?: boolean;
   eventId?: number;
   uploadedById?: number;
-  createdAt: string; // ISO string with offset
-  updatedAt: string; // ISO string with offset
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface EventCalendarEntryDTO {
@@ -159,6 +161,8 @@ export interface EventTicketTypeDTO {
   tenantId?: string;
   name: string;
   description?: string;
+  isServiceFeeIncluded?: boolean;
+  serviceFee?: number;
   price: number;
   code: string;
   availableQuantity?: number;
@@ -168,6 +172,12 @@ export interface EventTicketTypeDTO {
   updatedAt: string;
   event?: EventDetailsDTO;
 }
+
+/**
+ * DTO for the event ticket type creation form.
+ * Omits fields that are auto-generated or supplied by the system.
+ */
+export type EventTicketTypeFormDTO = Omit<EventTicketTypeDTO, 'id' | 'event' | 'tenantId' | 'createdAt' | 'updatedAt'>;
 
 /**
  * DTO for event attendee registration and management.
@@ -421,7 +431,7 @@ export interface UserRegistrationRequestDTO {
 }
 
 /**
- * DTO for discount code data exchanged with the backend.
+ * DTO for discount codes, matches backend schema.
  */
 export interface DiscountCodeDTO {
   id?: number;
@@ -436,4 +446,6 @@ export interface DiscountCodeDTO {
   isActive?: boolean;
   createdAt: string;
   updatedAt: string;
+  eventId: number;
+  tenantId: string;
 }

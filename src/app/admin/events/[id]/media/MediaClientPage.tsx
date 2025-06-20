@@ -110,7 +110,7 @@ export function MediaClientPage({ eventId, mediaList: initialMediaList, eventDet
   const [popoverUploadedMediaMedia, setPopoverUploadedMediaMedia] = useState<EventMediaDTO | null>(null);
   const [isHeroImage, setIsHeroImage] = useState(false);
   const [isActiveHeroImage, setIsActiveHeroImage] = useState(false);
-  const [isFeatured, setIsFeatured] = useState(false);
+  const [isFeaturedImage, setIsFeaturedImage] = useState(false);
   const [isPublic, setIsPublic] = useState(true);
   const [altText, setAltText] = useState("");
   const [displayOrder, setDisplayOrder] = useState<number | undefined>(undefined);
@@ -169,7 +169,7 @@ export function MediaClientPage({ eventId, mediaList: initialMediaList, eventDet
         isEventManagementOfficialDocument,
         isHeroImage,
         isActiveHeroImage,
-        isFeatured,
+        isFeaturedImage,
         isPublic,
         altText,
         displayOrder,
@@ -360,16 +360,16 @@ export function MediaClientPage({ eventId, mediaList: initialMediaList, eventDet
               <div className="custom-grid-cell">
                 <label className="flex flex-col items-center">
                   <span className="relative flex items-center justify-center">
-                    <input type="checkbox" className="custom-checkbox" checked={!!form.isFeatured} onChange={e => setForm(f => ({ ...f, isFeatured: e.target.checked }))} />
+                    <input type="checkbox" className="custom-checkbox" checked={!!form.isFeaturedImage} onChange={e => setForm(f => ({ ...f, isFeaturedImage: e.target.checked }))} />
                     <span className="custom-checkbox-tick">
-                      {form.isFeatured && (
+                      {form.isFeaturedImage && (
                         <svg className="w-6 h-6 text-black" fill="none" stroke="currentColor" strokeWidth="4" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l5 5L19 7" />
                         </svg>
                       )}
                     </span>
                   </span>
-                  <span className="mt-2 text-xs text-center select-none break-words max-w-[6rem]">Featured</span>
+                  <span className="mt-2 text-xs text-center select-none break-words max-w-[6rem]">Featured Image</span>
                 </label>
               </div>
               <div className="custom-grid-cell">
@@ -604,16 +604,16 @@ export function MediaClientPage({ eventId, mediaList: initialMediaList, eventDet
             <div className="custom-grid-cell">
               <label className="flex flex-col items-center">
                 <span className="relative flex items-center justify-center">
-                  <input type="checkbox" className="custom-checkbox" checked={isFeatured} onChange={e => setIsFeatured(e.target.checked)} />
+                  <input type="checkbox" className="custom-checkbox" checked={isFeaturedImage} onChange={e => setIsFeaturedImage(e.target.checked)} />
                   <span className="custom-checkbox-tick">
-                    {isFeatured && (
+                    {isFeaturedImage && (
                       <svg className="w-6 h-6 text-black" fill="none" stroke="currentColor" strokeWidth="4" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l5 5L19 7" />
                       </svg>
                     )}
                   </span>
                 </span>
-                <span className="mt-2 text-xs text-center select-none break-words max-w-[6rem]">Featured</span>
+                <span className="mt-2 text-xs text-center select-none break-words max-w-[6rem]">Featured Image</span>
               </label>
             </div>
             <div className="custom-grid-cell">

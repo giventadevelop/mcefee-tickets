@@ -1,0 +1,380 @@
+"use client";
+import React, { useState, useTransition, useEffect } from 'react';
+import Link from 'next/link';
+import { FaUsers, FaCalendarAlt, FaEdit, FaTrashAlt, FaPlus, FaSave, FaTimes } from 'react-icons/fa';
+import type { EventDetailsDTO, EventTicketTypeDTO, EventTicketTypeFormDTO } from '@/types';
+import { Modal } from '@/components/Modal';
+import { createTicketTypeServer, updateTicketTypeServer, deleteTicketTypeServer } from './ApiServerActions';
+
+interface ValidationErrors {
+  name?: string;
+  code?: string;
+  description?: string;
+  price?: string;
+  availableQuantity?: string;
+}
+
+interface TicketTypeListClientProps {
+  eventId: string;
+  eventDetails: EventDetailsDTO | null;
+  ticketTypes: EventTicketTypeDTO[];
+}
+
+export default function TicketTypeListClient({ eventId, eventDetails, ticketTypes: initialTicketTypes }: TicketTypeListClientProps) {
+  const [ticketTypes, setTicketTypes] = useState<EventTicketTypeDTO[]>(initialTicketTypes);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
+
+  const [editingTicketType, setEditingTicketType] = useState<EventTicketTypeDTO | null>(null);
+  const [deletingTicketType, setDeletingTicketType] = useState<EventTicketTypeDTO | null>(null);
+
+  const [formData, setFormData] = useState<Partial<EventTicketTypeFormDTO>>({});
+
+  useEffect(() => {
+    if (editingTicketType) {
+      setFormData({
+        name: editingTicketType.name,
+        code: editingTicketType.code,
+        description: editingTicketType.description,
+        price: editingTicketType.price,
+        availableQuantity: editingTicketType.availableQuantity,
+        isServiceFeeIncluded: editingTicketType.isServiceFeeIncluded,
+        serviceFee: editingTicketType.serviceFee,
+        isActive: editingTicketType.isActive,
+      });
+      setIsModalOpen(true);
+    } else {
+      setFormData({
+        name: '',
+        code: '',
+        description: '',
+        price: 0,
+        availableQuantity: 0,
+        isServiceFeeIncluded: false,
+        serviceFee: 0,
+        isActive: true,
+      });
+    }
+  }, [editingTicketType]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value, type } = e.target;
+    const isCheckbox = type === 'checkbox';
+    const checked = isCheckbox ? (e.target as HTMLInputElement).checked : undefined;
+
+    setFormData(prev => ({ ...prev, [name]: isCheckbox ? checked : value }));
+  };
+
+  const handleModalClose = () => {
+    setIsModalOpen(false);
+    setEditingTicketType(null);
+    setValidationErrors({});
+    setError(null);
+  };
+
+  const handleAddNewClick = () => {
+    setEditingTicketType(null);
+    setIsModalOpen(true);
+  };
+
+  const handleEditClick = (ticketType: EventTicketTypeDTO) => {
+    setEditingTicketType(ticketType);
+  };
+
+  const handleDeleteClick = (ticketType: EventTicketTypeDTO) => {
+    setDeletingTicketType(ticketType);
+  };
+
+  const confirmDelete = () => {
+    if (!deletingTicketType) return;
+    startTransition(async () => {
+      const result = await deleteTicketTypeServer(deletingTicketType.id!, eventId);
+      if (result.success) {
+        setTicketTypes(prev => prev.filter(tt => tt.id !== deletingTicketType.id));
+        setDeletingTicketType(null);
+      } else {
+        setError(result.error || "Failed to delete ticket type.");
+      }
+    });
+  };
+
+  const validateForm = (): boolean => {
+    const newErrors: ValidationErrors = {};
+    if (!formData.name?.trim()) newErrors.name = 'Name is required.';
+    if (!formData.code?.trim()) newErrors.code = 'Code is required.';
+    if (!formData.description?.trim()) newErrors.description = 'Description is required.';
+    if (Number(formData.price) <= 0) newErrors.price = 'Price must be greater than zero.';
+    if (Number(formData.availableQuantity) <= 0) newErrors.availableQuantity = 'Available quantity must be greater than zero.';
+
+    setValidationErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validateForm()) return;
+
+    setError(null);
+
+    startTransition(async () => {
+      const result = editingTicketType
+        ? await updateTicketTypeServer(editingTicketType.id!, eventId, formData)
+        : await createTicketTypeServer(eventId, formData as EventTicketTypeFormDTO);
+
+      if (result.success && result.data) {
+        if (editingTicketType) {
+          setTicketTypes(prev => prev.map(tt => tt.id === result.data!.id ? result.data! : tt));
+        } else {
+          setTicketTypes(prev => [...prev, result.data!]);
+        }
+        handleModalClose();
+      } else {
+        setError(result.error || 'An unexpected error occurred.');
+      }
+    });
+  };
+
+  return (
+    <>
+      <div className="flex justify-between items-center mb-6">
+        <div className="flex gap-4">
+          <button className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md">
+            All Ticket Types
+          </button>
+          <button className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-md">
+            Active
+          </button>
+          <button className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-md">
+            Inactive
+          </button>
+        </div>
+        <button
+          onClick={handleAddNewClick}
+          className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-md flex items-center gap-2"
+        >
+          <FaPlus /> Add Ticket Type
+        </button>
+      </div>
+
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Available</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {ticketTypes.map((ticketType) => (
+              <tr key={ticketType.id} className="hover:bg-gray-50">
+                <td className="px-6 py-4 whitespace-nowrap">{ticketType.name}</td>
+                <td className="px-6 py-4 whitespace-nowrap">{ticketType.code}</td>
+                <td className="px-6 py-4 whitespace-nowrap">${ticketType.price}</td>
+                <td className="px-6 py-4 whitespace-nowrap">{ticketType.availableQuantity}</td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="flex items-center justify-center gap-4">
+                    <button onClick={() => handleEditClick(ticketType)} className="flex flex-col items-center text-blue-600 hover:text-blue-800 focus:outline-none">
+                      <FaEdit className="w-7 h-7" />
+                      <span className="text-[10px] text-gray-600 mt-1 block font-bold">Edit</span>
+                    </button>
+                    <button onClick={() => handleDeleteClick(ticketType)} className="flex flex-col items-center text-red-600 hover:text-red-800 focus:outline-none">
+                      <FaTrashAlt className="w-7 h-7" />
+                      <span className="text-[10px] text-gray-600 mt-1 block font-bold">Delete</span>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <Modal open={isModalOpen} onClose={handleModalClose} title={editingTicketType ? "Edit Ticket Type" : "Add Ticket Type"}>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {error && <div className="text-red-500 bg-red-100 p-3 rounded-md">{error}</div>}
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Name</label>
+            <input
+              type="text"
+              name="name"
+              value={formData.name || ''}
+              onChange={handleInputChange}
+              className="mt-1 block w-full border border-gray-400 rounded-xl focus:border-blue-500 focus:ring-blue-500 px-4 py-3 text-base"
+              required
+            />
+            {validationErrors.name && <p className="text-red-500 text-xs mt-1">{validationErrors.name}</p>}
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Code</label>
+            <input
+              type="text"
+              name="code"
+              value={formData.code || ''}
+              onChange={handleInputChange}
+              className="mt-1 block w-full border border-gray-400 rounded-xl focus:border-blue-500 focus:ring-blue-500 px-4 py-3 text-base"
+              required
+            />
+            {validationErrors.code && <p className="text-red-500 text-xs mt-1">{validationErrors.code}</p>}
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Description</label>
+            <textarea
+              name="description"
+              value={formData.description || ''}
+              onChange={handleInputChange}
+              className="mt-1 block w-full border border-gray-400 rounded-xl focus:border-blue-500 focus:ring-blue-500 px-4 py-3 text-base"
+              rows={3}
+            />
+            {validationErrors.description && <p className="text-red-500 text-xs mt-1">{validationErrors.description}</p>}
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Price</label>
+              <input
+                type="number"
+                name="price"
+                value={formData.price || 0}
+                onChange={handleInputChange}
+                className="mt-1 block w-full border border-gray-400 rounded-xl focus:border-blue-500 focus:ring-blue-500 px-4 py-3 text-base"
+                min="0"
+                step="0.01"
+                required
+              />
+              {validationErrors.price && <p className="text-red-500 text-xs mt-1">{validationErrors.price}</p>}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Available Quantity</label>
+              <input
+                type="number"
+                name="availableQuantity"
+                value={formData.availableQuantity || 0}
+                onChange={handleInputChange}
+                className="mt-1 block w-full border border-gray-400 rounded-xl focus:border-blue-500 focus:ring-blue-500 px-4 py-3 text-base"
+                min="0"
+                required
+              />
+              {validationErrors.availableQuantity && <p className="text-red-500 text-xs mt-1">{validationErrors.availableQuantity}</p>}
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Service Fee</label>
+              <input
+                type="number"
+                name="serviceFee"
+                value={formData.serviceFee || 0}
+                onChange={handleInputChange}
+                className="mt-1 block w-full border border-gray-400 rounded-xl focus:border-blue-500 focus:ring-blue-500 px-4 py-3 text-base"
+                min="0"
+                step="0.01"
+              />
+            </div>
+          </div>
+          <div className="flex items-center space-x-8 mt-4">
+            <label className="flex flex-col items-center cursor-pointer">
+              <span className="relative flex items-center justify-center">
+                <input
+                  id="isServiceFeeIncluded"
+                  name="isServiceFeeIncluded"
+                  type="checkbox"
+                  checked={!!formData.isServiceFeeIncluded}
+                  onChange={handleInputChange}
+                  className="custom-checkbox"
+                  onClick={(e) => e.stopPropagation()}
+                />
+                <span className="custom-checkbox-tick">
+                  {formData.isServiceFeeIncluded && (
+                    <svg className="w-6 h-6 text-black" fill="none" stroke="currentColor" strokeWidth="4" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l5 5L19 7" />
+                    </svg>
+                  )}
+                </span>
+              </span>
+              <span className="mt-2 text-xs text-center select-none break-words max-w-[10rem]">
+                Service Fee Included
+              </span>
+            </label>
+
+            <label className="flex flex-col items-center cursor-pointer">
+              <span className="relative flex items-center justify-center">
+                <input
+                  id="isActive"
+                  name="isActive"
+                  type="checkbox"
+                  checked={!!formData.isActive}
+                  onChange={handleInputChange}
+                  className="custom-checkbox"
+                  onClick={(e) => e.stopPropagation()}
+                />
+                <span className="custom-checkbox-tick">
+                  {formData.isActive && (
+                    <svg className="w-6 h-6 text-black" fill="none" stroke="currentColor" strokeWidth="4" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l5 5L19 7" />
+                    </svg>
+                  )}
+                </span>
+              </span>
+              <span className="mt-2 text-xs text-center select-none break-words max-w-[6rem]">
+                Active
+              </span>
+            </label>
+          </div>
+
+          <div className="flex justify-end gap-4 mt-6">
+            <button
+              type="button"
+              onClick={handleModalClose}
+              className="bg-teal-100 hover:bg-teal-200 text-teal-800 px-4 py-2 rounded-md flex items-center gap-2"
+              disabled={isPending}
+            >
+              <FaTimes />
+              Cancel
+            </button>
+            <button
+              type="submit"
+              onClick={handleSubmit}
+              className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md flex items-center gap-2"
+              disabled={isPending}
+            >
+              <FaSave />
+              {isPending ? (editingTicketType ? 'Saving...' : 'Creating...') : (editingTicketType ? 'Save Changes' : 'Create Ticket Type')}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {deletingTicketType && (
+        <Modal open={true} onClose={() => setDeletingTicketType(null)} title="Confirm Deletion">
+          <div className="p-4">
+            <p>Are you sure you want to delete the ticket type: <strong>{deletingTicketType.name}</strong>?</p>
+            {error && <div className="text-red-500 bg-red-100 p-3 rounded-md mt-4">{error}</div>}
+            <div className="flex justify-end gap-4 mt-6">
+              <button
+                onClick={() => setDeletingTicketType(null)}
+                className="bg-teal-100 hover:bg-teal-200 text-teal-800 px-4 py-2 rounded-md flex items-center gap-2"
+                disabled={isPending}
+              >
+                <FaTimes />
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md flex items-center gap-2"
+                disabled={isPending}
+              >
+                <FaTrashAlt />
+                {isPending ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+    </>
+  );
+}

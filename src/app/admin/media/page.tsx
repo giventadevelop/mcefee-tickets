@@ -73,7 +73,7 @@ export default function AdminMediaPage() {
             <tr><td className="font-bold pr-4 border border-gray-400">Public:</td><td className="border border-gray-400">{media.isPublic ? 'Yes' : 'No'}</td></tr>
             <tr><td className="font-bold pr-4 border border-gray-400">Hero Image:</td><td className="border border-gray-400">{media.isHeroImage ? 'Yes' : 'No'}</td></tr>
             <tr><td className="font-bold pr-4 border border-gray-400">Active Hero Image:</td><td className="border border-gray-400">{media.isActiveHeroImage ? 'Yes' : 'No'}</td></tr>
-            <tr><td className="font-bold pr-4 border border-gray-400">Featured:</td><td className="border border-gray-400">{media.isFeatured ? 'Yes' : 'No'}</td></tr>
+            <tr><td className="font-bold pr-4 border border-gray-400">Featured Image:</td><td className="border border-gray-400">{media.isFeaturedImage ? 'Yes' : 'No'}</td></tr>
             <tr><td className="font-bold pr-4 border border-gray-400">Event Flyer:</td><td className="border border-gray-400">{media.eventFlyer ? 'Yes' : 'No'}</td></tr>
             <tr><td className="font-bold pr-4 border border-gray-400">Official Document:</td><td className="border border-gray-400">{media.isEventManagementOfficialDocument ? 'Yes' : 'No'}</td></tr>
             <tr><td className="font-bold pr-4 border border-gray-400">Download Count:</td><td className="border border-gray-400">{media.downloadCount ?? ''}</td></tr>

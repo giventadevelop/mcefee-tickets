@@ -1,8 +1,3 @@
----
-description:
-globs:
-alwaysApply: false
----
 - **Delete Icon Standard (MANDATORY):**
   - For all delete actions, always use `FaTrashAlt` from `react-icons/fa` and the class `icon-btn icon-btn-delete`.
   - **Never use `FaTrash` for delete actions.**
@@ -79,4 +74,33 @@ import { FaEdit, FaTrashAlt, FaUpload } from 'react-icons/fa';
 
 **Rule Maintenance:**
 - Update this rule if the global styles or markup change.
+
+**How to use (Labeled Icons in Tables):**
+```jsx
+// Use a flex column for vertical alignment
+// Set icon size with w-7 h-7 for consistency
+// Add a small, bolded text label below the icon
+import { FaEdit, FaTrashAlt } from 'react-icons/fa';
+
+<button className="flex flex-col items-center text-blue-600 hover:text-blue-800 focus:outline-none" onClick={handleEdit}>
+  <FaEdit className="w-7 h-7" />
+  <span className="text-[10px] text-gray-600 mt-1 block font-bold">Edit</span>
+</button>
+
+<button className="flex flex-col items-center text-red-600 hover:text-red-800 focus:outline-none" onClick={handleDelete}>
+  <FaTrashAlt className="w-7 h-7" />
+  <span className="text-[10px] text-gray-600 mt-1 block font-bold">Delete</span>
+</button>
+```
+- This pattern is preferred for actions within table rows for better clarity.
+
+**How to use (Tooltip/Popover):**
+```jsx
+// Place a note above the table:
+// ... existing code ...
+// ... existing code ...
+- Example usage: user details tooltip in `src/app/admin/manage-usage/page.tsx`, event details and labeled icons in `src/components/EventList.tsx`
+
+**Rationale:**
+- Guarantees all admin action icons and popovers are visually consistent and easy to maintain.
 

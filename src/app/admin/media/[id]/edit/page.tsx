@@ -61,33 +61,50 @@ export default function EditMediaPage() {
     const now = new Date();
     const formattedNow = format(now, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX");
     // Ensure all required fields are present and non-null, matching backend expectations
-    const fullDto: EventMediaDTO = {
-      id: media.id!,
-      tenantId: media.tenantId || process.env.NEXT_PUBLIC_TENANT_ID || '',
-      title: media.title || '',
+    const initialFormData = {
+      title: media.title,
       description: media.description ?? '',
-      eventMediaType: media.eventMediaType || '',
-      storageType: media.storageType || '',
+      eventMediaType: media.eventMediaType,
+      storageType: media.storageType,
       fileUrl: media.fileUrl ?? '',
-      fileData: null, // always send null for updates
+      fileData: media.fileData ? new Uint8Array(media.fileData) : undefined,
       fileDataContentType: media.fileDataContentType ?? '',
       contentType: media.contentType ?? '',
       fileSize: typeof media.fileSize === 'number' ? media.fileSize : 0,
-      isPublic: media.isPublic ?? true,
+      isPublic: media.isPublic ?? false,
       eventFlyer: media.eventFlyer ?? false,
       isEventManagementOfficialDocument: media.isEventManagementOfficialDocument ?? false,
-      preSignedUrl: media.preSignedUrl ?? '',
-      preSignedUrlExpiresAt: media.preSignedUrlExpiresAt ?? '',
-      altText: media.altText ?? '',
-      displayOrder: typeof media.displayOrder === 'number' ? media.displayOrder : 0,
-      downloadCount: typeof media.downloadCount === 'number' ? media.downloadCount : 0,
-      isFeatured: media.isFeatured ?? false,
       isHeroImage: media.isHeroImage ?? false,
       isActiveHeroImage: media.isActiveHeroImage ?? false,
+      isFeaturedImage: media.isFeaturedImage ?? false,
+      altText: media.altText ?? '',
+      displayOrder: typeof media.displayOrder === 'number' ? media.displayOrder : 0,
+      downloadCount: typeof media.downloadCount === 'number' ? media.downloadCount : 0
+    };
+    const fullDto: EventMediaDTO = {
+      id: media.id!,
+      tenantId: media.tenantId || process.env.NEXT_PUBLIC_TENANT_ID || '',
+      title: initialFormData.title,
+      description: initialFormData.description,
+      eventMediaType: initialFormData.eventMediaType,
+      storageType: initialFormData.storageType,
+      fileUrl: initialFormData.fileUrl,
+      fileData: initialFormData.fileData,
+      fileDataContentType: initialFormData.fileDataContentType,
+      contentType: initialFormData.contentType,
+      fileSize: initialFormData.fileSize,
+      isPublic: initialFormData.isPublic,
+      eventFlyer: initialFormData.eventFlyer,
+      isEventManagementOfficialDocument: initialFormData.isEventManagementOfficialDocument,
+      preSignedUrl: media.preSignedUrl ?? '',
+      preSignedUrlExpiresAt: media.preSignedUrlExpiresAt ?? '',
+      isFeaturedImage: initialFormData.isFeaturedImage,
+      isHeroImage: initialFormData.isHeroImage,
+      isActiveHeroImage: initialFormData.isActiveHeroImage,
       eventId: media.eventId!,
       uploadedById: userProfileId ?? undefined,
       createdAt: media.createdAt || formattedNow,
-      updatedAt: formattedNow,
+      updatedAt: formattedNow
     };
     console.log('PUT EventMediaDTO being sent:', fullDto);
     try {
@@ -197,7 +214,7 @@ export default function EditMediaPage() {
             { name: 'isEventManagementOfficialDocument', label: 'Event Management Official Document', checked: media.isEventManagementOfficialDocument ?? false, id: 'isEventManagementOfficialDocument' },
             { name: 'isHeroImage', label: 'Hero Image', checked: media.isHeroImage ?? false, id: 'isHeroImage' },
             { name: 'isActiveHeroImage', label: 'Active Hero Image', checked: media.isActiveHeroImage ?? false, id: 'isActiveHeroImage' },
-            { name: 'isFeatured', label: 'Featured Image', checked: media.isFeatured ?? false, id: 'isFeatured' },
+            { name: 'isFeaturedImage', label: 'Featured Image', checked: media.isFeaturedImage ?? false, id: 'isFeaturedImage' },
             { name: 'isPublic', label: 'Public', checked: media.isPublic ?? false, id: 'isPublic' },
           ].map(({ name, label, checked, id }) => (
             <div key={id} className="border border-gray-300 flex flex-col items-center justify-center px-3 py-2">

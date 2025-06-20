@@ -2,8 +2,39 @@
 "use server";
 import { getCachedApiJwt, generateApiJwt } from '@/lib/api/jwt';
 import { getTenantId } from '@/lib/env';
+import { UserProfileDTO } from '@/types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+
+async function fetchWithJwt(url: string, options: any = {}) {
+  const { getCachedApiJwt, generateApiJwt } = await import('@/lib/api/jwt');
+  let token = await getCachedApiJwt();
+  let res = await fetch(url, { ...options, headers: { ...options.headers, Authorization: `Bearer ${token}` } });
+
+  if (res.status === 401) {
+    token = await generateApiJwt();
+    res = await fetch(url, { ...options, headers: { ...options.headers, Authorization: `Bearer ${token}` } });
+  }
+  return res;
+}
+
+export async function fetchAllUsersServer(): Promise<UserProfileDTO[]> {
+  const url = `${API_BASE_URL}/api/user-profiles?tenantId.equals=${getTenantId()}`;
+  const res = await fetchWithJwt(url, { cache: 'no-store' });
+  if (!res.ok) return [];
+  return res.json();
+}
+
+export async function fetchAdminProfileServer(userId: string): Promise<UserProfileDTO | null> {
+    if (!userId) return null;
+    const url = `${API_BASE_URL}/api/user-profiles/by-user/${userId}?tenantId.equals=${getTenantId()}`;
+    const res = await fetchWithJwt(url, { cache: 'no-store' });
+    if (res.ok) {
+        const data = await res.json();
+        return Array.isArray(data) ? data[0] : data;
+    }
+    return null;
+}
 
 export async function fetchUsersServer({ search, searchField, status, role, page, pageSize }: {
   search: string;
@@ -37,28 +68,17 @@ export async function fetchUsersServer({ search, searchField, status, role, page
   return await res.json();
 }
 
-export async function patchUserProfileServer(userId: number, payload: any) {
-  let token = await getCachedApiJwt();
-  let res = await fetch(`${API_BASE_URL}/api/user-profiles/${userId}`, {
+export async function patchUserProfileServer(userId: number, payload: Partial<UserProfileDTO>) {
+  const url = `${API_BASE_URL}/api/user-profiles/${userId}`;
+  const res = await fetchWithJwt(url, {
     method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({ ...payload, tenantId: getTenantId() }),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
   });
-  if (res.status === 401) {
-    token = await generateApiJwt();
-    res = await fetch(`${API_BASE_URL}/api/user-profiles/${userId}`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ ...payload, tenantId: getTenantId() }),
-    });
+  if (!res.ok) {
+    throw new Error('Failed to update user profile');
   }
-  return await res.json();
+  return res.json();
 }
 
 export async function bulkUploadUsersServer(users: any[]) {
