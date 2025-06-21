@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useTransition, useEffect } from 'react';
 import Link from 'next/link';
-import { FaUsers, FaCalendarAlt, FaEdit, FaTrashAlt, FaPlus, FaSave, FaTimes } from 'react-icons/fa';
+import { FaUsers, FaCalendarAlt, FaEdit, FaTrashAlt, FaPlus, FaSave, FaTimes, FaBan } from 'react-icons/fa';
 import type { EventDetailsDTO, EventTicketTypeDTO, EventTicketTypeFormDTO } from '@/types';
 import { Modal } from '@/components/Modal';
 import { createTicketTypeServer, updateTicketTypeServer, deleteTicketTypeServer } from './ApiServerActions';
@@ -90,12 +90,16 @@ export default function TicketTypeListClient({ eventId, eventDetails, ticketType
   const confirmDelete = () => {
     if (!deletingTicketType) return;
     startTransition(async () => {
-      const result = await deleteTicketTypeServer(deletingTicketType.id!, eventId);
-      if (result.success) {
-        setTicketTypes(prev => prev.filter(tt => tt.id !== deletingTicketType.id));
-        setDeletingTicketType(null);
-      } else {
-        setError(result.error || "Failed to delete ticket type.");
+      try {
+        const result = await deleteTicketTypeServer(deletingTicketType.id!, eventId);
+        if (result.success) {
+          setTicketTypes(prev => prev.filter(tt => tt.id !== deletingTicketType.id));
+          setDeletingTicketType(null);
+        } else {
+          setError(result.error || "Failed to delete ticket type.");
+        }
+      } catch (err) {
+        setError("An unexpected error occurred during deletion.");
       }
     });
   };
@@ -193,6 +197,33 @@ export default function TicketTypeListClient({ eventId, eventDetails, ticketType
           </tbody>
         </table>
       </div>
+
+      {deletingTicketType && (
+        <Modal open={!!deletingTicketType} onClose={() => setDeletingTicketType(null)} title="Confirm Deletion">
+          <div className="text-center">
+            <p className="text-lg">
+              Are you sure you want to delete the ticket type: <strong>{deletingTicketType.name}</strong>?
+            </p>
+            <p className="text-sm text-gray-500 mt-2">This action cannot be undone.</p>
+            <div className="mt-6 flex justify-center gap-4">
+              <button
+                onClick={() => setDeletingTicketType(null)}
+                className="bg-teal-100 hover:bg-teal-200 text-teal-800 px-4 py-2 rounded-md flex items-center gap-2"
+                disabled={isPending}
+              >
+                <FaBan /> Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md flex items-center gap-2"
+                disabled={isPending}
+              >
+                <FaTrashAlt /> {isPending ? 'Deleting...' : 'Confirm Delete'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
 
       <Modal open={isModalOpen} onClose={handleModalClose} title={editingTicketType ? "Edit Ticket Type" : "Add Ticket Type"}>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -326,14 +357,14 @@ export default function TicketTypeListClient({ eventId, eventDetails, ticketType
             </label>
           </div>
 
-          <div className="flex justify-end gap-4 mt-6">
+          <div className="flex justify-end space-x-4 pt-4">
             <button
               type="button"
               onClick={handleModalClose}
               className="bg-teal-100 hover:bg-teal-200 text-teal-800 px-4 py-2 rounded-md flex items-center gap-2"
               disabled={isPending}
             >
-              <FaTimes />
+              <FaBan />
               Cancel
             </button>
             <button
@@ -348,33 +379,6 @@ export default function TicketTypeListClient({ eventId, eventDetails, ticketType
           </div>
         </form>
       </Modal>
-
-      {deletingTicketType && (
-        <Modal open={true} onClose={() => setDeletingTicketType(null)} title="Confirm Deletion">
-          <div className="p-4">
-            <p>Are you sure you want to delete the ticket type: <strong>{deletingTicketType.name}</strong>?</p>
-            {error && <div className="text-red-500 bg-red-100 p-3 rounded-md mt-4">{error}</div>}
-            <div className="flex justify-end gap-4 mt-6">
-              <button
-                onClick={() => setDeletingTicketType(null)}
-                className="bg-teal-100 hover:bg-teal-200 text-teal-800 px-4 py-2 rounded-md flex items-center gap-2"
-                disabled={isPending}
-              >
-                <FaTimes />
-                Cancel
-              </button>
-              <button
-                onClick={confirmDelete}
-                className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md flex items-center gap-2"
-                disabled={isPending}
-              >
-                <FaTrashAlt />
-                {isPending ? 'Deleting...' : 'Delete'}
-              </button>
-            </div>
-          </div>
-        </Modal>
-      )}
     </>
   );
 }

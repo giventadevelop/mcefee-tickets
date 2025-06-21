@@ -1,0 +1,257 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# UI Component Style Guide
+
+This guide provides standards for creating consistent and maintainable UI components across the application.
+
+---
+
+## 1. Page & Content Layout
+
+### Page Container
+
+- **Rule:** Use `max-w-5xl mx-auto px-8 py-8` for main page containers.
+- **Purpose:** Enforces a consistent 80% width and center alignment on desktop views.
+- **Example:**
+  ```tsx
+  // ✅ DO: Use consistent page layout
+  <div className="max-w-5xl mx-auto px-8 py-8">
+    {/* Page content goes here */}
+  </div>
+  ```
+
+### Content Card
+
+- **Rule:** Use `bg-white rounded-lg shadow-md p-6` for containers that wrap main content sections (tables, forms, etc.).
+- **Purpose:** Creates a consistent, elevated card-based layout for content.
+- **Example:**
+  ```tsx
+  // ✅ DO: Use a styled container for content sections
+  <div className="bg-white rounded-lg shadow-md p-6">
+    {/* Table, list, or form content */}
+  </div>
+  ```
+
+---
+
+## 2. Forms
+
+### Input Fields
+
+- **Rule:** Use the following classes for consistent input field styling.
+- **Example:**
+  ```tsx
+  // ✅ DO: Use consistent input field styling
+  <input
+    type="text"
+    className="mt-1 block w-full border border-gray-400 rounded-xl focus:border-blue-500 focus:ring-blue-500 px-4 py-3 text-base"
+  />
+  ```
+
+### Labels
+
+- **Rule:** Use the following classes for consistent label styling.
+- **Example:**
+  ```tsx
+  // ✅ DO: Use consistent label styling
+  <label className="block text-sm font-medium text-gray-700">
+    Field Label
+  </label>
+  ```
+
+### Checkboxes
+
+- **Rule:** Use the `custom-checkbox` implementation for a larger, more visible checkbox with a custom tick mark.
+- **Click Handling:** Always include `onClick={(e) => e.stopPropagation()}` on the `input` to prevent unintended event bubbling, especially inside clickable table rows or containers.
+- **Example:**
+  ```tsx
+  // ✅ DO: Use consistent checkbox styling with stopPropagation
+  <label className="flex flex-col items-center">
+    <span className="relative flex items-center justify-center">
+      <input
+        type="checkbox"
+        className="custom-checkbox"
+        checked={isChecked}
+        onChange={handleChange}
+        onClick={(e) => e.stopPropagation()}
+      />
+      <span className="custom-checkbox-tick">
+        {isChecked && (
+          <svg className="w-6 h-6 text-black" fill="none" stroke="currentColor" strokeWidth="4" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l5 5L19 7" />
+          </svg>
+        )}
+      </span>
+    </span>
+    <span className="mt-2 text-xs text-center select-none break-words max-w-[6rem]">Checkbox Label</span>
+  </label>
+  ```
+
+- **Checkbox Group Layout:**
+  ```tsx
+  // ✅ DO: Use a CSS grid for checkbox group layout
+  <div className="custom-grid-table mt-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem' }}>
+    {/* Checkbox items */}
+  </div>
+  ```
+
+- **Required CSS (`globals.css`):**
+  ```css
+  .custom-checkbox {
+    @apply h-6 w-6 border-2 border-gray-400 rounded-lg cursor-pointer appearance-none relative bg-white;
+  }
+  .custom-checkbox:checked {
+    @apply bg-blue-600 border-blue-600;
+  }
+  .custom-checkbox-tick {
+    @apply absolute inset-0 flex items-center justify-center pointer-events-none;
+  }
+  ```
+
+---
+
+## 3. Buttons & Icons
+
+### Button Styling
+
+- **Primary Action (Save/Submit):** Blue background.
+- **Secondary Action (Cancel):** Light teal background to be non-destructive.
+- **Example:**
+  ```tsx
+  // ✅ DO: Use consistent button styling with icons
+  <button type="submit" className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md flex items-center gap-2">
+    <FaSave />
+    Save Changes
+  </button>
+
+  <button type="button" className="bg-teal-100 hover:bg-teal-200 text-teal-800 px-4 py-2 rounded-md flex items-center gap-2">
+    <FaBan />
+    Cancel
+  </button>
+  ```
+
+### Standard Action Icons
+
+- **Rule:** Use the following icons from `react-icons/fa` for all common actions to ensure a consistent visual language.
+- **Implementation:** Use `.icon-btn` with a modifier (e.g., `.icon-btn-delete`) for standalone icon buttons.
+
+| Action         | Icon           | Usage                                        |
+| -------------- | -------------- | -------------------------------------------- |
+| **Cancel/Abort**| `<FaBan />`      | Stop a current action (e.g., in a modal).    |
+| **Save**       | `<FaFolderOpen />`| Save or update data.                         |
+| **Delete**     | `<FaTrashAlt />` | **MANDATORY.** Never use `<FaTrash />`.        |
+| **Edit**       | `<FaEdit />`     | Edit an item.                                |
+| **Upload**     | `<FaUpload />`   | Upload a file.                               |
+
+---
+
+## 4. Tooltips
+
+- **Rule:** Use the standardized `DetailsTooltip` component, which renders in a React Portal, for all mouse-over popovers that show detailed information. This prevents the tooltip from being clipped by parent containers with scrollbars.
+- **Trigger:** The tooltip should be triggered on hover of specific table cells. Use a debounced handler to prevent flickering.
+- **User Guidance:** Always place a descriptive note above the table to inform users about the hover behavior.
+
+### Tooltip Implementation
+
+The implementation involves three parts: a portal-based `DetailsTooltip` component, state management, and hover handlers in the parent component.
+
+```typescript
+// 1. The DetailsTooltip Component (renders with createPortal)
+function UserDetailsTooltip({ user, anchorRect, onClose }: { user: UserProfileDTO, anchorRect: DOMRect | null, onClose: () => void }) {
+  if (!anchorRect) return null;
+
+  const style: React.CSSProperties = {
+    position: 'fixed',
+    top: anchorRect.top + window.scrollY + anchorRect.height + 8,
+    left: window.scrollX + anchorRect.left,
+    zIndex: 9999,
+    // ... other styles: background, border, shadow, etc.
+  };
+
+  return ReactDOM.createPortal(
+    <div style={style} onMouseEnter={/*...*/} onMouseLeave={onClose}>
+      {/* ... Tooltip content ... */}
+    </div>,
+    document.body
+  );
+}
+
+
+// 2. State Management in Parent Component
+const [popoverUser, setPopoverUser] = useState<UserProfileDTO | null>(null);
+const [popoverAnchor, setPopoverAnchor] = useState<DOMRect | null>(null);
+const tooltipTimer = useRef<NodeJS.Timeout | null>(null);
+
+// 3. Hover Handlers in Parent (with ~200ms delay)
+<td
+  onMouseEnter={e => {
+    if (tooltipTimer.current) clearTimeout(tooltipTimer.current);
+    setPopoverUser(user);
+    setPopoverAnchor((e.currentTarget as HTMLElement).getBoundingClientRect());
+  }}
+  onMouseLeave={() => {
+    tooltipTimer.current = setTimeout(() => setPopoverUser(null), 200);
+  }}
+>
+  {/* ... cell content ... */}
+</td>
+
+// 4. Render the tooltip and its wrapper
+{popoverUser &&
+  <div
+    onMouseEnter={() => { if (tooltipTimer.current) clearTimeout(tooltipTimer.current); }}
+    onMouseLeave={() => { tooltipTimer.current = setTimeout(() => setPopoverUser(null), 200); }}
+  >
+    <UserDetailsTooltip user={popoverUser} anchorRect={popoverAnchor} onClose={() => setPopoverUser(null)} />
+  </div>
+}
+```
+
+---
+
+## 5. Pagination
+
+- **Rule:** Use the standardized pagination component structure for all paginated lists.
+- **Data:** The `totalCount` of items must be fetched from the backend, typically via an `X-Total-Count` header.
+- **Display:** Show the current page, total pages, and a status message (e.g., "Showing 1 to 10 of 50 items").
+- **Example:**
+  ```tsx
+  // ✅ DO: Implement full pagination with page count and disabled states
+  const totalPages = Math.ceil(totalCount / pageSize);
+
+  <div className="mt-4">
+    <div className="flex justify-between items-center">
+      <button disabled={page <= 1} onClick={onPrevPage} className="...">
+        <FaChevronLeft />
+        Previous
+      </button>
+      <div className="text-sm font-semibold">
+        Page {page} of {totalPages}
+      </div>
+      <button disabled={page >= totalPages} onClick={onNextPage} className="...">
+        Next
+        <FaChevronRight />
+      </button>
+    </div>
+    <div className="text-center text-sm text-gray-600 mt-2">
+      Showing {startItem} to {endItem} of {totalCount} items
+    </div>
+  </div>
+  ```
+
+---
+## References
+- **CSS:** `src/styles/globals.css`
+- **Example Pages:**
+  - `src/app/admin/events/[id]/media/list/page.tsx`
+  - `src/app/admin/manage-usage/page.tsx`
+  - `src/components/EventList.tsx`
+
+
+
+
+
+

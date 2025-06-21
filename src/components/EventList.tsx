@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react';
 import type { EventDetailsDTO, EventTypeDetailsDTO, EventCalendarEntryDTO } from '@/types';
 import { FaEdit, FaTrashAlt, FaUpload, FaCalendarDay, FaChevronLeft, FaChevronRight, FaPhotoVideo, FaTicketAlt } from 'react-icons/fa';
-import { TicketTypeManager } from './TicketTypeManager';
 import { Modal } from './Modal';
 import { getTenantId } from '@/lib/env';
 import { formatDateLocal } from '@/lib/date';
@@ -19,11 +18,25 @@ interface EventListProps {
   onPrevPage?: () => void;
   onNextPage?: () => void;
   page?: number;
-  hasNextPage?: boolean;
+  totalCount?: number;
+  pageSize?: number;
   boldEventIdLabel?: boolean;
 }
 
-export function EventList({ events, eventTypes: eventTypesProp, onEdit, onCancel, loading, showDetailsOnHover = false, onPrevPage, onNextPage, page, hasNextPage, boldEventIdLabel = false }: EventListProps) {
+export function EventList({
+  events,
+  eventTypes: eventTypesProp,
+  onEdit,
+  onCancel,
+  loading,
+  showDetailsOnHover = false,
+  onPrevPage,
+  onNextPage,
+  page = 1,
+  totalCount = 0,
+  pageSize = 10,
+  boldEventIdLabel = false
+}: EventListProps) {
   const [hoveredEventId, setHoveredEventId] = useState<number | null>(null);
   const [calendarEvents, setCalendarEvents] = useState<EventCalendarEntryDTO[]>([]);
   const [eventTypes, setEventTypes] = useState<EventTypeDetailsDTO[]>(eventTypesProp || []);
@@ -79,6 +92,13 @@ export function EventList({ events, eventTypes: eventTypesProp, onEdit, onCancel
 
   if (loading) return <div>Loading events...</div>;
   if (!events.length) return <div>No events found.</div>;
+
+  const totalPages = Math.ceil(totalCount / pageSize);
+  const hasPrevPage = page > 1;
+  const hasNextPage = page < totalPages;
+
+  const startItem = totalCount > 0 ? (page - 1) * pageSize + 1 : 0;
+  const endItem = (page - 1) * pageSize + events.length;
 
   return (
     <>
@@ -210,7 +230,7 @@ export function EventList({ events, eventTypes: eventTypesProp, onEdit, onCancel
                 {showDetailsOnHover && hoveredEventId === event.id && (
                   <td
                     colSpan={8}
-                    style={{ position: 'absolute', left: 10, top: '100%', zIndex: 10, width: '100%' }}
+                    style={{ position: 'absolute', left: 10, top: '50%', zIndex: 10, width: '100%' }}
                   >
                     <div className="bg-white border rounded shadow-lg p-6 text-xs w-max max-w-2xl mx-auto mt-2 relative max-h-96 overflow-auto">
                       <button
@@ -248,28 +268,33 @@ export function EventList({ events, eventTypes: eventTypesProp, onEdit, onCancel
           })}
         </tbody>
       </table>
-      {/* Pagination controls if provided */}
-      {(onPrevPage || onNextPage) && (
-        <div className="flex justify-between items-center mt-4">
+
+      <div className="mt-4">
+        <div className="flex justify-between items-center">
           <button
             onClick={onPrevPage}
-            disabled={!onPrevPage || (page === 0)}
-            className="flex flex-col items-center justify-center w-16 h-12 rounded bg-blue-600 text-white font-bold disabled:opacity-50 hover:bg-blue-700 transition-colors shadow text-base"
+            disabled={!hasPrevPage}
+            className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors"
           >
-            <FaChevronLeft className="mb-1 text-lg" />
-            <span className="text-xs px-4">Previous</span>
+            <FaChevronLeft />
+            Previous
           </button>
-          <span className="font-bold">Page {typeof page === 'number' ? page + 1 : ''}</span>
+          <div className="text-sm font-semibold">
+            Page {page} of {totalPages}
+          </div>
           <button
             onClick={onNextPage}
-            disabled={!onNextPage || !hasNextPage}
-            className="flex flex-col items-center justify-center w-16 h-12 rounded bg-blue-600 text-white font-bold disabled:opacity-50 hover:bg-blue-700 transition-colors shadow text-base"
+            disabled={!hasNextPage}
+            className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors"
           >
-            <FaChevronRight className="mb-1 text-lg" />
-            <span className="text-xs px-4">Next</span>
+            Next
+            <FaChevronRight />
           </button>
         </div>
-      )}
+        <div className="text-center text-sm text-gray-600 mt-2">
+          Showing {startItem} to {endItem} of {totalCount} events
+        </div>
+      </div>
     </>
   );
 }

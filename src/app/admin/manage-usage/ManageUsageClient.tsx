@@ -3,7 +3,7 @@ import { useEffect, useState, useRef } from 'react';
 import type { UserProfileDTO } from '@/types';
 import Link from 'next/link';
 import ReactDOM from 'react-dom';
-import { FaEye, FaCheck, FaEdit, FaTimes, FaUsers, FaPhotoVideo, FaCalendarAlt, FaUpload, FaDownload } from 'react-icons/fa';
+import { FaEye, FaCheck, FaEdit, FaTimes, FaUsers, FaPhotoVideo, FaCalendarAlt, FaUpload, FaDownload, FaBan, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import * as XLSX from 'xlsx';
 import { getTenantId } from '@/lib/env';
 import { fetchUsersServer, patchUserProfileServer, bulkUploadUsersServer } from './ApiServerActions';
@@ -20,36 +20,66 @@ const SEARCH_FIELDS = [
 
 function UserDetailsTooltip({ user, anchorRect, onClose }: { user: UserProfileDTO, anchorRect: DOMRect | null, onClose: () => void }) {
   if (!anchorRect) return null;
-  const tooltipWidth = 400;
-  const left = Math.max(
-    window.scrollX + anchorRect.left + anchorRect.width / 2 - tooltipWidth / 2,
-    16
-  );
+
+  const tooltipWidth = 450;
+  const spacing = 12;
+
+  // Calculate position
+  let top = anchorRect.top;
+  let left;
+
+  // Decide whether to show on the right or left of the anchor
+  const hasSpaceRight = window.innerWidth > anchorRect.right + tooltipWidth + spacing;
+
+  if (hasSpaceRight) {
+    left = anchorRect.right + spacing;
+  } else {
+    left = anchorRect.left - tooltipWidth - spacing;
+  }
+
+  // Clamp position to stay within the viewport
+  const estimatedHeight = 300; // Heuristic average height
+  if (top + estimatedHeight > window.innerHeight) {
+    top = window.innerHeight - estimatedHeight - spacing;
+  }
+  if (top < spacing) {
+    top = spacing;
+  }
+  if (left < spacing) {
+    left = spacing;
+  }
+
   const style: React.CSSProperties = {
     position: 'fixed',
-    top: anchorRect.top + window.scrollY + anchorRect.height + 8,
-    left,
+    top: `${top}px`,
+    left: `${left}px`,
     zIndex: 9999,
     background: 'white',
     border: '1px solid #cbd5e1',
     borderRadius: 8,
     boxShadow: '0 4px 24px rgba(0,0,0,0.15)',
-    padding: 16,
-    minWidth: tooltipWidth,
-    maxWidth: tooltipWidth,
-    fontSize: 14,
-    maxHeight: 400,
+    padding: '16px',
+    width: `${tooltipWidth}px`,
+    fontSize: '14px',
+    maxHeight: '400px',
     overflowY: 'auto',
+    transition: 'opacity 0.1s ease-in-out',
   };
+
   const entries = Object.entries(user);
   return ReactDOM.createPortal(
     <div
       style={style}
-      onMouseEnter={e => e.stopPropagation()}
-      onMouseLeave={onClose}
       tabIndex={-1}
       className="admin-tooltip"
     >
+      <button
+        onClick={onClose}
+        className="absolute top-2 right-2 text-gray-500 hover:text-red-500 text-lg font-bold"
+        aria-label="Close tooltip"
+      >
+        &times;
+      </button>
       <table className="admin-tooltip-table">
         <tbody>
           {entries.map(([key, value]) => (
@@ -193,8 +223,14 @@ function EditUserModal({ user, open, onClose, onSave }: {
             </div>
           </div>
           <div className="flex justify-end gap-2 mt-4">
-            <button type="button" className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300" onClick={onClose}>Cancel</button>
-            <button type="submit" className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700">Save</button>
+            <button type="button" className="bg-teal-100 hover:bg-teal-200 text-teal-800 font-bold px-4 py-2 rounded-md flex items-center gap-2 transition-colors" onClick={onClose}>
+              <FaBan />
+              Cancel
+            </button>
+            <button type="submit" className="px-4 py-2 rounded bg-blue-600 text-white font-bold hover:bg-blue-700 flex items-center gap-2 transition-colors">
+              <FaDownload />
+              Save
+            </button>
           </div>
         </form>
       </div>
@@ -202,6 +238,35 @@ function EditUserModal({ user, open, onClose, onSave }: {
     document.body
   );
 }
+
+const renderRoleBadge = (role: string | null | undefined) => {
+  const baseClasses = 'px-2 py-1 text-xs font-semibold rounded-full';
+  switch (role) {
+    case 'ADMIN':
+      return <span className={`bg-blue-100 text-blue-800 ${baseClasses}`}>Administrator</span>;
+    case 'ORGANIZER':
+      return <span className={`bg-purple-100 text-purple-800 ${baseClasses}`}>Organizer</span>;
+    case 'MEMBER':
+      return <span className={`bg-gray-100 text-gray-800 ${baseClasses}`}>Member</span>;
+    default:
+      return <span className={`bg-gray-100 text-gray-500 italic ${baseClasses}`}>{role || 'Not set'}</span>;
+  }
+};
+
+const renderStatusBadge = (status: string | null | undefined) => {
+  const baseClasses = 'px-2 py-1 text-xs font-semibold rounded-full';
+  switch (status) {
+    case 'ACTIVE':
+    case 'APPROVED':
+      return <span className={`bg-green-100 text-green-800 ${baseClasses}`}>{status}</span>;
+    case 'PENDING_APPROVAL':
+      return <span className={`bg-yellow-100 text-yellow-800 ${baseClasses}`}>Pending</span>;
+    case 'REJECTED':
+      return <span className={`bg-red-100 text-red-800 ${baseClasses}`}>Rejected</span>;
+    default:
+      return <span className={`bg-gray-100 text-gray-500 italic ${baseClasses}`}>{status || 'Not set'}</span>;
+  }
+};
 
 export default function ManageUsageClient({ adminProfile }: { adminProfile: UserProfileDTO | null }) {
   const [users, setUsers] = useState<UserProfileDTO[]>([]);
@@ -223,13 +288,13 @@ export default function ManageUsageClient({ adminProfile }: { adminProfile: User
   const [bulkMessage, setBulkMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [page, setPage] = useState(1); // 1-indexed for UI
-  const pageSize = 20;
+  const pageSize = 10;
 
   // Fetch users (paginated)
   async function fetchUsers() {
     setLoading(true);
     try {
-      const data = await fetchUsersServer({
+      const { data, totalCount } = await fetchUsersServer({
         search,
         searchField,
         status,
@@ -237,27 +302,41 @@ export default function ManageUsageClient({ adminProfile }: { adminProfile: User
         page,
         pageSize,
       });
+
       // Support both pageable and array fallback
       if (Array.isArray(data)) {
         setUsers(data);
-        setTotalUsers(data.length);
+        setTotalUsers(totalCount || data.length);
       } else if (data && Array.isArray(data.content)) {
         setUsers(data.content);
-        setTotalUsers(data.totalElements || data.total || 0);
+        setTotalUsers(totalCount || data.totalElements || data.total || 0);
       } else {
         setUsers([]);
         setTotalUsers(0);
       }
-    } catch (e) {
+    } catch (error) {
+      console.error("Failed to fetch users:", error);
       setUsers([]);
       setTotalUsers(0);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
+
+  const handleNextPage = () => {
+    if (page * pageSize < totalUsers) {
+      setPage(page + 1);
+    }
+  };
+
+  const handlePrevPage = () => {
+    if (page > 1) {
+      setPage(page - 1);
+    }
+  };
 
   useEffect(() => {
     fetchUsers();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, searchField, status, role, page]);
 
   // Helper to build a complete UserProfileDTO for PATCH
@@ -423,8 +502,26 @@ export default function ManageUsageClient({ adminProfile }: { adminProfile: User
     }
   }
 
+  const handleMouseEnter = (user: UserProfileDTO, e: React.MouseEvent) => {
+    if (tooltipTimer.current) {
+      clearTimeout(tooltipTimer.current);
+    }
+    setPopoverUser(user);
+    setPopoverAnchor((e.currentTarget as HTMLElement).getBoundingClientRect());
+  };
+
+  const handleMouseLeave = () => {
+    tooltipTimer.current = setTimeout(() => {
+      setPopoverUser(null);
+    }, 200);
+  };
+
+  const startEntry = (page - 1) * pageSize + 1;
+  const endEntry = Math.min(page * pageSize, totalUsers);
+  const totalPages = Math.ceil(totalUsers / pageSize) || 1;
+
   return (
-    <div className="max-w-6xl mx-auto p-8">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="flex justify-center mb-8">
         <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-2xl">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 justify-center">
@@ -440,350 +537,216 @@ export default function ManageUsageClient({ adminProfile }: { adminProfile: User
           </div>
         </div>
       </div>
-      <h1 className="text-2xl font-bold mb-6">User Management</h1>
-      {/* Bulk Upload Button */}
-      <div className="mb-4 flex items-center gap-4">
-        <button
-          className="icon-btn icon-btn-upload bg-green-600 text-white hover:bg-green-700 font-semibold px-8 py-2 rounded flex items-center gap-2"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={bulkLoading}
-        >
-          <FaUpload className="w-5 h-5 text-white" />
-          <span className="text-white">{bulkLoading ? 'Uploading...' : 'Bulk Upload Users from Excel'}</span>
-        </button>
-        <input
-          type="file"
-          accept=".xlsx"
-          ref={fileInputRef}
-          style={{ display: 'none' }}
-          onChange={handleBulkUpload}
-        />
-        {bulkMessage && (
-          <span className={bulkMessage.startsWith('Bulk upload successful') ? 'text-green-700 font-semibold' : 'text-red-700 font-semibold'}>
-            {bulkMessage}
-          </span>
-        )}
-        <a
-          href="/user-bulk-upload-template.xlsx"
-          download
-          className="icon-btn icon-btn-download bg-blue-600 text-white hover:bg-blue-700 font-semibold px-6 py-2 rounded flex items-center gap-2 ml-2"
-        >
-          <FaDownload className="w-5 h-5" />
-          Download Excel Template for Users list to Upload
-        </a>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Manage Users</h1>
+        <div className="flex items-center gap-2">
+          <button onClick={() => fileInputRef.current?.click()} disabled={bulkLoading} className="h-10 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors disabled:opacity-50">
+            <FaUpload />
+            {bulkLoading ? 'Uploading...' : 'Bulk Upload User List'}
+          </button>
+          <input type="file" ref={fileInputRef} onChange={handleBulkUpload} className="hidden" accept=".xlsx" />
+          <a href={`/api/proxy/user-profiles/download?tenantId.equals=${getTenantId()}`} download="users_template.xlsx" className="h-10 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+            <FaDownload />
+            Download Bulk Upload Template File
+          </a>
+        </div>
       </div>
-      <div className="mb-6">
-        <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
-          <div className="text-lg font-semibold text-blue-800 mb-4">Search Users</div>
-          <div className="flex flex-wrap gap-4 items-end">
+
+      {/* Filter and Action Controls */}
+      <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Search Input */}
+          <div className="flex items-center gap-2">
             <select
-              className="border px-3 py-2 rounded"
               value={searchField}
-              onChange={e => setSearchField(e.target.value)}
+              onChange={(e) => setSearchField(e.target.value)}
+              className="h-10 border-gray-300 dark:border-gray-600 rounded-l-md dark:bg-gray-700 dark:text-white focus:ring-blue-500 focus:border-blue-500"
             >
-              {SEARCH_FIELDS.map(f => (
-                <option key={f.value} value={f.value}>{f.label}</option>
-              ))}
+              {SEARCH_FIELDS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
             </select>
             <input
               type="text"
-              placeholder={`Search by ${SEARCH_FIELDS.find(f => f.value === searchField)?.label.toLowerCase()}`}
-              className="border px-3 py-2 rounded w-64"
+              placeholder={`Search by ${SEARCH_FIELDS.find(f => f.value === searchField)?.label}...`}
               value={search}
-              onChange={e => setSearch(e.target.value)}
+              onChange={(e) => setSearch(e.target.value)}
+              className="block w-full h-10 px-3 border-gray-300 dark:border-gray-600 rounded-r-md dark:bg-gray-700 dark:text-white focus:ring-blue-500 focus:border-blue-500"
             />
-            <select className="border px-3 py-2 rounded" value={status} onChange={e => setStatus(e.target.value)}>
-              <option value="">All Statuses</option>
-              <option value="ACTIVE">Active</option>
-              <option value="PENDING_APPROVAL">Pending Approval</option>
-              <option value="REJECTED">Rejected</option>
-              <option value="APPROVED">Approved</option>
-            </select>
-            <select className="border px-3 py-2 rounded" value={role} onChange={e => setRole(e.target.value)}>
-              <option value="">All Roles</option>
-              <option value="ADMIN">Admin</option>
-              <option value="MEMBER">Member</option>
-              <option value="ORGANIZER">Organizer</option>
-            </select>
-            <button className="ml-auto px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 font-semibold" onClick={() => {
-              setSearch('');
-              setStatus('');
-              setRole('');
-            }}>Clear</button>
           </div>
+
+          {/* Status Filter */}
+          <select
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+            className="block w-full h-10 px-3 border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white focus:ring-blue-500 focus:border-blue-500"
+          >
+            <option value="">All Statuses</option>
+            <option value="ACTIVE">Active</option>
+            <option value="PENDING_APPROVAL">Pending Approval</option>
+            <option value="REJECTED">Rejected</option>
+            <option value="APPROVED">Approved</option>
+          </select>
+
+          {/* Role Filter */}
+          <select
+            value={role}
+            onChange={(e) => setRole(e.target.value)}
+            className="block w-full h-10 px-3 border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white focus:ring-blue-500 focus:border-blue-500"
+          >
+            <option value="">All Roles</option>
+            <option value="ADMIN">Admin</option>
+            <option value="ORGANIZER">Organizer</option>
+            <option value="MEMBER">Member</option>
+          </select>
         </div>
+        {bulkMessage && <p className="mt-2 text-sm text-center text-red-600 dark:text-red-400">{bulkMessage}</p>}
       </div>
-      <div className="text-lg font-semibold text-blue-800 mb-2">Search Users</div>
-      <div className="mb-4">
-        <div className="flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 shadow-sm">
-          <div className="flex-shrink-0 pt-1">
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 20a8 8 0 100-16 8 8 0 000 16z" />
-            </svg>
-          </div>
-          <div className="flex-1 text-blue-900 text-sm md:text-base leading-relaxed">
-            <span className="font-semibold">Tip:</span> Hover your mouse over the <b>First Name</b>, <b>Last Name</b>, <b>Email</b> columns, or the <b>View</b> link in any row to see the full details for that user.<br className="hidden md:block" />
-            <span className="block md:inline">On mobile, tap the card or the <b>View</b> link to view details.</span>
-          </div>
-        </div>
-      </div>
-      <div className="overflow-x-auto">
-        {/* Responsive user list: cards on mobile, table on md+ */}
-        <div className="block md:hidden">
-          <div className="space-y-4">
-            {loading ? (
-              <div className="text-center py-8">Loading...</div>
-            ) : users.length === 0 ? (
-              <div className="text-center py-8">No users found.</div>
-            ) : users.map(user => (
-              <div
-                key={user.id}
-                className="border rounded-lg shadow bg-white p-4 relative"
-                onClick={e => {
-                  setHoveredUserId(user.id!);
-                  setPopoverUser(user);
-                  setPopoverAnchor((e.currentTarget as HTMLElement).getBoundingClientRect());
-                }}
-                onMouseLeave={() => {
-                  tooltipTimer.current = setTimeout(() => {
-                    setHoveredUserId(null);
-                    setPopoverUser(null);
-                    setPopoverAnchor(null);
-                  }, 200);
-                }}
-              >
-                <div className="flex flex-wrap gap-2 items-center justify-between">
-                  <div>
-                    <span className="font-bold">{user.firstName}</span> <span className="text-gray-500">{user.lastName}</span>
-                  </div>
-                  <span className="text-xs text-gray-500">{user.email}</span>
-                </div>
-                <div className="mt-2 flex flex-wrap gap-2 text-sm">
-                  <span className="bg-blue-100 text-blue-700 rounded px-2 py-1">{user.userStatus}</span>
-                  <span className="bg-gray-100 text-gray-700 rounded px-2 py-1">{user.userRole}</span>
-                </div>
-                <div className="mt-2 flex gap-2">
-                  <button
-                    type="button"
-                    tabIndex={0}
-                    className="flex items-center gap-1 text-blue-600 hover:underline bg-transparent border-none p-0 m-0 cursor-pointer focus:outline-none"
-                    style={{ background: 'none' }}
-                    onClick={e => { e.preventDefault(); setHoveredUserId(user.id!); setPopoverUser(user); setPopoverAnchor((e.currentTarget as HTMLElement).getBoundingClientRect()); }}
-                  >
-                    <FaEye className="inline-block" /> <span>View</span>
-                  </button>
-                  <button
-                    className="flex items-center gap-1 text-green-600 hover:underline disabled:opacity-50"
-                    disabled={!adminProfile || approvingId === user.id || user.userStatus === 'approved'}
-                    onClick={() => handleApprove(user)}
-                  >
-                    <FaCheck className="inline-block" />
-                    <span>{approvingId === user.id ? 'Approving...' : 'Approve'}</span>
-                  </button>
-                  <button className="flex items-center gap-1 text-yellow-600 hover:underline"
-                    onClick={() => setEditUser(user)}>
-                    <FaEdit className="inline-block" /> <span>Edit</span>
-                  </button>
-                  <button
-                    className="flex items-center gap-1 text-red-600 hover:underline disabled:opacity-50"
-                    disabled={!adminProfile || rejectingId === user.id || user.userStatus === 'rejected'}
-                    onClick={() => handleReject(user)}
-                  >
-                    <FaTimes className="inline-block" />
-                    <span>{rejectingId === user.id ? 'Rejecting...' : 'Reject'}</span>
-                  </button>
-                </div>
-                {popoverUser && hoveredUserId === user.id && (
-                  <div
-                    onMouseEnter={() => {
-                      if (tooltipTimer.current) clearTimeout(tooltipTimer.current);
-                    }}
-                    onMouseLeave={() => {
-                      tooltipTimer.current = setTimeout(() => {
-                        setHoveredUserId(null);
-                        setPopoverUser(null);
-                        setPopoverAnchor(null);
-                      }, 200);
-                    }}
-                  >
-                    <UserDetailsTooltip user={popoverUser} anchorRect={popoverAnchor} onClose={() => {
-                      setHoveredUserId(null);
-                      setPopoverUser(null);
-                      setPopoverAnchor(null);
-                    }} />
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-        <table className="min-w-full border border-gray-300 bg-white rounded shadow text-sm hidden md:table">
-          <thead>
-            <tr className="bg-blue-100">
-              <th className="border px-3 py-2">First Name</th>
-              <th className="border px-3 py-2">Last Name</th>
-              <th className="border px-3 py-2">Email</th>
-              <th className="border px-3 py-2">Status</th>
-              <th className="border px-3 py-2">Role</th>
-              <th className="border px-3 py-2">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan={6} className="text-center py-8">Loading...</td></tr>
-            ) : users.length === 0 ? (
-              <tr><td colSpan={6} className="text-center py-8">No users found.</td></tr>
-            ) : users.map(user => (
-              <tr key={user.id} className="hover:bg-blue-50">
-                {/* Tooltip on first three columns */}
-                <td
-                  className="border px-3 py-2 cursor-pointer"
-                  onMouseEnter={e => {
-                    if (tooltipTimer.current) clearTimeout(tooltipTimer.current);
-                    setHoveredUserId(user.id!);
-                    setPopoverUser(user);
-                    setPopoverAnchor((e.currentTarget as HTMLElement).getBoundingClientRect());
-                  }}
-                  onMouseLeave={() => {
-                    tooltipTimer.current = setTimeout(() => {
-                      setHoveredUserId(null);
-                      setPopoverUser(null);
-                      setPopoverAnchor(null);
-                    }, 200);
-                  }}
-                >{user.firstName}</td>
-                <td
-                  className="border px-3 py-2 cursor-pointer"
-                  onMouseEnter={e => {
-                    if (tooltipTimer.current) clearTimeout(tooltipTimer.current);
-                    setHoveredUserId(user.id!);
-                    setPopoverUser(user);
-                    setPopoverAnchor((e.currentTarget as HTMLElement).getBoundingClientRect());
-                  }}
-                  onMouseLeave={() => {
-                    tooltipTimer.current = setTimeout(() => {
-                      setHoveredUserId(null);
-                      setPopoverUser(null);
-                      setPopoverAnchor(null);
-                    }, 200);
-                  }}
-                >{user.lastName}</td>
-                <td
-                  className="border px-3 py-2 cursor-pointer"
-                  onMouseEnter={e => {
-                    if (tooltipTimer.current) clearTimeout(tooltipTimer.current);
-                    setHoveredUserId(user.id!);
-                    setPopoverUser(user);
-                    setPopoverAnchor((e.currentTarget as HTMLElement).getBoundingClientRect());
-                  }}
-                  onMouseLeave={() => {
-                    tooltipTimer.current = setTimeout(() => {
-                      setHoveredUserId(null);
-                      setPopoverUser(null);
-                      setPopoverAnchor(null);
-                    }, 200);
-                  }}
-                >{user.email}</td>
-                <td className="border px-3 py-2">{user.userStatus}</td>
-                <td className="border px-3 py-2">{user.userRole}</td>
-                <td className="border px-3 py-2 flex gap-2 items-center">
-                  <span
-                    onMouseEnter={e => {
-                      if (tooltipTimer.current) clearTimeout(tooltipTimer.current);
-                      setHoveredUserId(user.id!);
-                      setPopoverUser(user);
-                      setPopoverAnchor((e.currentTarget as HTMLElement).getBoundingClientRect());
-                    }}
-                    onMouseLeave={() => {
-                      tooltipTimer.current = setTimeout(() => {
-                        setHoveredUserId(null);
-                        setPopoverUser(null);
-                        setPopoverAnchor(null);
-                      }, 200);
-                    }}
-                  >
-                    <button
-                      type="button"
-                      tabIndex={0}
-                      className="flex items-center gap-1 text-blue-600 hover:underline bg-transparent border-none p-0 m-0 cursor-pointer focus:outline-none"
-                      style={{ background: 'none' }}
-                      onClick={e => { e.preventDefault(); }}
-                    >
-                      <FaEye className="inline-block" /> <span>View</span>
-                    </button>
-                  </span>
-                  <button
-                    className="flex items-center gap-1 text-green-600 hover:underline disabled:opacity-50"
-                    disabled={!adminProfile || approvingId === user.id || user.userStatus === 'approved'}
-                    onClick={() => handleApprove(user)}
-                  >
-                    <FaCheck className="inline-block" />
-                    <span>{approvingId === user.id ? 'Approving...' : 'Approve'}</span>
-                  </button>
-                  <button className="flex items-center gap-1 text-yellow-600 hover:underline"
-                    onClick={() => setEditUser(user)}>
-                    <FaEdit className="inline-block" /> <span>Edit</span>
-                  </button>
-                  <button
-                    className="flex items-center gap-1 text-red-600 hover:underline disabled:opacity-50"
-                    disabled={!adminProfile || rejectingId === user.id || user.userStatus === 'rejected'}
-                    onClick={() => handleReject(user)}
-                  >
-                    <FaTimes className="inline-block" />
-                    <span>{rejectingId === user.id ? 'Rejecting...' : 'Reject'}</span>
-                  </button>
-                </td>
+
+      {/* Users Table */}
+      <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead className="bg-gray-50 dark:bg-gray-700">
+              <tr>
+                <th scope="col" className="px-8 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Name</th>
+                <th scope="col" className="px-8 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Contact</th>
+                <th scope="col" className="px-8 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Role</th>
+                <th scope="col" className="px-8 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
+                <th scope="col" className="px-8 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Joined</th>
+                <th scope="col" className="px-8 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-        {/* Pagination controls */}
-        <div className="flex justify-between items-center mt-6">
-          <button
-            onClick={() => setPage(p => Math.max(1, p - 1))}
-            disabled={page === 1}
-            className="px-4 py-2 rounded bg-gray-200 text-gray-700 font-semibold disabled:opacity-50"
-          >
-            Previous
-          </button>
-          <span className="font-bold">
-            Page {page} of {Math.max(1, Math.ceil(totalUsers / pageSize))} &mdash; Showing {users.length} of {totalUsers} users
-          </span>
-          <button
-            onClick={() => setPage(p => (p < Math.ceil(totalUsers / pageSize) ? p + 1 : p))}
-            disabled={page >= Math.ceil(totalUsers / pageSize)}
-            className="px-4 py-2 rounded bg-gray-200 text-gray-700 font-semibold disabled:opacity-50"
-          >
-            Next
-          </button>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200 dark:bg-gray-800 dark:divide-gray-700">
+              {loading && Array.from({ length: pageSize }).map((_, i) => (
+                <tr key={`skel-${i}`}>
+                  <td className="px-8 py-4 whitespace-nowrap"><div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4 animate-pulse"></div></td>
+                  <td className="px-8 py-4 whitespace-nowrap"><div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-full animate-pulse"></div></td>
+                  <td className="px-8 py-4 whitespace-nowrap"><div className="h-6 bg-gray-200 dark:bg-gray-700 rounded-full w-20 animate-pulse"></div></td>
+                  <td className="px-8 py-4 whitespace-nowrap"><div className="h-6 bg-gray-200 dark:bg-gray-700 rounded-full w-20 animate-pulse"></div></td>
+                  <td className="px-8 py-4 whitespace-nowrap"><div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-24 animate-pulse"></div></td>
+                  <td className="px-8 py-4 whitespace-nowrap text-right">
+                    <div className="flex justify-end items-center gap-2">
+                      <div className="h-8 w-8 bg-gray-200 dark:bg-gray-700 rounded-full animate-pulse"></div>
+                      <div className="h-8 w-8 bg-gray-200 dark:bg-gray-700 rounded-full animate-pulse"></div>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {!loading && users.map((user) => (
+                <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                  <td className="px-8 py-4 whitespace-nowrap" onMouseEnter={(e) => handleMouseEnter(user, e)} onMouseLeave={handleMouseLeave}>
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0 h-10 w-10">
+                        <img className="h-10 w-10 rounded-full object-cover" src={user.profileImageUrl || `https://ui-avatars.com/api/?name=${user.firstName}+${user.lastName}&background=random`} alt={`${user.firstName} ${user.lastName}`} />
+                      </div>
+                      <div className="ml-4">
+                        <div className="text-xs font-medium text-gray-900 dark:text-white">{user.firstName} {user.lastName}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">{user.email}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-8 py-4 whitespace-nowrap" onMouseEnter={(e) => handleMouseEnter(user, e)} onMouseLeave={handleMouseLeave}>
+                    <div className="text-xs text-gray-900 dark:text-white">{user.phone}</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">{user.city}, {user.state}</div>
+                  </td>
+                  <td className="px-8 py-4 whitespace-nowrap">{renderRoleBadge(user.userRole)}</td>
+                  <td className="px-8 py-4 whitespace-nowrap">{renderStatusBadge(user.userStatus)}</td>
+                  <td className="px-8 py-4 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
+                    {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
+                  </td>
+                  <td className="px-8 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => setEditUser(user)}
+                        disabled={editLoading && editUser?.id === user.id}
+                        className="p-2 rounded-full text-blue-600 bg-blue-100 hover:bg-blue-200 disabled:opacity-50 transition-colors"
+                        aria-label="Edit User"
+                        title="Edit User"
+                      >
+                        <FaEdit />
+                      </button>
+
+                      <button
+                        onClick={() => handleApprove(user)}
+                        disabled={approvingId === user.id || user.userStatus === 'ACTIVE' || user.userStatus === 'APPROVED'}
+                        className="p-2 rounded-full text-green-600 bg-green-100 hover:bg-green-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        aria-label="Approve User"
+                        title="Approve User"
+                      >
+                        {approvingId === user.id ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600"></div> : <FaCheck />}
+                      </button>
+                      <button
+                        onClick={() => handleReject(user)}
+                        disabled={rejectingId === user.id || user.userStatus === 'REJECTED'}
+                        className="p-2 rounded-full text-red-600 bg-red-100 hover:bg-red-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        aria-label="Reject User"
+                        title="Reject User"
+                      >
+                        {rejectingId === user.id ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div> : <FaTimes />}
+                      </button>
+
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-        {popoverUser && hoveredUserId === popoverUser.id && (
-          <div
-            onMouseEnter={() => {
-              if (tooltipTimer.current) clearTimeout(tooltipTimer.current);
-            }}
-            onMouseLeave={() => {
-              tooltipTimer.current = setTimeout(() => {
-                setHoveredUserId(null);
-                setPopoverUser(null);
-                setPopoverAnchor(null);
-              }, 200);
-            }}
-          >
-            <UserDetailsTooltip user={popoverUser} anchorRect={popoverAnchor} onClose={() => {
-              setHoveredUserId(null);
-              setPopoverUser(null);
-              setPopoverAnchor(null);
-            }} />
+        {/* Pagination Controls */}
+        <div className="mt-4 px-4 py-3 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex justify-between items-center">
+            <button
+              onClick={handlePrevPage}
+              disabled={page <= 1}
+              className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors"
+            >
+              <FaChevronLeft />
+              Previous
+            </button>
+            <div className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+              Page {page} of {totalPages}
+            </div>
+            <button
+              onClick={handleNextPage}
+              disabled={page >= totalPages}
+              className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors"
+            >
+              Next
+              <FaChevronRight />
+            </button>
           </div>
-        )}
+          <div className="text-center text-sm text-gray-600 dark:text-gray-400 mt-2">
+            Showing <span className="font-medium">{startEntry}</span> to <span className="font-medium">{endEntry}</span> of <span className="font-medium">{totalUsers}</span> results
+          </div>
+        </div>
       </div>
-      <EditUserModal
-        user={editUser}
-        open={!!editUser}
-        onClose={() => setEditUser(null)}
-        onSave={handleEditSave}
-      />
+
+      {popoverUser && (
+        <div
+          onMouseEnter={() => {
+            if (tooltipTimer.current) clearTimeout(tooltipTimer.current);
+          }}
+          onMouseLeave={() => {
+            tooltipTimer.current = setTimeout(() => {
+              setPopoverUser(null);
+            }, 200);
+          }}
+        >
+          <UserDetailsTooltip
+            user={popoverUser}
+            anchorRect={popoverAnchor}
+            onClose={() => setPopoverUser(null)}
+          />
+        </div>
+      )}
+
+      {editUser && (
+        <EditUserModal
+          user={editUser}
+          open={!!editUser}
+          onClose={() => setEditUser(null)}
+          onSave={handleEditSave}
+        />
+      )}
     </div>
   );
 }

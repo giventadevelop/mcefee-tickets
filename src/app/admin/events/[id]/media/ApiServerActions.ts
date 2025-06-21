@@ -39,6 +39,51 @@ export async function fetchMediaServer(eventId: string) {
   return Array.isArray(data) ? data : [data];
 }
 
+export async function fetchMediaFilteredServer(
+  eventId: string,
+  page: number = 0,
+  size: number = 10,
+  searchTerm: string = '',
+  eventFlyerOnly: boolean = false
+) {
+  const params = new URLSearchParams({
+    'eventId.equals': eventId,
+    'isEventManagementOfficialDocument.equals': 'false',
+    sort: 'updatedAt,desc',
+    'tenantId.equals': getTenantId(),
+    page: page.toString(),
+    size: size.toString(),
+  });
+
+  if (searchTerm) {
+    params.append('title.contains', searchTerm);
+  }
+
+  if (eventFlyerOnly) {
+    params.append('eventFlyer.equals', 'true');
+  }
+
+  const url = `${API_BASE_URL}/api/event-medias?${params.toString()}`;
+
+  const response = await fetchWithJwtRetry(url, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+  });
+
+  if (!response.ok) {
+    console.error(`Failed to fetch media for event ${eventId}: ${response.statusText}`);
+    return { data: [], totalCount: 0 };
+  }
+
+  const totalCount = parseInt(response.headers.get('X-Total-Count') || '0', 10);
+  const data = await response.json();
+
+  return {
+    data: Array.isArray(data) ? data : [],
+    totalCount,
+  };
+}
+
 export async function fetchEventDetailsServer(eventId: string) {
   const url = `${API_BASE_URL}/api/event-details/${eventId}?tenantId.equals=${getTenantId()}`;
   let token = await getCachedApiJwt();
@@ -105,6 +150,7 @@ export async function uploadMedia(eventId: number, {
   });
 
   const params = new URLSearchParams();
+  params.append('eventId', String(eventId));
   params.append('eventFlyer', String(eventFlyer));
   params.append('isEventManagementOfficialDocument', String(isEventManagementOfficialDocument));
   params.append('isHeroImage', String(isHeroImage));
@@ -238,6 +284,50 @@ export async function editMediaServer(mediaId: number | string, payload: Partial
     console.error('Error in editMediaServer:', error);
     throw error;
   }
+}
+
+export async function uploadMediaServer(params: {
+  eventId: string;
+  files: File[];
+  title: string;
+  description: string;
+  eventFlyer: boolean;
+  isEventManagementOfficialDocument: boolean;
+  isHeroImage: boolean;
+  isActiveHeroImage: boolean;
+  isFeaturedImage: boolean;
+  isPublic: boolean;
+  altText: string;
+  displayOrder?: number;
+  userProfileId?: number | null;
+}) {
+  const { eventId, files, ...rest } = params;
+
+  // Assuming a single file upload for simplicity of infering type,
+  // the backend seems to handle multiple files.
+  // A more robust solution might be needed if multiple file types are uploaded at once.
+  const eventMediaType = files.length > 0 ? inferEventMediaType(files[0]) : 'other';
+
+  const uploadParams: MediaUploadParams = {
+    ...rest,
+    files,
+    eventMediaType,
+    storageType: 's3', // Assuming 's3' as a default
+    fileUrl: '', // This seems to be handled by the backend
+  };
+
+  return await uploadMedia(Number(eventId), uploadParams);
+}
+
+function inferEventMediaType(file: File): string {
+  const ext = file.name.split('.').pop()?.toLowerCase();
+  if (!ext) return 'other';
+  if (["jpg", "jpeg", "png", "gif", "bmp", "webp"].includes(ext)) return "gallery";
+  if (["mp4", "mov", "avi", "webm", "mkv"].includes(ext)) return "video";
+  if (["pdf"].includes(ext)) return "document";
+  if (["doc", "docx", "ppt", "pptx", "xls", "xlsx"].includes(ext)) return "document";
+  if (["svg"].includes(ext)) return "image";
+  return "other";
 }
 
 // Add upload and delete actions as needed

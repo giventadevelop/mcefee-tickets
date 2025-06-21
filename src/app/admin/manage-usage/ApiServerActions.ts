@@ -65,7 +65,9 @@ export async function fetchUsersServer({ search, searchField, status, role, page
       cache: 'no-store',
     });
   }
-  return await res.json();
+  const totalCount = res.headers.get('X-Total-Count');
+  const data = await res.json();
+  return { data, totalCount: totalCount ? parseInt(totalCount, 10) : 0 };
 }
 
 export async function patchUserProfileServer(userId: number, payload: Partial<UserProfileDTO>) {

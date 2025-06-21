@@ -214,45 +214,48 @@ export async function deleteCalendarEventForEventServer(event: EventDetailsDTO) 
   }
 }
 
-export async function fetchEventsFilteredServer({
-  title,
-  caption,
-  id,
-  startDate,
-  endDate,
-  admissionType,
-  sort = 'startDate,asc',
-  pageNum = 0,
-  pageSize = 5,
-}: {
-  title?: string;
-  caption?: string;
-  id?: string;
-  startDate?: string;
-  endDate?: string;
-  admissionType?: string;
-  sort?: string;
-  pageNum?: number;
-  pageSize?: number;
-}): Promise<EventDetailsDTO[]> {
-  const params = new URLSearchParams();
-  params.append('tenantId.equals', getTenantId());
-  if (id) params.append('id.equals', id);
-  if (title) params.append('title.contains', title);
-  if (caption) params.append('caption.contains', caption);
-  if (startDate) params.append('startDate.greaterThanOrEqual', startDate);
-  if (endDate) params.append('endDate.lessThanOrEqual', endDate);
-  if (admissionType) params.append('admissionType.equals', admissionType);
-  params.append('page', String(pageNum));
-  params.append('size', String(pageSize));
-  params.append('sort', sort);
-  const url = `${API_BASE_URL}/api/event-details?${params.toString()}`;
+export async function fetchEventsFilteredServer(params: {
+  title?: string,
+  id?: string,
+  caption?: string,
+  startDate?: string,
+  endDate?: string,
+  admissionType?: string,
+  sort?: string,
+  pageNum?: number,
+  pageSize?: number
+}): Promise<{ events: EventDetailsDTO[], totalCount: number }> {
+  const tenantId = getTenantId();
+  const queryParams = new URLSearchParams({
+    'tenantId.equals': tenantId,
+    page: String(params.pageNum || 0),
+    size: String(params.pageSize || 5),
+    sort: params.sort || 'startDate,asc'
+  });
+
+  if (params.title) queryParams.append('title.contains', params.title);
+  if (params.id) queryParams.append('id.equals', params.id);
+  if (params.caption) queryParams.append('caption.contains', params.caption);
+  if (params.startDate) queryParams.append('startDate.greaterThanOrEqual', params.startDate);
+  if (params.endDate) queryParams.append('endDate.lessThanOrEqual', params.endDate);
+  if (params.admissionType) queryParams.append('admissionType.equals', params.admissionType);
+
+  const url = `${API_BASE_URL}/api/event-details?${queryParams.toString()}`;
+
   let token = await getCachedApiJwt();
-  let res = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' });
+  let res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+
   if (res.status === 401) {
     token = await generateApiJwt();
-    res = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' });
+    res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
   }
-  if (!res.ok) throw new Error('Failed to fetch events');
-  return await res.json();
+
+  if (!res.ok) {
+    throw new Error('Failed to fetch events');
+  }
+
+  const totalCount = Number(res.headers.get('X-Total-Count') || 0);
+  const events: EventDetailsDTO[] = await res.json();
+
+  return { events, totalCount };
 }

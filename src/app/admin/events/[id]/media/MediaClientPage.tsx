@@ -1,7 +1,7 @@
 "use client";
 import React, { useRef, useState, useEffect } from "react";
 import { EventMediaDTO, EventDetailsDTO } from "@/types";
-import { FaEdit, FaTrashAlt, FaUpload, FaFolderOpen, FaSpinner, FaUsers, FaPhotoVideo, FaCalendarAlt } from 'react-icons/fa';
+import { FaEdit, FaTrashAlt, FaUpload, FaFolderOpen, FaSpinner, FaUsers, FaPhotoVideo, FaCalendarAlt, FaBan, FaTicketAlt } from 'react-icons/fa';
 import { uploadMediaServer, deleteMediaServer, editMediaServer } from './ApiServerActions';
 import { createPortal } from "react-dom";
 import Link from 'next/link';
@@ -22,8 +22,8 @@ function MediaDetailsTooltip({ media, anchorRect, onClose, onTooltipMouseEnter, 
   if (!media || !anchorRect) return null;
   // Exclude fileUrl and preSignedUrl
   const entries = Object.entries(media).filter(([key]) => key !== 'fileUrl' && key !== 'preSignedUrl');
-  const tooltipWidth = 400;
-  const thWidth = 140;
+  const tooltipWidth = 480;
+  const thWidth = 168;
   const style: React.CSSProperties = {
     position: 'fixed',
     top: 32,
@@ -63,7 +63,7 @@ function MediaDetailsTooltip({ media, anchorRect, onClose, onTooltipMouseEnter, 
         <tbody>
           {entries.map(([key, value]) => (
             <tr key={key}>
-              <th style={{ textAlign: 'left', width: 140, minWidth: 140, maxWidth: 140, fontWeight: 600, wordBreak: 'break-word', whiteSpace: 'normal', boxSizing: 'border-box' }}>{key}</th>
+              <th style={{ textAlign: 'left', width: thWidth, minWidth: thWidth, maxWidth: thWidth, fontWeight: 600, wordBreak: 'break-word', whiteSpace: 'normal', boxSizing: 'border-box' }}>{key}</th>
               <td style={{ textAlign: 'left', width: 'auto' }}>{
                 typeof value === 'boolean' ? (value ? 'Yes' : 'No') :
                   value instanceof Date ? value.toLocaleString() :
@@ -253,20 +253,20 @@ export function MediaClientPage({ eventId, mediaList: initialMediaList, eventDet
   }, [isTooltipHovered]);
 
   async function handleEditSave(updated: Partial<EventMediaDTO>) {
-    if (!editMedia?.id) return;
+    if (!editMedia || !editMedia.id) return;
     setEditLoading(true);
     try {
       await editMediaServer(editMedia.id, updated);
-      // Update both lists as appropriate
-      if (editMedia.isEventManagementOfficialDocument) {
-        setOfficialDocsList((prev) => prev.map(m => m.id === editMedia.id ? { ...m, ...updated } : m));
-      } else {
-        setMediaList((prev) => prev.map(m => m.id === editMedia.id ? { ...m, ...updated } : m));
-      }
-      setEditMedia(null);
+      setMediaList((prev) =>
+        prev.map((m) => (m.id === editMedia.id ? { ...m, ...updated } : m))
+      );
+      setOfficialDocsList((prev) =>
+        prev.map((m) => (m.id === editMedia.id ? { ...m, ...updated } : m))
+      );
+      setEditMedia(null); // Close modal on success
       setMessage('Media updated successfully.');
     } catch (err: any) {
-      setMessage('Edit error: ' + err.message);
+      setMessage(`Error updating media: ${err.message}`);
     } finally {
       setEditLoading(false);
     }
@@ -277,139 +277,149 @@ export function MediaClientPage({ eventId, mediaList: initialMediaList, eventDet
     onClose: () => void,
     onSave: (updated: Partial<EventMediaDTO>) => void,
   }) {
-    console.log('EditMediaModal render', media);
-    const [form, setForm] = useState<Partial<EventMediaDTO>>({ ...media });
+    const [formData, setFormData] = useState<Partial<EventMediaDTO>>({
+      title: media.title || '',
+      description: media.description || '',
+      eventFlyer: media.eventFlyer || false,
+      isHeroImage: media.isHeroImage || false,
+      isActiveHeroImage: media.isActiveHeroImage || false,
+      isFeaturedImage: media.isFeaturedImage || false,
+      isPublic: media.isPublic === false ? false : true,
+      altText: media.altText || '',
+      displayOrder: media.displayOrder || undefined,
+      isFeaturedVideo: media.isFeaturedVideo || false,
+      featuredVideoUrl: media.featuredVideoUrl || '',
+    });
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    useEffect(() => {
+      setFormData({
+        title: media.title || '',
+        description: media.description || '',
+        eventFlyer: media.eventFlyer || false,
+        isHeroImage: media.isHeroImage || false,
+        isActiveHeroImage: media.isActiveHeroImage || false,
+        isFeaturedImage: media.isFeaturedImage || false,
+        isPublic: media.isPublic === false ? false : true,
+        altText: media.altText || '',
+        displayOrder: media.displayOrder || undefined,
+        isFeaturedVideo: media.isFeaturedVideo || false,
+        featuredVideoUrl: media.featuredVideoUrl || '',
+      });
+    }, [media]);
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      const { name, value, type } = e.target;
+      const isCheckbox = (e.target as HTMLInputElement).type === 'checkbox';
+      const checked = (e.target as HTMLInputElement).checked;
+      setFormData(prev => ({ ...prev, [name]: isCheckbox ? checked : value }));
+    };
+
+    const handleSaveClick = async () => {
+      setIsSubmitting(true);
+      try {
+        await onSave(formData);
+      } catch (error) {
+        // Handle error if onSave throws
+        console.error("Failed to save media:", error);
+      } finally {
+        setIsSubmitting(false);
+      }
+    };
+
+    const handleCheckboxClick = (e: React.MouseEvent<HTMLInputElement>) => {
+      e.stopPropagation();
+    };
+
+    if (!media) return null;
+
     return createPortal(
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-        <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-lg relative">
-          <button className="absolute top-2 right-2 text-gray-400 hover:text-red-500 text-lg font-bold" onClick={onClose}>&times;</button>
-          <h2 className="text-xl font-bold mb-4">Edit Media</h2>
-          <form
-            onSubmit={e => { e.preventDefault(); onSave(form); }}
-            className="space-y-4"
-          >
-            <div>
-              <label className="block font-semibold mb-1">Title</label>
-              <input type="text" className="w-full border rounded px-3 py-2" value={form.title || ''} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+        <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+          <h2 className="text-2xl font-bold mb-6 text-gray-800">Edit Media Details</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+
+            {/* Title */}
+            <div className="md:col-span-1">
+              <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+              <input type="text" name="title" id="title" value={formData.title || ''} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" />
             </div>
-            <div>
-              <label className="block font-semibold mb-1">Description</label>
-              <textarea className="w-full border rounded px-3 py-2" value={form.description || ''} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={5} />
+
+            {/* Display Order */}
+            <div className="md:col-span-1">
+              <label htmlFor="displayOrder" className="block text-sm font-medium text-gray-700 mb-1">Display Order</label>
+              <input type="number" name="displayOrder" id="displayOrder" value={formData.displayOrder || ''} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" />
             </div>
-            <div className="custom-grid-table mt-2 mb-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem' }}>
-              <div className="custom-grid-cell">
-                <label className="flex flex-col items-center">
-                  <span className="relative flex items-center justify-center">
-                    <input type="checkbox" className="custom-checkbox" checked={!!form.eventFlyer} onChange={e => setForm(f => ({ ...f, eventFlyer: e.target.checked }))} />
-                    <span className="custom-checkbox-tick">
-                      {form.eventFlyer && (
-                        <svg className="w-6 h-6 text-black" fill="none" stroke="currentColor" strokeWidth="4" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l5 5L19 7" />
-                        </svg>
-                      )}
-                    </span>
-                  </span>
-                  <span className="mt-2 text-xs text-center select-none break-words max-w-[6rem]">Event Flyer</span>
-                </label>
-              </div>
-              <div className="custom-grid-cell">
-                <label className="flex flex-col items-center">
-                  <span className="relative flex items-center justify-center">
-                    <input type="checkbox" className="custom-checkbox" checked={!!form.isEventManagementOfficialDocument} onChange={e => setForm(f => ({ ...f, isEventManagementOfficialDocument: e.target.checked }))} />
-                    <span className="custom-checkbox-tick">
-                      {form.isEventManagementOfficialDocument && (
-                        <svg className="w-6 h-6 text-black" fill="none" stroke="currentColor" strokeWidth="4" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l5 5L19 7" />
-                        </svg>
-                      )}
-                    </span>
-                  </span>
-                  <span className="mt-2 text-xs text-center select-none break-words max-w-[6rem]">Official Doc</span>
-                </label>
-              </div>
-              <div className="custom-grid-cell">
-                <label className="flex flex-col items-center">
-                  <span className="relative flex items-center justify-center">
-                    <input type="checkbox" className="custom-checkbox" checked={!!form.isHeroImage} onChange={e => setForm(f => ({ ...f, isHeroImage: e.target.checked }))} />
-                    <span className="custom-checkbox-tick">
-                      {form.isHeroImage && (
-                        <svg className="w-6 h-6 text-black" fill="none" stroke="currentColor" strokeWidth="4" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l5 5L19 7" />
-                        </svg>
-                      )}
-                    </span>
-                  </span>
-                  <span className="mt-2 text-xs text-center select-none break-words max-w-[6rem]">Hero Image</span>
-                </label>
-              </div>
-              <div className="custom-grid-cell">
-                <label className="flex flex-col items-center">
-                  <span className="relative flex items-center justify-center">
-                    <input type="checkbox" className="custom-checkbox" checked={!!form.isActiveHeroImage} onChange={e => setForm(f => ({ ...f, isActiveHeroImage: e.target.checked }))} />
-                    <span className="custom-checkbox-tick">
-                      {form.isActiveHeroImage && (
-                        <svg className="w-6 h-6 text-black" fill="none" stroke="currentColor" strokeWidth="4" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l5 5L19 7" />
-                        </svg>
-                      )}
-                    </span>
-                  </span>
-                  <span className="mt-2 text-xs text-center select-none break-words max-w-[6rem]">Active Hero</span>
-                </label>
-              </div>
-              <div className="custom-grid-cell">
-                <label className="flex flex-col items-center">
-                  <span className="relative flex items-center justify-center">
-                    <input type="checkbox" className="custom-checkbox" checked={!!form.isFeaturedImage} onChange={e => setForm(f => ({ ...f, isFeaturedImage: e.target.checked }))} />
-                    <span className="custom-checkbox-tick">
-                      {form.isFeaturedImage && (
-                        <svg className="w-6 h-6 text-black" fill="none" stroke="currentColor" strokeWidth="4" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l5 5L19 7" />
-                        </svg>
-                      )}
-                    </span>
-                  </span>
-                  <span className="mt-2 text-xs text-center select-none break-words max-w-[6rem]">Featured Image</span>
-                </label>
-              </div>
-              <div className="custom-grid-cell">
-                <label className="flex flex-col items-center">
-                  <span className="relative flex items-center justify-center">
-                    <input type="checkbox" className="custom-checkbox" checked={!!form.isPublic} onChange={e => setForm(f => ({ ...f, isPublic: e.target.checked }))} />
-                    <span className="custom-checkbox-tick">
-                      {form.isPublic && (
-                        <svg className="w-6 h-6 text-black" fill="none" stroke="currentColor" strokeWidth="4" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l5 5L19 7" />
-                        </svg>
-                      )}
-                    </span>
-                  </span>
-                  <span className="mt-2 text-xs text-center select-none break-words max-w-[6rem]">Public</span>
-                </label>
-              </div>
+
+            {/* Description */}
+            <div className="md:col-span-2">
+              <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+              <textarea name="description" id="description" value={formData.description || ''} onChange={handleChange} rows={4} className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" />
             </div>
-            <div className="flex flex-wrap gap-4 items-center mt-2">
+
+            {/* Alt Text */}
+            <div className="md:col-span-2">
+              <label htmlFor="altText" className="block text-sm font-medium text-gray-700 mb-1">Alt Text</label>
+              <input type="text" name="altText" id="altText" value={formData.altText || ''} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" />
+            </div>
+
+            {/* Featured Video URL */}
+            <div className="md:col-span-2">
+              <label htmlFor="featuredVideoUrl" className="block text-sm font-medium text-gray-700 mb-1">Featured Video URL</label>
               <input
                 type="text"
-                placeholder="Alt Text"
-                value={form.altText || ''}
-                onChange={e => setForm(f => ({ ...f, altText: e.target.value }))}
-                className="border border-gray-300 rounded px-3 py-2 w-64"
-              />
-              <input
-                type="number"
-                placeholder="Display Order"
-                value={form.displayOrder ?? ''}
-                onChange={e => setForm(f => ({ ...f, displayOrder: e.target.value ? Number(e.target.value) : undefined }))}
-                className="border border-gray-300 rounded px-3 py-2 w-40 appearance-auto"
-                style={{ MozAppearance: 'textfield', appearance: 'auto' }}
+                name="featuredVideoUrl"
+                id="featuredVideoUrl"
+                value={formData.featuredVideoUrl || ''}
+                onChange={handleChange}
+                className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
-            <div className="flex justify-end gap-2 mt-4">
-              <button type="button" className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300" onClick={onClose}>Cancel</button>
-              <button type="submit" className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700" disabled={editLoading}>{editLoading ? 'Saving...' : 'Save'}</button>
+
+            {/* Checkboxes */}
+            <div className="md:col-span-2 grid grid-cols-2 sm:grid-cols-3 gap-4 pt-4">
+              {['eventFlyer', 'isHeroImage', 'isActiveHeroImage', 'isFeaturedImage', 'isPublic', 'isFeaturedVideo'].map(key => (
+                <div key={key} className="flex items-start">
+                  <label htmlFor={key} className="custom-checkbox-container flex items-center text-sm font-medium text-gray-700">
+                    <input
+                      type="checkbox"
+                      name={key}
+                      id={key}
+                      checked={!!formData[key as keyof typeof formData]}
+                      onChange={handleChange}
+                      onClick={handleCheckboxClick}
+                      className="hidden"
+                    />
+                    <span className="custom-checkbox-visual"></span>
+                    <span className="ml-2">
+                      {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
+                    </span>
+                  </label>
+                </div>
+              ))}
             </div>
-          </form>
+
+            {/* Buttons */}
+            <div className="md:col-span-2 flex justify-end items-center gap-4 pt-6">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-6 py-2 rounded-md text-teal-600 bg-teal-50 hover:bg-teal-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 transition-colors flex items-center gap-2"
+              >
+                <FaBan />
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveClick}
+                disabled={isSubmitting}
+                className="px-6 py-2 rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-blue-300 transition-colors flex items-center gap-2"
+              >
+                {isSubmitting ? <FaSpinner className="animate-spin" /> : <FaFolderOpen />}
+                Save Changes
+              </button>
+            </div>
+          </div>
         </div>
       </div>,
       document.body
@@ -418,16 +428,24 @@ export function MediaClientPage({ eventId, mediaList: initialMediaList, eventDet
 
   return (
     <div className="p-8 max-w-4xl mx-auto bg-white rounded shadow">
-      <div className="flex justify-center mb-8">
-        <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-2xl">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 justify-center">
-            <Link href="/admin/manage-usage" className="flex flex-col items-center justify-center bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg shadow-sm px-4 py-4 transition font-semibold text-sm cursor-pointer">
-              <FaUsers className="mb-2 text-2xl" />
+      <div className="mb-8">
+        <div className="bg-white rounded-lg shadow-md p-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Link href="/admin/manage-usage" className="flex flex-col items-center justify-center bg-blue-50 hover:bg-blue-100 text-blue-800 rounded-lg p-4 transition duration-300 font-semibold">
+              <FaUsers className="text-3xl mb-2" />
               <span>Manage Users [Usage]</span>
             </Link>
-            <Link href="/admin" className="flex flex-col items-center justify-center bg-green-50 hover:bg-green-100 text-green-700 rounded-lg shadow-sm px-4 py-4 transition font-semibold text-sm cursor-pointer">
-              <FaCalendarAlt className="mb-2 text-2xl" />
-              Manage Events
+            <Link href="/admin" className="flex flex-col items-center justify-center bg-green-50 hover:bg-green-100 text-green-800 rounded-lg p-4 transition duration-300 font-semibold">
+              <FaCalendarAlt className="text-3xl mb-2" />
+              <span>Manage Events</span>
+            </Link>
+            <Link href={`/admin/events/${eventId}/ticket-types/list`} className="flex flex-col items-center justify-center bg-purple-50 hover:bg-purple-100 text-purple-800 rounded-lg p-4 transition duration-300 font-semibold">
+              <FaTicketAlt className="text-3xl mb-2" />
+              <span>Manage Ticket Types</span>
+            </Link>
+            <Link href={`/admin/events/${eventId}/media/list`} className="flex flex-col items-center justify-center bg-orange-50 hover:bg-orange-100 text-orange-800 rounded-lg p-4 transition duration-300 font-semibold">
+              <FaPhotoVideo className="text-3xl mb-2" />
+              <span>Manage Media Files</span>
             </Link>
           </div>
         </div>

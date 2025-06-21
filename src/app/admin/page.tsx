@@ -22,7 +22,8 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(0);
-  const pageSize = 5;
+  const [totalCount, setTotalCount] = useState(0);
+  const pageSize = 10;
   // Search/filter state
   const [searchTitle, setSearchTitle] = useState('');
   const [searchCaption, setSearchCaption] = useState('');
@@ -48,9 +49,10 @@ export default function AdminPage() {
       if (searchField === 'title') filterParams.title = searchTitle;
       else if (searchField === 'id') filterParams.id = searchId;
       else if (searchField === 'caption') filterParams.caption = searchCaption;
-      const eventsResult = await fetchEventsFilteredServer(filterParams);
+      const { events: eventsResult, totalCount: fetchedTotalCount } = await fetchEventsFilteredServer(filterParams);
       const types = await fetchEventTypesServer();
       setEvents(eventsResult);
+      setTotalCount(fetchedTotalCount);
       setEventTypes(types);
     } catch (e: any) {
       setError(e.message || 'Failed to load events');
@@ -199,12 +201,13 @@ export default function AdminPage() {
             onEdit={event => router.push(`/admin/events/${event.id}/edit`)}
             onCancel={handleCancel}
             loading={loading}
-            showDetailsOnHover={true}
-            onPrevPage={page > 0 ? handlePrevPage : undefined}
-            onNextPage={events.length === pageSize ? handleNextPage : undefined}
-            page={page}
-            hasNextPage={events.length === pageSize}
+            onPrevPage={handlePrevPage}
+            onNextPage={handleNextPage}
+            page={page + 1}
+            totalCount={totalCount}
+            pageSize={pageSize}
             boldEventIdLabel={true}
+            showDetailsOnHover={true}
           />
         </div>
       </div>
