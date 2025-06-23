@@ -1,14 +1,24 @@
 'use client';
-import React, { useState } from 'react';
+import Image from 'next/image';
 
-export function TeamImage({ src, alt, ...props }: React.ImgHTMLAttributes<HTMLImageElement>) {
-  const [imgSrc, setImgSrc] = useState(src);
+interface TeamImageProps {
+  src: string;
+  name: string;
+}
+
+export function TeamImage({ src, name }: TeamImageProps) {
   return (
-    <img
-      src={imgSrc}
-      alt={alt}
-      onError={() => setImgSrc('/images/about-us.jpg')}
-      {...props}
-    />
+    <div className="text-center">
+      <div className="relative w-40 h-40 mx-auto mb-2">
+        <Image
+          src={src}
+          alt={`Photo of ${name}`}
+          layout="fill"
+          objectFit="cover"
+          className="rounded-full"
+        />
+      </div>
+      <p className="font-semibold">{name}</p>
+    </div>
   );
 }

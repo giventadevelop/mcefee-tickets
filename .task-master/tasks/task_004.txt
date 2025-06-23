@@ -1,6 +1,6 @@
 # Task ID: 4
 # Title: Build Ticketing Page layout
-# Status: pending
+# Status: done
 # Dependencies: 1 ✅, 2 ✅
 # Priority: high
 # Description: Create the main ticketing page that displays event details and available ticket types.
@@ -11,11 +11,6 @@
 - Include discount code input field
 - Add checkout button
 - Ensure all UI elements follow design guidelines
- In the home page 'Buy Tickets' button in the hero section and the featured box buy tickets takes the user to the Ensure the button links to the ticketing page for the selected event
-- Make the component responsive for all device sizes
-  The ticketing page can be simulated based onthe even details page  http://localhost:3000/events/6151 the event flyer image is displayed as a hero section in the page as well as  the  the title and even details described below it.
-
-  The ticket types the list of the ticket types can be laid outas cards similar to what is done in the page  http://localhost:3000/event . Also at the bottom give the email address field where the user can enter their email as a mandate filled also a field for discount code.
 
 # Test Strategy:
 Test the layout on multiple screen sizes. Verify all UI elements are displayed correctly and match the design specifications.

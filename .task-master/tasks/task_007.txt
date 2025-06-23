@@ -1,7 +1,7 @@
 # Task ID: 7
 # Title: Implement real-time price calculation
-# Status: pending
-# Dependencies: 5 ⏱️, 6 ⏱️
+# Status: done
+# Dependencies: 5 ✅, 6 ✅
 # Priority: medium
 # Description: Create a system for calculating and displaying subtotal, discounts, and total in real-time.
 # Details:

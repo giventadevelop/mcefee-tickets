@@ -1,3 +1,4 @@
+'use server';
 import Link from "next/link";
 import { UserRoleDisplay } from "@/components/UserRoleDisplay";
 // import { ProfileBootstrapper } from "@/components/ProfileBootstrapper"; // Remove client bootstrapper
@@ -7,8 +8,7 @@ import type { EventDetailsDTO } from '@/types';
 import { TeamImage } from '@/components/TeamImage';
 import { getTenantId } from '@/lib/env';
 import { formatDateLocal } from '@/lib/date';
-import { auth } from '@clerk/nextjs/server';
-import { currentUser } from '@clerk/nextjs/server';
+import { auth, currentUser } from '@clerk/nextjs/server';
 import { bootstrapUserProfile } from '@/components/ProfileBootstrapperApiServerActions';
 
 // Add EventWithMedia type for local use
@@ -20,21 +20,18 @@ interface EventWithMedia extends EventDetailsDTO {
 // Move all event fetching to the server component
 async function fetchEventsWithMedia(): Promise<EventWithMedia[]> {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-  const tenantId = getTenantId();
 
-  // Try ascending first
   let eventsResponse = await fetch(
-    `${baseUrl}/api/proxy/event-details?sort=startDate,asc&tenantId.equals=${tenantId}`,
+    `${baseUrl}/api/proxy/event-details?sort=startDate,asc`,
     { cache: 'no-store' }
   );
   let eventsData: EventDetailsDTO[] = [];
   if (eventsResponse.ok) {
     eventsData = await eventsResponse.json();
   }
-  // If no data, try descending
   if (!eventsData || eventsData.length === 0) {
     eventsResponse = await fetch(
-      `${baseUrl}/api/proxy/event-details?sort=startDate,desc&tenantId.equals=${tenantId}`,
+      `${baseUrl}/api/proxy/event-details?sort=startDate,desc`,
       { cache: 'no-store' }
     );
     if (eventsResponse.ok) {
@@ -42,56 +39,58 @@ async function fetchEventsWithMedia(): Promise<EventWithMedia[]> {
     }
   }
 
-  // For each event, fetch its media (server-side)
   const eventsWithMedia = await Promise.all(
     eventsData.map(async (event: EventDetailsDTO) => {
       try {
-        const flyerRes = await fetch(`${baseUrl}/api/proxy/event-medias?eventId.equals=${event.id}&eventFlyer.equals=true&tenantId.equals=${tenantId}`, { cache: 'no-store' });
+        const flyerRes = await fetch(`${baseUrl}/api/proxy/event-medias?eventId.equals=${event.id}&eventFlyer.equals=true`, { cache: 'no-store' });
         let mediaArray: any[] = [];
         if (flyerRes.ok) {
           const flyerData = await flyerRes.json();
           mediaArray = Array.isArray(flyerData) ? flyerData : (flyerData ? [flyerData] : []);
         }
-        // If no flyer, try isFeatured
         if (!mediaArray.length) {
-          const featuredRes = await fetch(`${baseUrl}/api/proxy/event-medias?eventId.equals=${event.id}&isFeaturedImage.equals=true&tenantId.equals=${tenantId}`, { cache: 'no-store' });
+          const featuredRes = await fetch(`${baseUrl}/api/proxy/event-medias?eventId.equals=${event.id}&isFeaturedImage.equals=true`, { cache: 'no-store' });
           if (featuredRes.ok) {
             const featuredData = await featuredRes.json();
             mediaArray = Array.isArray(featuredData) ? featuredData : (featuredData ? [featuredData] : []);
           }
         }
         if (mediaArray.length > 0) {
-          return {
-            ...event,
-            thumbnailUrl: mediaArray[0].fileUrl
-          };
+          return { ...event, thumbnailUrl: mediaArray[0].fileUrl };
         }
-        // No image found, pass title for placeholder
-        return {
-          ...event,
-          thumbnailUrl: undefined,
-          placeholderText: event.title || 'No image available',
-        };
+        return { ...event, thumbnailUrl: undefined, placeholderText: event.title || 'No image available' };
       } catch (err) {
-        return {
-          ...event,
-          thumbnailUrl: undefined,
-          placeholderText: event.title || 'No image available',
-        };
+        return { ...event, thumbnailUrl: undefined, placeholderText: event.title || 'No image available' };
       }
     })
   );
   return eventsWithMedia;
 }
 
+async function fetchHeroImageForEvent(eventId: number): Promise<string | null> {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  try {
+    const mediaRes = await fetch(`${baseUrl}/api/proxy/event-medias?eventId.equals=${eventId}&isHeroImage.equals=true&isActiveHeroImage.equals=true`);
+    if (mediaRes.ok) {
+      const mediaData = await mediaRes.json();
+      const mediaArray = Array.isArray(mediaData) ? mediaData : (mediaData ? [mediaData] : []);
+      if (mediaArray.length > 0 && mediaArray[0].fileUrl) {
+        return mediaArray[0].fileUrl;
+      }
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
 export default async function Page() {
-  // SSR profile bootstrap logic
+  /*
   const session = await auth();
   const userId = session?.userId;
   let user = null;
   if (userId) {
     user = await currentUser();
-    // Only bootstrap if user is signed in and user object is available
     if (user) {
       try {
         await bootstrapUserProfile({ userId, user });
@@ -100,6 +99,7 @@ export default async function Page() {
       }
     }
   }
+  */
 
   let events: EventWithMedia[] = [];
   let fetchError = false;
@@ -150,18 +150,10 @@ export default async function Page() {
       return eventDate && eventDate >= today && eventDate <= threeMonthsFromNow;
     });
     if (candidateEvent) {
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-      const tenantId = getTenantId();
       try {
-        const mediaRes = await fetch(`${baseUrl}/api/proxy/event-medias?eventId.equals=${candidateEvent.id}&isHeroImage.equals=true&isActiveHeroImage.equals=true&tenantId.equals=${tenantId}`);
-        if (mediaRes.ok) {
-          const mediaData = await mediaRes.json();
-          const mediaArray = Array.isArray(mediaData) ? mediaData : (mediaData ? [mediaData] : []);
-          if (mediaArray.length > 0 && mediaArray[0].fileUrl) {
-            heroImageUrl = mediaArray[0].fileUrl;
-          }
-        } else {
-          mediaFetchError = true;
+        const heroUrl = await fetchHeroImageForEvent(candidateEvent.id!);
+        if (heroUrl) {
+          heroImageUrl = heroUrl;
         }
       } catch {
         mediaFetchError = true;
@@ -309,9 +301,9 @@ export default async function Page() {
         <section className="feature-boxes flex flex-col md:flex-row w-full mt-12">
           <div className="feature-box flex-1 w-full min-h-[180px] mb-4 md:mb-0" style={{ backgroundImage: "url('/images/unite_india_logo.avif')", backgroundSize: '45%', backgroundRepeat: 'no-repeat', backgroundPosition: 'center', backgroundColor: '#1a1a1a', padding: '40px' }}>
             {/* <div>
-                    <h4>Story behind the foundation</h4>
-                    <a href="#vision-section" className="link-text">Mission and Vision</a>
-                  </div> */}
+                      <h4>Story behind the foundation</h4>
+                      <a href="#vision-section" className="link-text">Mission and Vision</a>
+                    </div> */}
           </div>
           <div className="feature-box flex-1 w-full min-h-[180px]" style={
             nextEvent
@@ -320,8 +312,7 @@ export default async function Page() {
           }>
             {nextEvent ? (
               <div className="flex flex-col md:flex-row items-center gap-4">
-                {/* Minimized event image */}
-                <TeamImage src={nextEvent.thumbnailUrl} alt={nextEvent.title} className="w-24 h-24 object-cover rounded shadow-md mb-2 md:mb-0" style={{ minWidth: 72, minHeight: 72 }} />
+                <Image src={nextEvent.thumbnailUrl || '/images/kalari_jump.jpeg'} alt={nextEvent.title || 'Event'} className="w-24 h-24 object-cover rounded shadow-md mb-2 md:mb-0" width={96} height={96} style={{ minWidth: 72, minHeight: 72 }} />
                 <div className="flex-1">
                   <h4 className="text-xl font-bold mb-1 text-gray-900">{nextEvent.title}</h4>
                   <div className="text-sm text-gray-600 mb-1">
@@ -530,22 +521,10 @@ export default async function Page() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-12 max-w-4xl">
                 {/* Team members - use images from public/images/team_members/ */}
                 <div className="team-item flex flex-col items-center">
-                  <div className="team-image w-48 h-48 rounded-full overflow-hidden mb-4 bg-gray-200 shadow-lg">
-                    <TeamImage src="/images/team_members/Manoj_Kizhakkoot.png" alt="Manoj_Kizhakkoot" className="object-cover w-full h-full" />
-                  </div>
-                  <div className="team-content text-center">
-                    <h5 className="team-title text-xl font-semibold mb-2">Manoj Kizhakkoot</h5>
-                    <div className="team-position text-gray-500">Founder: NJ Malayalees, Unite India</div>
-                  </div>
+                  <TeamImage src="/images/team_members/Manoj_Kizhakkoot.png" name="Manoj Kizhakkoot" />
                 </div>
                 <div className="team-item flex flex-col items-center">
-                  <div className="team-image w-48 h-48 rounded-full overflow-hidden mb-4 bg-gray-200 shadow-lg">
-                    <TeamImage src="/images/team_members/srk.png" alt="SRK" className="object-cover w-full h-full" />
-                  </div>
-                  <div className="team-content text-center">
-                    <h5 className="team-title text-xl font-semibold mb-2">SRK</h5>
-                    <div className="team-position text-gray-500">Unite India - Financial Controller</div>
-                  </div>
+                  <TeamImage src="/images/team_members/srk.png" name="SRK" />
                 </div>
               </div>
             </div>

@@ -1,4 +1,5 @@
-import { fetchUserProfileServer, fetchMediaServer, fetchEventDetailsServer, fetchOfficialDocsServer } from './ApiServerActions';
+import { fetchUserProfileServer, fetchMediaServer, fetchOfficialDocsServer } from './ApiServerActions';
+import { fetchEventDetailsServer } from '@/app/admin/ApiServerActions';
 import { auth } from '@clerk/nextjs/server';
 import { MediaClientPage } from './MediaClientPage';
 

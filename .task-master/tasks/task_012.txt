@@ -1,7 +1,7 @@
 # Task ID: 12
 # Title: Implement ticket issuance
 # Status: pending
-# Dependencies: 10 ⏱️
+# Dependencies: 10 ✅
 # Priority: medium
 # Description: Create system to issue tickets after successful payment.
 # Details:

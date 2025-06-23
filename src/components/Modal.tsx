@@ -21,7 +21,6 @@ export function Modal({
   };
 
   const handleModalClick = (e: React.MouseEvent) => {
-    e.preventDefault();
     e.stopPropagation();
   };
 

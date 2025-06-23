@@ -1,6 +1,6 @@
 # Task ID: 8
 # Title: Set up Stripe integration
-# Status: pending
+# Status: done
 # Dependencies: 2 ✅
 # Priority: high
 # Description: Integrate with Stripe Checkout for secure payment processing.

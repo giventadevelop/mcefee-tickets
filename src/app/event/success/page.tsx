@@ -1,130 +1,131 @@
-import { stripe } from '@/lib/stripe';
+'use server';
+import { processStripeSessionServer } from '@/app/event/success/ApiServerActions';
+import { fetchUserProfileServer } from '@/app/admin/ApiServerActions';
+import { fetchEventDetailsByIdServer } from '@/app/admin/events/[id]/media/ApiServerActions';
+import {
+  FaCheckCircle, FaTicketAlt, FaCalendarAlt, FaUser, FaEnvelope,
+  FaMoneyBillWave, FaInfoCircle, FaReceipt
+} from 'react-icons/fa';
+import { notFound } from 'next/navigation';
+import { auth } from '@clerk/nextjs/server';
+import Image from 'next/image';
 
-if (!process.env.NEXT_PUBLIC_API_BASE_URL) {
-  throw new Error('NEXT_PUBLIC_API_BASE_URL is not set');
+async function getHeroImageUrl(eventId: number): Promise<string> {
+  const defaultHeroImageUrl = `/images/side_images/chilanka_2025.webp?v=${Date.now()}`;
+  let imageUrl: string | null = null;
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  try {
+    const flyerRes = await fetch(`${baseUrl}/api/proxy/event-medias?eventId.equals=${eventId}&eventFlyer.equals=true`, { cache: 'no-store' });
+    if (flyerRes.ok) {
+      const flyerData = await flyerRes.json();
+      if (Array.isArray(flyerData) && flyerData.length > 0 && flyerData[0].fileUrl) {
+        imageUrl = flyerData[0].fileUrl;
+      }
+    }
+    if (!imageUrl) {
+      const featuredRes = await fetch(`${baseUrl}/api/proxy/event-medias?eventId.equals=${eventId}&isFeaturedImage.equals=true`, { cache: 'no-store' });
+      if (featuredRes.ok) {
+        const featuredData = await featuredRes.json();
+        if (Array.isArray(featuredData) && featuredData.length > 0 && featuredData[0].fileUrl) {
+          imageUrl = featuredData[0].fileUrl;
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error fetching hero image:', error);
+  }
+  return imageUrl || defaultHeroImageUrl;
 }
 
 export default async function SuccessPage({ searchParams }: { searchParams: { session_id?: string } }) {
   const { session_id } = searchParams;
-  if (!session_id) {
+  const { userId } = auth();
+
+  if (!session_id || !userId) {
+    return notFound();
+  }
+
+  const transaction = await processStripeSessionServer(session_id);
+
+  if (!transaction) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="bg-white p-8 rounded-lg shadow-md">
-          <h1 className="text-2xl font-bold text-red-600 mb-4">Error</h1>
-          <p className="text-gray-600">No session ID provided.</p>
-        </div>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 text-center p-4">
+        <FaInfoCircle className="text-4xl text-red-500 mb-4" />
+        <h1 className="text-2xl font-bold text-gray-800">Transaction Not Found</h1>
+        <p className="text-gray-600 mt-2">We could not find the details for your transaction. Please check your email for a confirmation.</p>
       </div>
     );
   }
 
-  try {
-    // Get session details from Stripe
-    const session = await stripe().checkout.sessions.retrieve(session_id, {
-      expand: ['line_items']
-    });
-
-    // Parse the ticket details from metadata
-    const ticketDetails = session.metadata?.ticketDetails
-      ? JSON.parse(session.metadata.ticketDetails)
-      : [];
-
+  const eventDetails = transaction.event;
+  if (!eventDetails?.id) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="bg-white rounded-lg shadow-md max-w-2xl w-full">
-          <div className="p-8">
-            <div className="text-center">
-              {/* Success Icon */}
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100 mb-4">
-                <svg
-                  className="h-6 w-6 text-green-600"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  strokeWidth="1.5"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M4.5 12.75l6 6 9-13.5"
-                  />
-                </svg>
-              </div>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 text-center p-4">
+        <FaInfoCircle className="text-4xl text-red-500 mb-4" />
+        <h1 className="text-2xl font-bold text-gray-800">Event Details Not Found</h1>
+        <p className="text-gray-600 mt-2">We could not find the event details for your transaction.</p>
+      </div>
+    );
+  }
 
-              <h1 className="text-3xl font-bold text-gray-900 mb-4">Payment Successful!</h1>
-              <div className="space-y-3">
-                <p className="text-lg text-gray-600">
-                  Thank you for your purchase. Your tickets have been confirmed.
+  const heroImageUrl = await getHeroImageUrl(eventDetails.id);
+  const displayName = transaction.firstName ? `${transaction.firstName} ${transaction.lastName || ''}`.trim() : '';
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 sm:p-6">
+      <div className="max-w-4xl w-full mx-auto">
+        <div className="relative w-full h-48 sm:h-64 rounded-t-2xl overflow-hidden">
+          <Image src={heroImageUrl} alt={eventDetails.title || 'Event Image'} layout="fill" objectFit="cover" />
+          <div className="absolute inset-0 bg-black bg-opacity-40" />
+        </div>
+        <div className="bg-white p-6 sm:p-8 rounded-b-2xl shadow-2xl border-t-4 border-teal-500 text-center -mt-16 relative z-10 mx-4 sm:mx-8">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100 ring-4 ring-white -mt-16 mb-4">
+            <FaCheckCircle className="h-10 w-10 text-green-500" />
+          </div>
+          <h1 className="text-3xl sm:text-4xl font-bold text-gray-800">Payment Successful!</h1>
+          <p className="mt-2 text-gray-600">
+            Thank you for your purchase. Your tickets for <strong>{eventDetails.title}</strong> are confirmed.
+          </p>
+        </div>
+
+        <div className="w-full bg-white p-6 sm:p-8 rounded-2xl shadow-lg border border-gray-200 mt-8">
+          <h2 className="text-2xl font-semibold text-gray-800 flex items-center gap-3 mb-6">
+            <FaReceipt className="text-teal-500" />
+            Transaction Summary
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+            {displayName && (
+              <div className="flex flex-col">
+                <label className="text-sm font-medium text-gray-500 flex items-center gap-2 mb-1"><FaUser /> Name</label>
+                <p className="text-lg text-gray-800 font-medium">{displayName}</p>
+              </div>
+            )}
+            <div className="flex flex-col">
+              <label className="text-sm font-medium text-gray-500 flex items-center gap-2 mb-1"><FaEnvelope /> Email</label>
+              <p className="text-lg text-gray-800 font-medium">{transaction.email}</p>
+            </div>
+            <div className="flex flex-col">
+              <label className="text-sm font-medium text-gray-500 flex items-center gap-2 mb-1"><FaTicketAlt /> Ticket Type</label>
+              <div>
+                <p className="text-lg text-gray-800 font-medium">
+                  {transaction.ticketType?.name || 'Ticket'} (x{transaction.quantity})
                 </p>
-                <p className="text-gray-500">
-                  A confirmation email has been sent to {session.customer_email}
-                </p>
+                {transaction.ticketType?.description && (
+                  <p className="text-sm text-gray-500 mt-1">{transaction.ticketType.description}</p>
+                )}
               </div>
-
-              {/* Transaction Details */}
-              <div className="mt-8 border-t border-gray-200 pt-8">
-                <h2 className="text-xl font-semibold mb-4">Transaction Details</h2>
-                <div className="space-y-2">
-                  <p className="text-gray-600">
-                    <span className="font-medium">Transaction ID:</span> {session.metadata?.transactionId}
-                  </p>
-                  <p className="text-gray-600">
-                    <span className="font-medium">Event:</span> {session.metadata?.eventId}
-                  </p>
-
-                  {/* Ticket Details */}
-                  <div className="mt-4">
-                    <h3 className="text-lg font-medium mb-2">Tickets</h3>
-                    {ticketDetails.map((ticket: any, index: number) => (
-                      <div key={index} className="bg-gray-50 p-3 rounded mb-2">
-                        <p className="text-gray-600">
-                          <span className="font-medium">Type:</span> {ticket.type}
-                        </p>
-                        <p className="text-gray-600">
-                          <span className="font-medium">Quantity:</span> {ticket.quantity}
-                        </p>
-                        <p className="text-gray-600">
-                          <span className="font-medium">Price:</span> ${ticket.price.toFixed(2)}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-
-                  <p className="text-gray-600 mt-4">
-                    <span className="font-medium">Total Amount:</span> ${((session.amount_total || 0) / 100).toFixed(2)}
-                  </p>
-                  <p className="text-gray-600">
-                    <span className="font-medium">Status:</span>{" "}
-                    <span className="capitalize">{session.payment_status}</span>
-                  </p>
-                </div>
-              </div>
-
-              {/* Navigation Links */}
-              <div className="mt-8 border-t border-gray-200 pt-8">
-                <a
-                  href="/event"
-                  className="inline-block bg-blue-600 text-white px-6 py-3 rounded-md hover:bg-blue-700 transition-colors"
-                >
-                  Return to Event Page
-                </a>
-              </div>
+            </div>
+            <div className="flex flex-col">
+              <label className="text-sm font-medium text-gray-500 flex items-center gap-2 mb-1"><FaMoneyBillWave /> Amount Paid</label>
+              <p className="text-lg text-gray-800 font-medium">${(transaction.finalAmount ?? 0).toFixed(2)}</p>
+            </div>
+            <div className="flex flex-col">
+              <label className="text-sm font-medium text-gray-500 flex items-center gap-2 mb-1"><FaCalendarAlt /> Date of Purchase</label>
+              <p className="text-lg text-gray-800 font-medium">{new Date(transaction.purchaseDate).toLocaleString()}</p>
             </div>
           </div>
         </div>
       </div>
-    );
-  } catch (error) {
-    console.error('Error fetching session:', error);
-    return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="bg-white p-8 rounded-lg shadow-md">
-          <h1 className="text-2xl font-bold text-red-600 mb-4">Error</h1>
-          <p className="text-gray-600">Failed to load transaction details.</p>
-          {error instanceof Error && (
-            <p className="text-sm text-gray-500 mt-2">{error.message}</p>
-          )}
-        </div>
-      </div>
-    );
-  }
+    </div>
+  );
 }

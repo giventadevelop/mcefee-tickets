@@ -1,7 +1,7 @@
 # Task ID: 17
 # Title: Perform end-to-end testing
 # Status: pending
-# Dependencies: 3 ✅, 4 ⏱️, 5 ⏱️, 6 ⏱️, 7 ⏱️, 8 ⏱️, 9 ⏱️, 10 ⏱️, 11 ⏱️, 12 ⏱️, 13 ⏱️, 14 ⏱️, 16 ⏱️
+# Dependencies: 3 ✅, 4 ✅, 5 ✅, 6 ✅, 7 ✅, 8 ✅, 9 ✅, 10 ✅, 11 ⏱️, 12 ⏱️, 13 ⏱️, 14 ✅, 16 ⏱️
 # Priority: high
 # Description: Test the complete ticket purchasing flow from selection to confirmation.
 # Details:

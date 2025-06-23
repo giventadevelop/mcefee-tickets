@@ -1,7 +1,7 @@
 # Task ID: 5
 # Title: Implement ticket selection functionality
-# Status: pending
-# Dependencies: 4 ⏱️
+# Status: done
+# Dependencies: 4 ✅
 # Priority: high
 # Description: Add functionality to select ticket quantities and update the UI accordingly.
 # Details:

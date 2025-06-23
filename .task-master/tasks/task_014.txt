@@ -1,7 +1,7 @@
 # Task ID: 14
 # Title: Implement inventory management
-# Status: pending
-# Dependencies: 10 ⏱️
+# Status: done
+# Dependencies: 10 ✅
 # Priority: high
 # Description: Create system to track and update ticket inventory in real-time.
 # Details:

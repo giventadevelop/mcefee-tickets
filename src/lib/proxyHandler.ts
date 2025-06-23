@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { getCachedApiJwt, generateApiJwt } from '@/lib/api/jwt';
 import { withTenantId } from '@/lib/withTenantId';
 import { getRawBody } from '@/lib/getRawBody';
+import { getTenantId } from '@/lib/env';
 
 interface ProxyHandlerOptions {
   injectTenantId?: boolean;
@@ -17,6 +18,7 @@ export function createProxyHandler({ injectTenantId = true, allowedMethods = ['G
       return;
     }
     const { method, query, body } = req;
+    const tenantId = getTenantId();
     // Handle slug path segments for catch-all routes
     let path = backendPath;
     const slug = query.slug;
@@ -29,8 +31,12 @@ export function createProxyHandler({ injectTenantId = true, allowedMethods = ['G
     }
     // Remove slug from query before building query string
     const { slug: _omit, ...restQuery } = query;
-    const queryString = buildQueryString(restQuery);
-    const apiUrl = `${API_BASE_URL}${path}${queryString}`;
+    const qs = new URLSearchParams(req.query as Record<string, string>);
+    qs.delete('slug');
+    qs.append('tenantId.equals', tenantId);
+
+    const queryString = qs.toString();
+    const apiUrl = `${API_BASE_URL}${path}${queryString ? `?${queryString}` : ''}`;
     if (!allowedMethods.includes(method!)) {
       res.setHeader('Allow', allowedMethods);
       res.status(405).end(`Method ${method} Not Allowed`);
@@ -166,7 +172,7 @@ function buildQueryString(query: Record<string, any>) {
   return qs ? `?${qs}` : '';
 }
 
-async function fetchWithJwtRetry(apiUrl: string, options: any = {}, debugLabel = '') {
+export async function fetchWithJwtRetry(apiUrl: string, options: any = {}, debugLabel = '') {
   let token = await getCachedApiJwt();
   let response = await fetch(apiUrl, {
     ...options,

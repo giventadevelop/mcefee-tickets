@@ -1,5 +1,5 @@
 "use server";
-import { getCachedApiJwt, generateApiJwt } from '@/lib/api/jwt';
+import { fetchWithJwtRetry } from '@/lib/proxyHandler';
 import { getTenantId } from '@/lib/env';
 import type { EventDetailsDTO, EventTypeDetailsDTO, UserProfileDTO, EventCalendarEntryDTO } from '@/types';
 
@@ -7,44 +7,25 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 export async function fetchEventsServer(pageNum = 0, pageSize = 5): Promise<EventDetailsDTO[]> {
   const url = `${API_BASE_URL}/api/event-details?page=${pageNum}&size=${pageSize}&sort=startDate,asc&tenantId.equals=${getTenantId()}`;
-  let token = await getCachedApiJwt();
-  let res = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' });
-  if (res.status === 401) {
-    token = await generateApiJwt();
-    res = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' });
-  }
+  const res = await fetchWithJwtRetry(url, { cache: 'no-store' });
   if (!res.ok) throw new Error('Failed to fetch events');
   return await res.json();
 }
 
 export async function fetchEventTypesServer(): Promise<EventTypeDetailsDTO[]> {
   const url = `${API_BASE_URL}/api/event-type-details?tenantId.equals=${getTenantId()}`;
-  let token = await getCachedApiJwt();
-  let res = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' });
-  if (res.status === 401) {
-    token = await generateApiJwt();
-    res = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' });
-  }
+  const res = await fetchWithJwtRetry(url, { cache: 'no-store' });
   if (!res.ok) throw new Error('Failed to fetch event types');
   return await res.json();
 }
 
 export async function createEventServer(event: any): Promise<any> {
   const url = `${API_BASE_URL}/api/event-details`;
-  let token = await getCachedApiJwt();
-  let res = await fetch(url, {
+  const res = await fetchWithJwtRetry(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(event),
   });
-  if (res.status === 401) {
-    token = await generateApiJwt();
-    res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify(event),
-    });
-  }
   if (!res.ok) throw new Error('Failed to create event');
   return await res.json();
 }
@@ -52,20 +33,11 @@ export async function createEventServer(event: any): Promise<any> {
 export async function updateEventServer(event: any): Promise<any> {
   if (!event.id) throw new Error('Event ID required for update');
   const url = `${API_BASE_URL}/api/event-details/${event.id}`;
-  let token = await getCachedApiJwt();
-  let res = await fetch(url, {
+  const res = await fetchWithJwtRetry(url, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(event),
   });
-  if (res.status === 401) {
-    token = await generateApiJwt();
-    res = await fetch(url, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify(event),
-    });
-  }
   if (!res.ok) throw new Error('Failed to update event');
   return await res.json();
 }
@@ -73,20 +45,11 @@ export async function updateEventServer(event: any): Promise<any> {
 export async function cancelEventServer(event: EventDetailsDTO): Promise<EventDetailsDTO> {
   if (!event.id) throw new Error('Event ID required for cancel');
   const url = `${API_BASE_URL}/api/event-details/${event.id}`;
-  let token = await getCachedApiJwt();
-  let res = await fetch(url, {
+  const res = await fetchWithJwtRetry(url, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ ...event, isActive: false }),
   });
-  if (res.status === 401) {
-    token = await generateApiJwt();
-    res = await fetch(url, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ ...event, isActive: false }),
-    });
-  }
   if (!res.ok) throw new Error('Failed to cancel event');
   return await res.json();
 }
@@ -122,20 +85,11 @@ export async function createCalendarEventServer(event: EventDetailsDTO, userProf
     createdBy: userProfile,
   };
   const url = `${API_BASE_URL}/api/event-calendar-entries`;
-  let token = await getCachedApiJwt();
-  let res = await fetch(url, {
+  const res = await fetchWithJwtRetry(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(calendarEvent),
   });
-  if (res.status === 401) {
-    token = await generateApiJwt();
-    res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify(calendarEvent),
-    });
-  }
   if (!res.ok) {
     const err = await res.text();
     throw new Error(`Failed to create calendar event: ${err}`);
@@ -145,12 +99,7 @@ export async function createCalendarEventServer(event: EventDetailsDTO, userProf
 
 export async function findCalendarEventByEventIdServer(eventId: number): Promise<EventCalendarEntryDTO | null> {
   const url = `${API_BASE_URL}/api/event-calendar-entries?size=1000&tenantId.equals=${getTenantId()}`;
-  let token = await getCachedApiJwt();
-  let res = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' });
-  if (res.status === 401) {
-    token = await generateApiJwt();
-    res = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' });
-  }
+  const res = await fetchWithJwtRetry(url, { cache: 'no-store' });
   if (!res.ok) return null;
   const data = await res.json();
   if (!Array.isArray(data)) return null;
@@ -176,20 +125,11 @@ export async function updateCalendarEventForEventServer(event: EventDetailsDTO, 
     createdBy: userProfile,
   };
   const url = `${API_BASE_URL}/api/event-calendar-entries/${calendarEvent.id}`;
-  let token = await getCachedApiJwt();
-  let res = await fetch(url, {
+  const res = await fetchWithJwtRetry(url, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(updatedCalendarEvent),
   });
-  if (res.status === 401) {
-    token = await generateApiJwt();
-    res = await fetch(url, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify(updatedCalendarEvent),
-    });
-  }
   if (!res.ok) {
     const err = await res.text();
     throw new Error(`Failed to update calendar event: ${err}`);
@@ -202,12 +142,7 @@ export async function deleteCalendarEventForEventServer(event: EventDetailsDTO) 
   const calendarEvent = await findCalendarEventByEventIdServer(event.id);
   if (!calendarEvent || !calendarEvent.id) return;
   const url = `${API_BASE_URL}/api/event-calendar-entries/${calendarEvent.id}`;
-  let token = await getCachedApiJwt();
-  let res = await fetch(url, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
-  if (res.status === 401) {
-    token = await generateApiJwt();
-    res = await fetch(url, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
-  }
+  const res = await fetchWithJwtRetry(url, { method: 'DELETE' });
   if (!res.ok) {
     const err = await res.text();
     throw new Error(`Failed to delete calendar event: ${err}`);
@@ -242,20 +177,72 @@ export async function fetchEventsFilteredServer(params: {
 
   const url = `${API_BASE_URL}/api/event-details?${queryParams.toString()}`;
 
-  let token = await getCachedApiJwt();
-  let res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
-
-  if (res.status === 401) {
-    token = await generateApiJwt();
-    res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
-  }
+  const res = await fetchWithJwtRetry(url, {});
 
   if (!res.ok) {
-    throw new Error('Failed to fetch events');
+    const errorBody = await res.text();
+    console.error('Error fetching filtered events:', res.status, errorBody);
+    throw new Error(`Failed to fetch events: ${res.statusText}`);
   }
 
-  const totalCount = Number(res.headers.get('X-Total-Count') || 0);
-  const events: EventDetailsDTO[] = await res.json();
+  const totalCount = Number(res.headers.get('X-Total-Count')) || 0;
+  const events = await res.json();
 
   return { events, totalCount };
+}
+
+export async function fetchEventDetailsServer(eventId: number): Promise<EventDetailsDTO | null> {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  const response = await fetch(`${baseUrl}/api/proxy/event-details/${eventId}`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    cache: 'no-store',
+  });
+
+  if (!response.ok) {
+    console.error(`Failed to fetch event details for eventId ${eventId}:`, response.status, await response.text());
+    return null;
+  }
+  return response.json();
+}
+
+export async function fetchUserProfileServer(userId: string): Promise<UserProfileDTO | null> {
+    if (!userId) {
+        return null;
+    }
+    const tenantId = getTenantId();
+    const url = `${API_BASE_URL}/api/user-profiles/by-user/${userId}?tenantId.equals=${tenantId}`;
+    try {
+        const res = await fetchWithJwtRetry(url, { cache: 'no-store' });
+        if (!res.ok) {
+            console.error(`Failed to fetch user profile for userId ${userId}: ${res.status}`);
+            return null;
+        }
+        return await res.json();
+    } catch (error) {
+        console.error(`Error fetching user profile for userId ${userId}:`, error);
+        return null;
+    }
+}
+
+export async function fetchUserProfileByEmailServer(email: string): Promise<UserProfileDTO | null> {
+    if (!email) {
+        return null;
+    }
+    const tenantId = getTenantId();
+    const url = `${API_BASE_URL}/api/user-profiles?email.equals=${encodeURIComponent(email)}&tenantId.equals=${tenantId}`;
+    try {
+        const res = await fetchWithJwtRetry(url, { cache: 'no-store' });
+        if (!res.ok) {
+            console.error(`Failed to fetch user profile for email ${email}: ${res.status}`);
+            return null;
+        }
+        const users = await res.json();
+        return users && users.length > 0 ? users[0] : null;
+    } catch (error) {
+        console.error(`Error fetching user profile for email ${email}:`, error);
+        return null;
+    }
 }

@@ -3,7 +3,11 @@ import { NextResponse } from 'next/server';
 import { initStripeConfig, getStripeEnvVar } from '@/lib/stripe/init';
 import getConfig from 'next/config';
 import Stripe from 'stripe';
-import type { UserProfileDTO, UserSubscriptionDTO } from '@/types';
+import type { UserProfileDTO, UserSubscriptionDTO, EventTicketTransactionDTO } from '@/types';
+import { NextRequest } from 'next/server';
+import getRawBody from 'raw-body';
+import { fetchUserProfileServer } from '@/app/admin/ApiServerActions';
+import { createEventTicketTransactionServer, updateTicketTypeInventoryServer } from './ApiServerActions';
 
 // Force Node.js runtime
 export const runtime = 'nodejs';
@@ -57,7 +61,13 @@ async function updateSubscriptionWithRetry(
   return false;
 }
 
-export async function POST(req: Request) {
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
+
+export async function POST(req: NextRequest) {
   const { serverRuntimeConfig } = getConfig() || { serverRuntimeConfig: {} };
 
   // Skip processing during build phase
@@ -90,7 +100,7 @@ export async function POST(req: Request) {
 
     const body = await req.text();
     const headersList = await headers();
-    const signature = headersList.get('stripe-signature');
+    const signature = headersList.get('stripe-signature') as string;
 
     if (!signature) {
       console.error('[STRIPE-WEBHOOK] Missing stripe-signature header');
@@ -128,6 +138,72 @@ export async function POST(req: Request) {
       switch (event.type) {
         case 'checkout.session.completed':
           const session = event.data.object as Stripe.Checkout.Session;
+
+          // NEW: Handle cart-based event ticket checkout
+          if (session.mode === 'payment' && session.metadata?.cart) {
+            const { userId, cart: cartJson, discountCodeId } = session.metadata;
+            if (!userId) {
+              console.error('[STRIPE-WEBHOOK] No userId in metadata for cart checkout');
+              break;
+            }
+
+            try {
+              const userProfile = await fetchUserProfileServer(userId);
+              if (!userProfile) {
+                console.error(`[STRIPE-WEBHOOK] User profile not found for userId: ${userId}`);
+                break;
+              }
+
+              const cart = JSON.parse(cartJson);
+              const now = new Date().toISOString();
+              const firstTicket = cart.length > 0 ? cart[0].ticketType : null;
+              const eventId = firstTicket?.eventId;
+
+              if (!eventId) {
+                console.error('[STRIPE-WEBHOOK] Could not determine eventId from cart.');
+                break;
+              }
+
+              const transaction: Omit<EventTicketTransactionDTO, 'id'> = {
+                email: userProfile.email || '',
+                firstName: userProfile.firstName || '',
+                lastName: userProfile.lastName || '',
+                quantity: cart.reduce((sum: number, item: any) => sum + item.quantity, 0),
+                pricePerUnit: 0, // Not ideal, but backend may not need it if total is present
+                totalAmount: session.amount_total ? session.amount_total / 100 : 0,
+                status: 'COMPLETED',
+                purchaseDate: now,
+                discountAmount: session.total_details?.amount_discount ? session.total_details.amount_discount / 100 : 0,
+                discountCodeId: discountCodeId ? parseInt(discountCodeId) : undefined,
+                createdAt: now,
+                updatedAt: now,
+                event: { id: eventId },
+                // ticketType is ambiguous with multiple items, can be omitted if backend allows
+                user: userProfile,
+              };
+
+              const createdTransaction = await createEventTicketTransactionServer(transaction);
+              console.log('[STRIPE-WEBHOOK] Successfully created transaction:', createdTransaction.id);
+
+              // Step 2: Update inventory for each ticket type in the cart
+              for (const item of cart) {
+                if (item.ticketType && item.ticketType.id) {
+                  try {
+                    await updateTicketTypeInventoryServer(item.ticketType.id, item.quantity);
+                    console.log(`[STRIPE-WEBHOOK] Updated inventory for ticket type ${item.ticketType.id} by ${item.quantity}`);
+                  } catch (invError) {
+                    console.error(`[STRIPE-WEBHOOK] Failed to update inventory for ticket type ${item.ticketType.id}:`, invError);
+                    // Continue to next item even if one fails
+                  }
+                }
+              }
+
+            } catch (error) {
+              console.error('[STRIPE-WEBHOOK] Error processing cart-based checkout:', error);
+            }
+
+            break; // Exit after handling
+          }
 
           // Handle successful payment for event tickets
           if (session.mode === 'payment' && session.metadata?.eventId) {

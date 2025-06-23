@@ -3,20 +3,30 @@
 import { revalidatePath } from 'next/cache';
 import { getTenantId } from '@/lib/env';
 import { withTenantId } from '@/lib/withTenantId';
-import type { EventTicketTypeDTO, EventTicketTypeFormDTO } from '@/types';
+import type { EventTicketTypeDTO, EventTicketTypeFormDTO, EventDetailsDTO } from '@/types';
 import { getCachedApiJwt, generateApiJwt } from '@/lib/api/jwt';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
-async function fetchWithJwt(url: string, options: any = {}) {
+async function fetchWithJwtRetry(apiUrl: string, options: RequestInit = {}) {
   let token = await getCachedApiJwt();
-  let res = await fetch(url, { ...options, headers: { ...options.headers, Authorization: `Bearer ${token}` } });
-
-  if (res.status === 401) {
-    token = await generateApiJwt();
-    res = await fetch(url, { ...options, headers: { ...options.headers, Authorization: `Bearer ${token}` } });
+  const headers = new Headers(options.headers || {});
+  headers.set('Authorization', `Bearer ${token}`);
+  if (options.method === 'POST' || options.method === 'PUT') {
+    headers.set('Content-Type', 'application/json');
   }
-  return res;
+
+  let response = await fetch(apiUrl, { ...options, headers });
+
+  if (response.status === 401) {
+    console.log('JWT expired or invalid, generating a new one.');
+    token = await generateApiJwt();
+    headers.set('Authorization', `Bearer ${token}`);
+    response = await fetch(apiUrl, { ...options, headers });
+  }
+
+  return response;
 }
 
 export async function fetchTicketTypesServer(eventId: number) {
@@ -31,113 +41,149 @@ export async function fetchTicketTypesServer(eventId: number) {
   return res.json();
 }
 
-export async function createTicketTypeServer(
-  eventId: string,
-  formData: EventTicketTypeFormDTO
-): Promise<{ success: boolean; data?: EventTicketTypeDTO; error?: string }> {
+export async function createTicketTypeServer(eventId: string, formData: EventTicketTypeFormDTO) {
   try {
-    if (!eventId) {
-      throw new Error('Event ID is required.');
-    }
-
-    const apiUrl = `${API_BASE_URL}/api/event-ticket-types`;
-
-    // Note: maxPerOrder, startDate, and endDate are not part of EventTicketTypeDTO
-    // and have been removed from the payload.
     const payload = withTenantId({
       ...formData,
-      event: { id: parseInt(eventId, 10) },
-      price: parseFloat(formData.price.toString()),
-      availableQuantity: parseInt(formData.availableQuantity?.toString() || '0', 10),
+      event: { id: parseInt(eventId) },
+      price: Number(formData.price),
+      availableQuantity: Number(formData.availableQuantity),
+      serviceFee: formData.isServiceFeeIncluded && formData.serviceFee ? Number(formData.serviceFee) : 0,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });
 
-    const response = await fetchWithJwt(apiUrl, {
+    const response = await fetchWithJwtRetry(`${API_BASE_URL}/api/event-ticket-types`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      console.error('Failed to create ticket type:', errorData);
-      return { success: false, error: errorData.title || 'Failed to create ticket type.' };
+      const errorData = await response.text();
+      return { success: false, error: `Failed to create ticket type: ${errorData}` };
     }
 
-    const newTicketType: EventTicketTypeDTO = await response.json();
-
-    revalidatePath(`/admin/events/${eventId}/ticket-types/list`);
-
-    return { success: true, data: newTicketType };
+    const data: EventTicketTypeDTO = await response.json();
+    return { success: true, data };
   } catch (error) {
-    console.error('Error in createTicketTypeServer:', error);
-    const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred.';
-    return { success: false, error: errorMessage };
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
   }
 }
 
-export async function updateTicketTypeServer(
-  ticketTypeId: number,
-  eventId: string,
-  formData: Partial<EventTicketTypeFormDTO>
-): Promise<{ success: boolean; data?: EventTicketTypeDTO; error?: string }> {
+export async function updateTicketTypeServer(ticketTypeId: number, eventId: string, formData: Partial<EventTicketTypeFormDTO>) {
   try {
-    const apiUrl = `${API_BASE_URL}/api/event-ticket-types/${ticketTypeId}`;
-
     const payload = withTenantId({
       ...formData,
-      id: ticketTypeId,
-      event: { id: parseInt(eventId, 10) },
-      price: formData.price ? parseFloat(formData.price.toString()) : undefined,
-      availableQuantity: formData.availableQuantity ? parseInt(formData.availableQuantity.toString(), 10) : undefined,
+      event: { id: parseInt(eventId) },
+      price: Number(formData.price),
+      availableQuantity: Number(formData.availableQuantity),
+      serviceFee: formData.isServiceFeeIncluded && formData.serviceFee ? Number(formData.serviceFee) : 0,
       updatedAt: new Date().toISOString(),
     });
 
-    const response = await fetchWithJwt(apiUrl, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+    const response = await fetchWithJwtRetry(`${API_BASE_URL}/api/event-ticket-types/${ticketTypeId}`, {
+      method: 'PUT',
       body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      return { success: false, error: errorData.title || 'Failed to update ticket type.' };
+      const errorData = await response.text();
+      return { success: false, error: `Failed to update ticket type: ${errorData}` };
+    }
+    const data: EventTicketTypeDTO = await response.json();
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+export async function deleteTicketTypeServer(ticketTypeId: number, eventId: string) {
+  try {
+    const response = await fetchWithJwtRetry(`${API_BASE_URL}/api/event-ticket-types/${ticketTypeId}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      const errorData = await response.text();
+      return { success: false, error: `Failed to delete ticket type: ${errorData}` };
+    }
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+export async function fetchTicketTypeByIdServer(
+  ticketTypeId: number
+): Promise<EventTicketTypeDTO | null> {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  const response = await fetch(
+    `${baseUrl}/api/proxy/event-ticket-types/${ticketTypeId}`,
+    {
+      cache: 'no-store', // Always fetch fresh data
+    }
+  );
+
+  if (!response.ok) {
+    if (response.status !== 404) {
+      console.error(
+        `Failed to fetch ticket type ${ticketTypeId}:`,
+        response.status,
+        await response.text()
+      );
+    }
+    return null;
+  }
+  return response.json();
+}
+
+export async function updateTicketTypeInventoryServer(
+  ticketTypeId: number,
+  quantitySold: number
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const ticketType = await fetchTicketTypeByIdServer(ticketTypeId);
+    if (!ticketType) {
+      return { success: false, error: `Ticket type with ID ${ticketTypeId} not found.` };
     }
 
-    const updatedTicketType: EventTicketTypeDTO = await response.json();
-    revalidatePath(`/admin/events/${eventId}/ticket-types/list`);
-    return { success: true, data: updatedTicketType };
+    const updatedTicketType: EventTicketTypeDTO = {
+      ...ticketType,
+      availableQuantity: (ticketType.availableQuantity ?? 0) - quantitySold,
+      soldQuantity: (ticketType.soldQuantity ?? 0) + quantitySold,
+      updatedAt: new Date().toISOString(),
+    };
+
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const response = await fetch(`${baseUrl}/api/proxy/event-ticket-types/${ticketTypeId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(withTenantId(updatedTicketType)),
+    });
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Failed to update ticket type inventory:', response.status, errorText);
+        return { success: false, error: `Failed to update inventory: ${errorText}` };
+    }
+
+    return { success: true };
   } catch (error) {
-    console.error('Error in updateTicketTypeServer:', error);
+    console.error('Error in updateTicketTypeInventoryServer:', error);
     const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred.';
     return { success: false, error: errorMessage };
   }
 }
 
-export async function deleteTicketTypeServer(
-  ticketTypeId: number,
-  eventId: string
-): Promise<{ success: boolean; error?: string }> {
-  try {
-    const apiUrl = `${API_BASE_URL}/api/event-ticket-types/${ticketTypeId}`;
+export async function fetchEventDetailsForTicketListPage(eventId: number): Promise<EventDetailsDTO | null> {
+    const url = `${APP_URL}/api/proxy/event-details/${eventId}`;
+    const response = await fetch(url, { cache: 'no-store' });
+    if (!response.ok) return null;
+    return response.json();
+}
 
-    const response = await fetchWithJwt(apiUrl, {
-      method: 'DELETE',
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ title: 'Failed to delete ticket type.' }));
-      return { success: false, error: errorData.title };
-    }
-
-    revalidatePath(`/admin/events/${eventId}/ticket-types/list`);
-    return { success: true };
-  } catch (error) {
-    console.error('Error in deleteTicketTypeServer:', error);
-    const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred.';
-    return { success: false, error: errorMessage };
-  }
+export async function fetchTicketTypesForTicketListPage(eventId: number): Promise<EventTicketTypeDTO[]> {
+    const url = `${APP_URL}/api/proxy/event-ticket-types?eventId.equals=${eventId}`;
+    const response = await fetch(url, { cache: 'no-store' });
+    if (!response.ok) return [];
+    return response.json();
 }

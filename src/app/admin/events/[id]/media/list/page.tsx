@@ -2,7 +2,8 @@
 import React, { useRef, useState, useEffect, useCallback, useTransition } from "react";
 import { EventMediaDTO, EventDetailsDTO } from "@/types";
 import { FaEdit, FaTrashAlt, FaUsers, FaPhotoVideo, FaCalendarAlt, FaSave, FaTimes, FaChevronLeft, FaChevronRight, FaTicketAlt, FaUpload, FaBan } from 'react-icons/fa';
-import { deleteMediaServer, editMediaServer, fetchMediaFilteredServer, fetchEventDetailsServer } from '../ApiServerActions';
+import { deleteMediaServer, editMediaServer, fetchMediaFilteredServer } from '../ApiServerActions';
+import { fetchEventDetailsServer } from '@/app/admin/ApiServerActions';
 import { createPortal } from "react-dom";
 import Link from 'next/link';
 import { useRouter, useParams } from "next/navigation";

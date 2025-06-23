@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
+import { FaTags, FaCreditCard, FaCalendarAlt, FaClock, FaMapMarkerAlt } from 'react-icons/fa';
 
 export default function TicketingPage() {
   const params = useParams();
@@ -12,10 +13,16 @@ export default function TicketingPage() {
   const [selectedTickets, setSelectedTickets] = useState<{ [key: number]: number }>({});
   const [email, setEmail] = useState('');
   const [discountCode, setDiscountCode] = useState('');
+  const [appliedDiscount, setAppliedDiscount] = useState<any>(null);
+  const [discountError, setDiscountError] = useState('');
+  const [discountSuccessMessage, setDiscountSuccessMessage] = useState('');
+  const [availableDiscounts, setAvailableDiscounts] = useState<any[]>([]);
   const [emailError, setEmailError] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [heroImageUrl, setHeroImageUrl] = useState<string | null>(null);
+  const [totalAmount, setTotalAmount] = useState(0);
+  const [savedAmount, setSavedAmount] = useState(0);
 
   const defaultHeroImageUrl = `/images/side_images/chilanka_2025.webp?v=${Date.now()}`;
 
@@ -31,6 +38,14 @@ export default function TicketingPage() {
         const ticketRes = await fetch(`/api/proxy/event-ticket-types?eventId.equals=${eventId}`);
         const ticketData = await ticketRes.json();
         setTicketTypes(Array.isArray(ticketData) ? ticketData : []);
+
+        // Fetch discount codes for this event
+        const discountRes = await fetch(`/api/proxy/discount-codes?eventId.equals=${eventId}&isActive.equals=true`);
+        if (discountRes.ok) {
+          const discountData = await discountRes.json();
+          setAvailableDiscounts(Array.isArray(discountData) ? discountData : []);
+        }
+
         // --- Hero image selection logic (match home page) ---
         let imageUrl = null;
         // 1. Try flyer
@@ -75,30 +90,146 @@ export default function TicketingPage() {
     // eslint-disable-next-line
   }, [eventId]);
 
+  // Reactive calculation for total and discount
+  useEffect(() => {
+    const subtotal = Object.entries(selectedTickets).reduce((total, [ticketId, quantity]) => {
+      const ticket = ticketTypes.find(t => t.id === parseInt(ticketId));
+      return total + (ticket?.price || 0) * quantity;
+    }, 0);
+
+    let finalAmount = subtotal;
+    let amountSaved = 0;
+
+    if (appliedDiscount) {
+      if (appliedDiscount.discountType === 'PERCENTAGE') {
+        amountSaved = subtotal * (appliedDiscount.discountValue / 100);
+      } else if (appliedDiscount.discountType === 'FIXED_AMOUNT') {
+        amountSaved = Math.min(subtotal, appliedDiscount.discountValue);
+      }
+      finalAmount = Math.max(0, subtotal - amountSaved);
+
+      if (amountSaved > 0) {
+        setDiscountSuccessMessage(`Discount '${appliedDiscount.code}' applied! You saved $${amountSaved.toFixed(2)}.`);
+      }
+    } else {
+      setDiscountSuccessMessage('');
+    }
+
+    setTotalAmount(finalAmount);
+    setSavedAmount(amountSaved);
+  }, [selectedTickets, appliedDiscount, ticketTypes]);
+
   const handleTicketChange = (ticketId: number, quantity: number) => {
-    if (quantity >= 0) {
-      setSelectedTickets(prev => ({ ...prev, [ticketId]: quantity }));
+    const ticketType = ticketTypes.find(t => t.id === ticketId);
+    if (!ticketType) return;
+
+    const available = ticketType.availableQuantity ?? Infinity;
+    const newQuantity = Math.max(0, Math.min(quantity, available));
+
+    if (newQuantity >= 0) {
+      setSelectedTickets(prev => ({ ...prev, [ticketId]: newQuantity }));
     }
   };
 
-  const calculateTotal = () => {
+  const calculateSubtotal = () => {
     return Object.entries(selectedTickets).reduce((total, [ticketId, quantity]) => {
       const ticket = ticketTypes.find(t => t.id === parseInt(ticketId));
       return total + (ticket?.price || 0) * quantity;
     }, 0);
   };
 
+  const validateAndApplyDiscount = (code: string) => {
+    if (Object.values(selectedTickets).every(q => q === 0)) {
+      setDiscountError('Please select tickets before applying a discount.');
+      return null;
+    }
+
+    setDiscountError('');
+    const codeToValidate = code.trim().toLowerCase();
+
+    if (!codeToValidate) {
+      setAppliedDiscount(null); // Clear discount if input is empty
+      return null;
+    }
+
+    const codeToApply = availableDiscounts.find(d => d.code.toLowerCase() === codeToValidate);
+
+    if (codeToApply) {
+      if (codeToApply.usesCount >= (codeToApply.maxUses || Infinity)) {
+        setDiscountError('This discount code has reached its maximum usage limit.');
+        setAppliedDiscount(null);
+        return null;
+      } else {
+        setAppliedDiscount(codeToApply); // Success! Set the discount object.
+        return codeToApply;
+      }
+    } else {
+      setDiscountError('Invalid code. Please clear the field or enter a valid code to proceed.');
+      setAppliedDiscount(null);
+      return null;
+    }
+  };
+
+  const handleApplyDiscount = () => {
+    validateAndApplyDiscount(discountCode);
+  };
+
   const handleCheckout = async () => {
-    if (!email.trim()) {
+    // 1. Validate Email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email || !emailRegex.test(email)) {
       setEmailError(true);
       return;
     }
-    // TODO: Integrate with backend checkout API
+
+    // 2. Auto-apply discount if code is entered but not applied
+    let finalDiscount = appliedDiscount;
+    if (discountCode && (!appliedDiscount || appliedDiscount.code.toLowerCase() !== discountCode.toLowerCase())) {
+      finalDiscount = validateAndApplyDiscount(discountCode);
+    }
+
+    // 3. Build cart.
+    const cart = Object.entries(selectedTickets)
+      .filter(([, quantity]) => quantity > 0)
+      .map(([ticketId, quantity]) => {
+        const ticketType = ticketTypes.find(t => t.id === parseInt(ticketId));
+        return { ticketType, quantity };
+      });
+
+    if (cart.length === 0) {
+      alert('Your cart is empty. Please select at least one ticket.');
+      return;
+    }
+
+    // 4. Start processing and call Stripe API directly.
     setIsProcessing(true);
-    setTimeout(() => {
+
+    try {
+      const response = await fetch('/api/stripe/event-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cart,
+          discountCodeId: finalDiscount?.id || null,
+          eventId,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create checkout session.');
+      }
+
+      const { url } = await response.json();
+      if (url) {
+        window.location.href = url;
+      } else {
+        throw new Error('No checkout URL returned.');
+      }
+    } catch (error) {
+      console.error('Checkout error:', error);
+      alert('Could not proceed to checkout. Please try again.');
       setIsProcessing(false);
-      alert('Checkout simulated!');
-    }, 1200);
+    }
   };
 
   if (loading) {
@@ -150,15 +281,10 @@ export default function TicketingPage() {
           <Image
             src="/images/side_images/pooram_side_image_two_images_blur_1.png"
             alt="Kerala Sea Coast"
-            width={250}
-            height={400}
+            fill
             className="h-full object-cover rounded-l-lg shadow-2xl"
             style={{
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
               objectPosition: '60% center',
-              display: 'block',
               boxShadow: '0 0 96px 32px rgba(80,80,80,0.22)',
             }}
             priority
@@ -221,7 +347,7 @@ export default function TicketingPage() {
                 alt="Buy Tickets"
                 width={160}
                 height={60}
-                style={{ opacity: 0.7, width: '160px', height: 'auto' }}
+                style={{ opacity: 0.7, height: 'auto' }}
                 className="rounded shadow"
                 priority
               />
@@ -231,84 +357,138 @@ export default function TicketingPage() {
       </section>
       {/* --- END HERO SECTION --- */}
 
-      {/* Event Details */}
-      <div className="max-w-3xl mx-auto px-4 mb-8">
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-semibold mb-2">Event Details</h2>
-          <p className="text-gray-700 mb-2">{event.description}</p>
-          <div className="text-gray-500 text-sm">Location: {event.location}</div>
-        </div>
-      </div>
-
-      {/* Ticket Types */}
-      <div className="max-w-4xl mx-auto px-4 mb-8">
-        <h2 className="text-2xl font-bold mb-4">Available Ticket Types</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {ticketTypes.length === 0 && <div className="col-span-full text-gray-500">No ticket types available.</div>}
-          {ticketTypes.map(ticket => (
-            <div key={ticket.id} className="border rounded-lg p-6 bg-white flex flex-col shadow-md">
-              <h3 className="text-lg font-semibold text-gray-900 mb-1">{ticket.name}</h3>
-              <p className="text-gray-600 mb-2">{ticket.description}</p>
-              <div className="text-2xl font-bold text-gray-900 mb-2">${ticket.price?.toFixed(2) ?? '0.00'}</div>
-              <div className="flex items-center mt-auto">
-                <button
-                  onClick={() => handleTicketChange(ticket.id, (selectedTickets[ticket.id] || 0) - 1)}
-                  className="bg-gray-200 text-gray-600 px-3 py-1 rounded-l hover:bg-gray-300"
-                  disabled={isProcessing || (selectedTickets[ticket.id] || 0) <= 0}
-                >
-                  -
-                </button>
-                <span className="px-4 py-1 bg-white border-t border-b">{selectedTickets[ticket.id] || 0}</span>
-                <button
-                  onClick={() => handleTicketChange(ticket.id, (selectedTickets[ticket.id] || 0) + 1)}
-                  className="bg-gray-200 text-gray-600 px-3 py-1 rounded-r hover:bg-gray-300"
-                  disabled={isProcessing || (selectedTickets[ticket.id] || 0) >= (ticket.availableQuantity ?? 999)}
-                >
-                  +
-                </button>
-              </div>
-              <div className="text-xs text-gray-500 mt-2">Available: {ticket.availableQuantity ?? 'N/A'}</div>
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Event Details Card */}
+        <div className="bg-teal-50 rounded-xl shadow-lg p-6 md:p-8 mb-8">
+          <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2">
+            {event.title}
+          </h2>
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-gray-600 mb-4">
+            <div className="flex items-center gap-2">
+              <FaCalendarAlt />
+              <span>{new Date(event.startDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
             </div>
-          ))}
+            <div className="flex items-center gap-2">
+              <FaClock />
+              <span>{event.startTime}</span>
+            </div>
+            {event.venueName && (
+              <div className="flex items-center gap-2">
+                <FaMapMarkerAlt />
+                <span>{event.venueName}</span>
+              </div>
+            )}
+          </div>
+          <p className="text-gray-700 text-base">{event.description}</p>
         </div>
-      </div>
 
-      {/* Checkout Section */}
-      <div className="max-w-2xl mx-auto px-4">
-        <div className="bg-white rounded-lg shadow p-6 flex flex-col gap-4">
-          <div>
-            <label className="block font-semibold mb-1">Email Address <span className="text-red-500">*</span></label>
-            <input
-              type="email"
-              className={`w-full border rounded p-2 ${emailError ? 'border-red-500' : ''}`}
-              value={email}
-              onChange={e => { setEmail(e.target.value); setEmailError(false); }}
-              required
-              disabled={isProcessing}
-              placeholder="Enter your email"
-            />
-            {emailError && <div className="text-red-500 text-sm mt-1">Email is required</div>}
+        {/* Main Content Area */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Left Side: Ticket Types */}
+          <div className="lg:col-span-2">
+            <div className="bg-slate-50 rounded-xl shadow-lg p-6 md:p-8">
+              <h2 className="text-2xl md:text-3xl font-bold mb-6 text-gray-800">Select Your Tickets</h2>
+              <div className="space-y-6">
+                {ticketTypes.length === 0 && (
+                  <div className="text-center text-gray-500 py-8">No ticket types available for this event.</div>
+                )}
+                {ticketTypes.map(ticket => (
+                  <div key={ticket.id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-5 border border-gray-200 rounded-lg bg-white shadow-sm">
+                    <div className="mb-4 sm:mb-0">
+                      <h3 className="text-xl font-semibold text-gray-900">{ticket.name}</h3>
+                      <p className="text-lg font-bold text-blue-600 mt-1">${ticket.price.toFixed(2)}</p>
+                      <p className="text-sm text-gray-600 mt-2">{ticket.description}</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => handleTicketChange(ticket.id, (selectedTickets[ticket.id] || 0) - 1)}
+                        className="bg-gray-200 text-gray-700 px-3 py-1 rounded-l-md hover:bg-gray-300 transition-colors"
+                      >
+                        -
+                      </button>
+                      <span className="px-4 py-1 bg-white border-t border-b">{selectedTickets[ticket.id] || 0}</span>
+                      <button
+                        onClick={() => handleTicketChange(ticket.id, (selectedTickets[ticket.id] || 0) + 1)}
+                        className="bg-gray-200 text-gray-700 px-3 py-1 rounded-r-md hover:bg-gray-300 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
+                        disabled={(selectedTickets[ticket.id] || 0) >= (ticket.availableQuantity ?? Infinity)}
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
-          <div>
-            <label className="block font-semibold mb-1">Discount Code</label>
-            <input
-              type="text"
-              className="w-full border rounded p-2"
-              value={discountCode}
-              onChange={e => setDiscountCode(e.target.value)}
-              disabled={isProcessing}
-              placeholder="Enter discount code (optional)"
-            />
-          </div>
-          <div className="flex items-center justify-between mt-4">
-            <div className="text-lg font-bold">Total: ${calculateTotal().toFixed(2)}</div>
-            <button
-              className="bg-blue-600 text-white px-6 py-2 rounded font-semibold shadow hover:bg-blue-700 transition disabled:opacity-50"
-              onClick={handleCheckout}
-              disabled={isProcessing || !email.trim() || calculateTotal() === 0}
-            >
-              {isProcessing ? 'Processing...' : 'Checkout'}
-            </button>
+
+          {/* Right Side: Order Summary & Checkout */}
+          <div className="lg:col-span-1">
+            <div className="bg-slate-50 rounded-xl shadow-lg p-6 md:p-8 sticky top-8">
+              <h2 className="text-2xl font-bold mb-6 text-gray-800">Order Summary</h2>
+
+              {/* Discount Code Section */}
+              {availableDiscounts.length > 0 && (
+                <div className="mb-6">
+                  <label htmlFor="discountCode" className="block text-sm font-medium text-gray-700 mb-1">Discount Code</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      id="discountCode"
+                      value={discountCode}
+                      onChange={(e) => setDiscountCode(e.target.value)}
+                      placeholder="Enter code"
+                      className="mt-1 block w-full border border-gray-400 rounded-xl focus:border-blue-500 focus:ring-blue-500 px-4 py-3 text-base"
+                    />
+                    <button
+                      onClick={handleApplyDiscount}
+                      className="bg-blue-600 text-white px-4 py-3 rounded-xl hover:bg-blue-700 disabled:bg-blue-300 font-semibold flex items-center gap-2"
+                    >
+                      <FaTags />
+                      Apply
+                    </button>
+                  </div>
+                  {discountError && <p className="text-red-500 text-sm mt-2">{discountError}</p>}
+                  {discountSuccessMessage && <p className="text-green-600 text-sm mt-2">{discountSuccessMessage}</p>}
+                </div>
+              )}
+
+              {/* Total */}
+              <div className="border-t border-gray-200 pt-6 mb-6">
+                <div className="flex justify-between items-center mb-4">
+                  <span className="text-lg font-medium text-gray-600">Total:</span>
+                  <span className="text-2xl font-bold text-gray-900">${totalAmount.toFixed(2)}</span>
+                </div>
+              </div>
+
+              {/* Email and Checkout */}
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                  Email for ticket confirmation
+                </label>
+                <input
+                  type="email"
+                  id="email"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    if (emailError) setEmailError(false);
+                  }}
+                  className={`mt-1 block w-full border border-gray-400 rounded-xl focus:border-blue-500 focus:ring-blue-500 px-4 py-3 text-base ${emailError ? 'border-red-500' : 'border-gray-400'}`}
+                  required
+                  placeholder="you@example.com"
+                />
+                {emailError && <p className="text-red-500 text-xs mt-1">Please enter a valid email address.</p>}
+              </div>
+
+              <button
+                type="button"
+                onClick={handleCheckout}
+                className="w-full mt-6 bg-green-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-green-700 transition-colors duration-300 disabled:bg-gray-400 flex items-center justify-center gap-2"
+                disabled={isProcessing || Object.values(selectedTickets).every(q => q === 0)}
+              >
+                <FaCreditCard /> {isProcessing ? 'Processing...' : 'Proceed to Checkout'}
+              </button>
+            </div>
           </div>
         </div>
       </div>

@@ -17,7 +17,7 @@ export interface UserTaskDTO {
 }
 
 export interface UserProfileDTO {
-  id?: number;
+  id: number;
   tenantId?: string;
   userId: string;
   firstName?: string;
@@ -157,8 +157,8 @@ export interface EventWithMedia extends EventDetailsDTO {
  * DTO for event ticket type, matches backend schema.
  */
 export interface EventTicketTypeDTO {
-  id?: number;
-  tenantId?: string;
+  id: number;
+  tenantId: string;
   name: string;
   description?: string;
   isServiceFeeIncluded?: boolean;
@@ -317,19 +317,44 @@ export interface EventPollResponseDTO {
 export interface EventTicketTransactionDTO {
   id?: number;
   tenantId?: string;
+  transactionReference?: string;
   email: string;
   firstName?: string;
   lastName?: string;
+  phone?: string;
   quantity: number;
   pricePerUnit: number;
   totalAmount: number;
+  taxAmount?: number;
+  feeAmount?: number;
+  discountCodeId?: number | null;
+  discountAmount?: number | null;
+  finalAmount: number;
   status: string;
+  paymentMethod?: string;
+  paymentReference?: string;
   purchaseDate: string;
+  confirmationSentAt?: string;
+  refundAmount?: number;
+  refundDate?: string;
+  refundReason?: string;
+  stripeCheckoutSessionId?: string;
+  stripePaymentIntentId?: string | null;
+  stripeCustomerId?: string | null;
+  stripePaymentStatus?: string;
+  stripeCustomerEmail?: string;
+  stripePaymentCurrency?: string;
+  stripeAmountDiscount?: number;
+  stripeAmountTax?: number;
+  customerName?: string | null;
+  paymentStatus: string;
+  amountTotal: number;
+  amountSubtotal: number;
   createdAt: string;
   updatedAt: string;
-  event?: EventDetailsDTO;
-  ticketType?: EventTicketTypeDTO;
-  user?: UserProfileDTO;
+  event: Partial<EventDetailsDTO> & { id: number };
+  ticketType?: Partial<EventTicketTypeDTO> & { id: number };
+  user?: Partial<UserProfileDTO> & { id: number };
 }
 
 export interface QrCodeUsageDTO {

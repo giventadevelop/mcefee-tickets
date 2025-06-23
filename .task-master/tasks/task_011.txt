@@ -1,7 +1,7 @@
 # Task ID: 11
 # Title: Create confirmation and error pages
 # Status: pending
-# Dependencies: 9 ⏱️
+# Dependencies: 9 ✅
 # Priority: medium
 # Description: Implement pages to show payment confirmation or errors to users.
 # Details:

@@ -1,3 +1,4 @@
+"use client";
 import { EventWithMedia } from '@/types';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -58,10 +59,10 @@ export function EventCard({ event, placeholderText }: EventCardProps) {
   }, [event, isUpcoming]);
 
   return (
-    <div className="event-item bg-gray-50 rounded-lg shadow-lg p-6 flex flex-col items-center h-full hover:shadow-2xl transition-shadow duration-200 cursor-pointer">
-      <Link href={`/events/${event.id}`} className="block w-full h-full group" tabIndex={-1}>
-        <div className="event-image rounded-lg overflow-hidden mb-4 relative"
-          style={{ width: 300, minWidth: 300, maxWidth: 300, height: 180, minHeight: 180, maxHeight: 180 }}>
+    <div className="event-item bg-gray-50 rounded-lg shadow-lg p-4 flex flex-col items-center h-full hover:shadow-2xl transition-shadow duration-200 cursor-pointer w-[320px] max-w-[calc(100vw-2rem)]">
+      <Link href={`/events/${event.id}`} className="block w-full h-full group flex flex-col items-center" tabIndex={-1}>
+        <div className="event-image rounded-lg overflow-hidden mb-3 relative"
+          style={{ width: '100%', height: 160 }}>
           {event.thumbnailUrl ? (
             <Image
               src={event.thumbnailUrl}
@@ -86,16 +87,16 @@ export function EventCard({ event, placeholderText }: EventCardProps) {
           )}
         </div>
         <div className="event-content text-center flex-grow">
-          <h4 className="event-title text-xl font-semibold mb-2">{event.title}</h4>
-          <p className="text-gray-600 mb-4 line-clamp-3">{event.description}</p>
-          <div className="text-yellow-600 font-bold mb-2">
+          <h4 className="event-title text-lg font-semibold mb-1">{event.title}</h4>
+          <p className="text-gray-600 mb-3 text-sm line-clamp-2">{event.description}</p>
+          <div className="text-yellow-600 font-bold mb-1 text-sm">
             {formatDateLocal(event.startDate)}
           </div>
-          <div className="text-gray-500 text-sm">
+          <div className="text-gray-500 text-xs">
             {event.startTime} - {event.endTime}
           </div>
         </div>
-        <span className="mt-4 inline-block bg-yellow-400 text-gray-900 px-6 py-2 rounded-lg font-semibold text-sm shadow group-hover:bg-yellow-300 transition">
+        <span className="mt-3 inline-block bg-yellow-400 text-gray-900 px-5 py-2 rounded-lg font-semibold text-xs shadow group-hover:bg-yellow-300 transition">
           Learn More
         </span>
       </Link>

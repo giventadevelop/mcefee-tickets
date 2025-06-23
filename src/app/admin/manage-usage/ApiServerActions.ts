@@ -72,12 +72,29 @@ export async function fetchUsersServer({ search, searchField, status, role, page
 
 export async function patchUserProfileServer(userId: number, payload: Partial<UserProfileDTO>) {
   const url = `${API_BASE_URL}/api/user-profiles/${userId}`;
-  const res = await fetchWithJwt(url, {
+
+  let token = await getCachedApiJwt();
+  if (!token) {
+    token = await generateApiJwt();
+  }
+
+  const finalPayload = {
+    ...payload,
+    id: userId,
+  };
+
+  const res = await fetch(url, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify(finalPayload),
   });
+
   if (!res.ok) {
+    const errorBody = await res.text();
+    console.error(`Failed to update user profile ${userId}:`, errorBody);
     throw new Error('Failed to update user profile');
   }
   return res.json();

@@ -1,21 +1,17 @@
 import Stripe from "stripe";
-
-// Initialize Stripe lazily to prevent build-time errors
-export const getStripe = () => {
-  const secretKey = process.env.STRIPE_SECRET_KEY;
-  if (!secretKey) {
-    throw new Error('STRIPE_SECRET_KEY is not configured');
-  }
-  return new Stripe(secretKey, {
-    apiVersion: "2023-10-16" as Stripe.LatestApiVersion,
-  });
-};
+import { initStripeConfig } from './init';
 
 // For cases where we need a singleton instance
 let stripeInstance: Stripe | null = null;
+
 export const stripe = () => {
   if (!stripeInstance) {
-    stripeInstance = getStripe();
+    // Use the robust initialization from init.ts
+    stripeInstance = initStripeConfig();
+  }
+  if (!stripeInstance) {
+    // This will only happen if the config fails to initialize
+    throw new Error('Stripe failed to initialize. Check server logs for details.');
   }
   return stripeInstance;
 };

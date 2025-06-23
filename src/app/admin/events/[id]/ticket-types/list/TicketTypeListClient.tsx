@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useTransition, useEffect } from 'react';
 import Link from 'next/link';
-import { FaUsers, FaCalendarAlt, FaEdit, FaTrashAlt, FaPlus, FaSave, FaTimes, FaBan } from 'react-icons/fa';
+import { FaUsers, FaCalendarAlt, FaEdit, FaTrashAlt, FaPlus, FaSave, FaTimes, FaBan, FaPhotoVideo, FaTicketAlt, FaTags } from 'react-icons/fa';
 import type { EventDetailsDTO, EventTicketTypeDTO, EventTicketTypeFormDTO } from '@/types';
 import { Modal } from '@/components/Modal';
 import { createTicketTypeServer, updateTicketTypeServer, deleteTicketTypeServer } from './ApiServerActions';
@@ -31,6 +31,8 @@ export default function TicketTypeListClient({ eventId, eventDetails, ticketType
   const [deletingTicketType, setDeletingTicketType] = useState<EventTicketTypeDTO | null>(null);
 
   const [formData, setFormData] = useState<Partial<EventTicketTypeFormDTO>>({});
+
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     if (editingTicketType) {
@@ -76,6 +78,16 @@ export default function TicketTypeListClient({ eventId, eventDetails, ticketType
 
   const handleAddNewClick = () => {
     setEditingTicketType(null);
+    setFormData({
+      name: '',
+      code: '',
+      description: '',
+      price: 0,
+      availableQuantity: 100,
+      isServiceFeeIncluded: false,
+      serviceFee: 0,
+      isActive: true,
+    });
     setIsModalOpen(true);
   };
 
@@ -141,61 +153,70 @@ export default function TicketTypeListClient({ eventId, eventDetails, ticketType
   };
 
   return (
-    <>
-      <div className="flex justify-between items-center mb-6">
-        <div className="flex gap-4">
-          <button className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md">
-            All Ticket Types
-          </button>
-          <button className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-md">
-            Active
-          </button>
-          <button className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-md">
-            Inactive
+    <div className="max-w-5xl mx-auto px-8 py-8">
+      <div className="flex justify-center mb-8">
+        <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-4xl">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 justify-center">
+            <Link href={`/admin/events/${eventId}/media/list`} className="flex flex-col items-center justify-center bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg shadow-sm px-4 py-4 transition font-semibold text-sm">
+              <FaPhotoVideo className="mb-2 text-2xl" />
+              Manage Media Files
+            </Link>
+            <Link href={`/admin/events/${eventId}/ticket-types/list`} className="flex flex-col items-center justify-center bg-green-50 hover:bg-green-100 text-green-700 rounded-lg shadow-sm px-4 py-4 transition font-semibold text-sm">
+              <FaTicketAlt className="mb-2 text-2xl" />
+              Manage Ticket Types
+            </Link>
+            <Link href={`/admin/events/${eventId}/discount-codes/list`} className="flex flex-col items-center justify-center bg-yellow-50 hover:bg-yellow-100 text-yellow-700 rounded-lg shadow-sm px-4 py-4 transition font-semibold text-sm">
+              <FaTags className="mb-2 text-2xl" />
+              Manage Discount Codes
+            </Link>
+          </div>
+        </div>
+      </div>
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold text-gray-800">Ticket Types for {eventDetails?.title}</h2>
+          <button
+            onClick={handleAddNewClick}
+            className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 transition-colors"
+          >
+            <FaPlus /> Add New Ticket Type
           </button>
         </div>
-        <button
-          onClick={handleAddNewClick}
-          className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-md flex items-center gap-2"
-        >
-          <FaPlus /> Add Ticket Type
-        </button>
-      </div>
-
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Available</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {ticketTypes.map((ticketType) => (
-              <tr key={ticketType.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap">{ticketType.name}</td>
-                <td className="px-6 py-4 whitespace-nowrap">{ticketType.code}</td>
-                <td className="px-6 py-4 whitespace-nowrap">${ticketType.price}</td>
-                <td className="px-6 py-4 whitespace-nowrap">{ticketType.availableQuantity}</td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center justify-center gap-4">
-                    <button onClick={() => handleEditClick(ticketType)} className="flex flex-col items-center text-blue-600 hover:text-blue-800 focus:outline-none">
-                      <FaEdit className="w-7 h-7" />
-                      <span className="text-[10px] text-gray-600 mt-1 block font-bold">Edit</span>
-                    </button>
-                    <button onClick={() => handleDeleteClick(ticketType)} className="flex flex-col items-center text-red-600 hover:text-red-800 focus:outline-none">
-                      <FaTrashAlt className="w-7 h-7" />
-                      <span className="text-[10px] text-gray-600 mt-1 block font-bold">Delete</span>
-                    </button>
-                  </div>
-                </td>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Available</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {ticketTypes.map((ticketType) => (
+                <tr key={ticketType.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">{ticketType.name}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{ticketType.code}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">${ticketType.price}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{ticketType.availableQuantity}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center justify-center gap-4">
+                      <button onClick={() => handleEditClick(ticketType)} className="flex flex-col items-center text-blue-600 hover:text-blue-800 focus:outline-none">
+                        <FaEdit className="w-7 h-7" />
+                        <span className="text-[10px] text-gray-600 mt-1 block font-bold">Edit</span>
+                      </button>
+                      <button onClick={() => handleDeleteClick(ticketType)} className="flex flex-col items-center text-red-600 hover:text-red-800 focus:outline-none">
+                        <FaTrashAlt className="w-7 h-7" />
+                        <span className="text-[10px] text-gray-600 mt-1 block font-bold">Delete</span>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {deletingTicketType && (
@@ -379,6 +400,6 @@ export default function TicketTypeListClient({ eventId, eventDetails, ticketType
           </div>
         </form>
       </Modal>
-    </>
+    </div>
   );
 }

@@ -1,10 +1,10 @@
 import { auth } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
 import TicketTypeListClient from './TicketTypeListClient';
-import { getTenantId } from '@/lib/env';
 import type { EventDetailsDTO, EventTicketTypeDTO } from '@/types';
 import Link from 'next/link';
 import { FaUsers, FaPhotoVideo, FaCalendarAlt } from 'react-icons/fa';
+import { fetchEventDetailsForTicketListPage, fetchTicketTypesForTicketListPage } from './ApiServerActions';
 
 interface Props {
   params: {
@@ -23,29 +23,12 @@ export default async function TicketTypeListPage({ params }: Props) {
     redirect('/admin/events');
   }
 
-  // Fetch event details to verify it exists and show event info
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-  const tenantId = getTenantId();
-  const eventRes = await fetch(`${baseUrl}/api/proxy/event-details/${eventId}?tenantId.equals=${tenantId}`, {
-    cache: 'no-store'
-  });
-
-  if (!eventRes.ok) {
+  const event = await fetchEventDetailsForTicketListPage(eventId);
+  if (!event) {
     redirect('/admin/events');
   }
 
-  const event: EventDetailsDTO = await eventRes.json();
-
-  // Fetch ticket types for this event
-  const ticketTypesRes = await fetch(
-    `${baseUrl}/api/proxy/event-ticket-types?eventId.equals=${eventId}&tenantId.equals=${tenantId}`,
-    { cache: 'no-store' }
-  );
-
-  let ticketTypes: EventTicketTypeDTO[] = [];
-  if (ticketTypesRes.ok) {
-    ticketTypes = await ticketTypesRes.json();
-  }
+  const ticketTypes = await fetchTicketTypesForTicketListPage(eventId);
 
   return (
     <div className="max-w-5xl mx-auto px-8 py-8">

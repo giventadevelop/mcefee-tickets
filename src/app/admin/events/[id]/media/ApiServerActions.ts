@@ -1,5 +1,5 @@
 "use server";
-import { getCachedApiJwt, generateApiJwt } from '@/lib/api/jwt';
+import { fetchWithJwtRetry } from '@/lib/proxyHandler';
 import { getTenantId } from '@/lib/env';
 import type { EventMediaDTO } from '@/types';
 import { withTenantId } from '@/lib/withTenantId';
@@ -10,30 +10,16 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 export async function fetchUserProfileServer(userId: string) {
   if (!userId) return null;
   const tenantId = getTenantId();
-  let token = await getCachedApiJwt();
-  let res = await fetch(`${API_BASE_URL}/api/user-profiles/by-user/${userId}?tenantId.equals=${tenantId}`, {
-    headers: { Authorization: `Bearer ${token}` },
+  const res = await fetchWithJwtRetry(`${API_BASE_URL}/api/user-profiles/by-user/${userId}?tenantId.equals=${tenantId}`, {
     cache: 'no-store',
   });
-  if (res.status === 401) {
-    token = await generateApiJwt();
-    res = await fetch(`${API_BASE_URL}/api/user-profiles/by-user/${userId}?tenantId.equals=${tenantId}`, {
-      headers: { Authorization: `Bearer ${token}` },
-      cache: 'no-store',
-    });
-  }
   if (!res.ok) return null;
   return await res.json();
 }
 
 export async function fetchMediaServer(eventId: string) {
   const url = `${API_BASE_URL}/api/event-medias?eventId.equals=${eventId}&isEventManagementOfficialDocument.equals=false&sort=updatedAt,desc&tenantId.equals=${getTenantId()}`;
-  let token = await getCachedApiJwt();
-  let res = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' });
-  if (res.status === 401) {
-    token = await generateApiJwt();
-    res = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' });
-  }
+  const res = await fetchWithJwtRetry(url, { cache: 'no-store' });
   if (!res.ok) return [];
   const data = await res.json();
   return Array.isArray(data) ? data : [data];
@@ -84,26 +70,9 @@ export async function fetchMediaFilteredServer(
   };
 }
 
-export async function fetchEventDetailsServer(eventId: string) {
-  const url = `${API_BASE_URL}/api/event-details/${eventId}?tenantId.equals=${getTenantId()}`;
-  let token = await getCachedApiJwt();
-  let res = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' });
-  if (res.status === 401) {
-    token = await generateApiJwt();
-    res = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' });
-  }
-  if (!res.ok) return null;
-  return await res.json();
-}
-
 export async function fetchOfficialDocsServer(eventId: string) {
   const url = `${API_BASE_URL}/api/event-medias?eventId.equals=${eventId}&isEventManagementOfficialDocument.equals=true&sort=updatedAt,desc&tenantId.equals=${getTenantId()}`;
-  let token = await getCachedApiJwt();
-  let res = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' });
-  if (res.status === 401) {
-    token = await generateApiJwt();
-    res = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' });
-  }
+  const res = await fetchWithJwtRetry(url, { cache: 'no-store' });
   if (!res.ok) return [];
   const data = await res.json();
   return Array.isArray(data) ? data : [data];
@@ -167,20 +136,10 @@ export async function uploadMedia(eventId: number, {
   params.append('storageType', storageType);
 
   const url = `${API_BASE_URL}/api/event-medias/upload-multiple?${params.toString()}`;
-  let token = await getCachedApiJwt();
-  let res = await fetch(url, {
+  const res = await fetchWithJwtRetry(url, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
     body: formData,
   });
-  if (res.status === 401) {
-    token = await generateApiJwt();
-    res = await fetch(url, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
-      body: formData,
-    });
-  }
   if (!res.ok) {
     const err = await res.text();
     throw new Error(err);
@@ -190,62 +149,14 @@ export async function uploadMedia(eventId: number, {
 
 export async function deleteMediaServer(mediaId: number | string) {
   const url = `${API_BASE_URL}/api/event-medias/${mediaId}?tenantId.equals=${getTenantId()}`;
-  let token = await getCachedApiJwt();
-  let res = await fetch(url, {
+  const res = await fetchWithJwtRetry(url, {
     method: 'DELETE',
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (res.status === 401) {
-    token = await generateApiJwt();
-    res = await fetch(url, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` },
     });
-  }
   if (!res.ok) {
     const err = await res.text();
     throw new Error(err);
   }
   return true;
-}
-
-async function fetchWithJwtRetry(apiUrl: string, options: any = {}) {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30-second timeout
-
-  try {
-    let token = await getCachedApiJwt();
-    let response = await fetch(apiUrl, {
-      ...options,
-      signal: controller.signal, // Pass the abort signal to fetch
-      headers: {
-        ...options.headers,
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    if (response.status === 401) {
-      console.log('Token expired or invalid, generating a new one...');
-      token = await generateApiJwt();
-      response = await fetch(apiUrl, {
-        ...options,
-        signal: controller.signal, // Also pass it to the retry
-        headers: {
-          ...options.headers,
-          Authorization: `Bearer ${token}`,
-        },
-      });
-    }
-
-    clearTimeout(timeoutId);
-    return response;
-  } catch (error) {
-    clearTimeout(timeoutId);
-    if (error instanceof Error && error.name === 'AbortError') {
-      throw new Error('Request timed out after 30 seconds');
-    }
-    throw error;
-  }
 }
 
 export async function editMediaServer(mediaId: number | string, payload: Partial<EventMediaDTO>) {
@@ -328,6 +239,19 @@ function inferEventMediaType(file: File): string {
   if (["doc", "docx", "ppt", "pptx", "xls", "xlsx"].includes(ext)) return "document";
   if (["svg"].includes(ext)) return "image";
   return "other";
+}
+
+export async function fetchEventDetailsByIdServer(eventId: number) {
+  if (!eventId) return null;
+  const tenantId = getTenantId();
+  const res = await fetchWithJwtRetry(`${API_BASE_URL}/api/event-details/${eventId}?tenantId.equals=${tenantId}`, {
+    cache: 'no-store',
+  });
+  if (!res.ok) {
+    console.error(`Failed to fetch event details for event ${eventId}: ${res.statusText}`);
+    return null;
+  }
+  return await res.json();
 }
 
 // Add upload and delete actions as needed
