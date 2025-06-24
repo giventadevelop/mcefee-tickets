@@ -194,14 +194,14 @@ export async function fetchEventsFilteredServer(params: {
 export async function fetchEventDetailsServer(eventId: number): Promise<EventDetailsDTO | null> {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
   const response = await fetch(`${baseUrl}/api/proxy/event-details/${eventId}`, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
     cache: 'no-store',
-  });
+    });
 
-  if (!response.ok) {
+    if (!response.ok) {
     console.error(`Failed to fetch event details for eventId ${eventId}:`, response.status, await response.text());
     return null;
   }
@@ -229,7 +229,7 @@ export async function fetchUserProfileServer(userId: string): Promise<UserProfil
 
 export async function fetchUserProfileByEmailServer(email: string): Promise<UserProfileDTO | null> {
     if (!email) {
-        return null;
+      return null;
     }
     const tenantId = getTenantId();
     const url = `${API_BASE_URL}/api/user-profiles?email.equals=${encodeURIComponent(email)}&tenantId.equals=${tenantId}`;
@@ -241,8 +241,8 @@ export async function fetchUserProfileByEmailServer(email: string): Promise<User
         }
         const users = await res.json();
         return users && users.length > 0 ? users[0] : null;
-    } catch (error) {
+  } catch (error) {
         console.error(`Error fetching user profile for email ${email}:`, error);
-        return null;
-    }
+    return null;
+  }
 }

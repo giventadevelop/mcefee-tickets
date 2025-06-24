@@ -1,13 +1,15 @@
-
-
 INSERT INTO public.event_type_details VALUES (1, 'tenant_demo_001', 'Gala', 'Formal gala event', '#3B82F6', NULL, true, 0, '2025-06-22 11:31:26.181502', '2025-06-22 11:31:26.181502');
 INSERT INTO public.event_type_details VALUES (2, 'tenant_demo_001', 'Conference', 'Tech conference', '#3B82F6', NULL, true, 0, '2025-06-22 11:31:26.181502', '2025-06-22 11:31:26.181502');
 INSERT INTO public.event_type_details VALUES (3, 'tenant_demo_001', 'Run', 'Charity run', '#3B82F6', NULL, true, 0, '2025-06-22 11:31:26.181502', '2025-06-22 11:31:26.181502');
 INSERT INTO public.event_type_details VALUES (4, 'tenant_demo_001', 'Picnic', 'Family picnic', '#3B82F6', NULL, true, 0, '2025-06-22 11:31:26.181502', '2025-06-22 11:31:26.181502');
 INSERT INTO public.event_type_details VALUES (5, 'tenant_demo_001', 'Dinner', 'VIP dinner', '#3B82F6', NULL, true, 0, '2025-06-22 11:31:26.181502', '2025-06-22 11:31:26.181502');
 INSERT INTO public.event_type_details VALUES (6, 'tenant_demo_001', 'Festival', 'Summer festival', '#3B82F6', NULL, true, 0, '2025-06-22 11:31:26.181502', '2025-06-22 11:31:26.181502');
-
-
+INSERT INTO public.event_type_details VALUES (1, 'tenant_demo_001', 'Gala', 'Formal gala event', '#3B82F6', NULL, true, 0, '2025-06-22 11:31:26.181502', '2025-06-22 11:31:26.181502');
+INSERT INTO public.event_type_details VALUES (2, 'tenant_demo_001', 'Conference', 'Tech conference', '#3B82F6', NULL, true, 0, '2025-06-22 11:31:26.181502', '2025-06-22 11:31:26.181502');
+INSERT INTO public.event_type_details VALUES (3, 'tenant_demo_001', 'Run', 'Charity run', '#3B82F6', NULL, true, 0, '2025-06-22 11:31:26.181502', '2025-06-22 11:31:26.181502');
+INSERT INTO public.event_type_details VALUES (4, 'tenant_demo_001', 'Picnic', 'Family picnic', '#3B82F6', NULL, true, 0, '2025-06-22 11:31:26.181502', '2025-06-22 11:31:26.181502');
+INSERT INTO public.event_type_details VALUES (5, 'tenant_demo_001', 'Dinner', 'VIP dinner', '#3B82F6', NULL, true, 0, '2025-06-22 11:31:26.181502', '2025-06-22 11:31:26.181502');
+INSERT INTO public.event_type_details VALUES (6, 'tenant_demo_001', 'Festival', 'Summer festival', '#3B82F6', NULL, true, 0, '2025-06-22 11:31:26.181502', '2025-06-22 11:31:26.181502');
 INSERT INTO public.user_profile VALUES (1, 'tenant_demo_001', 'user001', 'Alice', 'Johnson', 'alice.johnson@example.com', '555-1001', '123 Main St', NULL, 'Springfield', 'IL', '62701', 'USA', NULL, NULL, NULL, NULL, NULL, NULL, 'ACTIVE', 'MEMBER', NULL, NULL, '2025-06-22 11:31:26.252573', '2025-06-22 11:31:26.252573', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 INSERT INTO public.user_profile VALUES (2, 'tenant_demo_001', 'user002', 'Bob', 'Smith', 'bob.smith@example.com', '555-1002', '456 Oak Ave', NULL, 'Springfield', 'IL', '62702', 'USA', NULL, NULL, NULL, NULL, NULL, NULL, 'ACTIVE', 'ADMIN', NULL, NULL, '2025-06-22 11:31:26.252573', '2025-06-22 11:31:26.252573', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 INSERT INTO public.user_profile VALUES (3, 'tenant_demo_001', 'user003', 'Carol', 'Williams', 'carol.williams@example.com', '555-1003', '789 Pine Rd', NULL, 'Springfield', 'IL', '62703', 'USA', NULL, NULL, NULL, NULL, NULL, NULL, 'INACTIVE', 'VOLUNTEER', NULL, NULL, '2025-06-22 11:31:26.252573', '2025-06-22 11:31:26.252573', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
@@ -61,12 +63,12 @@ INSERT INTO public.event_calendar_entry VALUES (3, 'tenant_demo_001', 'Apple', '
 INSERT INTO public.event_calendar_entry VALUES (4, 'tenant_demo_001', 'Google', 'gcal_4', 'https://calendar.google.com/event4', 'PENDING', '2025-06-22 11:31:26.679295', NULL, '2025-06-22 11:31:26.679295', '2025-06-22 11:31:26.679295', 4, 4);
 INSERT INTO public.event_calendar_entry VALUES (5, 'tenant_demo_001', 'Outlook', 'outlook_5', 'https://outlook.com/event5', 'COMPLETED', '2025-06-22 11:31:26.679295', NULL, '2025-06-22 11:31:26.679295', '2025-06-22 11:31:26.679295', 5, 5);
 INSERT INTO public.event_calendar_entry VALUES (6, 'tenant_demo_001', 'Apple', 'apple_6', 'https://apple.com/event6', 'FAILED', '2025-06-22 11:31:26.679295', 'Error syncing', '2025-06-22 11:31:26.679295', '2025-06-22 11:31:26.679295', 6, 6);
---INSERT INTO public.event_discount_code VALUES (1, 1);
---INSERT INTO public.event_discount_code VALUES (2, 2);
---INSERT INTO public.event_discount_code VALUES (3, 3);
---INSERT INTO public.event_discount_code VALUES (4, 4);
---INSERT INTO public.event_discount_code VALUES (5, 5);
---INSERT INTO public.event_discount_code VALUES (6, 6);
+INSERT INTO public.event_discount_code VALUES (1, 1);
+INSERT INTO public.event_discount_code VALUES (2, 2);
+INSERT INTO public.event_discount_code VALUES (3, 3);
+INSERT INTO public.event_discount_code VALUES (4, 4);
+INSERT INTO public.event_discount_code VALUES (5, 5);
+INSERT INTO public.event_discount_code VALUES (6, 6);
 INSERT INTO public.event_live_update VALUES (1, 1, 'INFO', 'Welcome to Spring Gala!', NULL, NULL, NULL, NULL, 1, true, '2025-06-22 11:31:26.727266', '2025-06-22 11:31:26.727266');
 INSERT INTO public.event_live_update VALUES (2, 2, 'ALERT', 'Tech Conference Keynote at 10am', NULL, NULL, NULL, NULL, 2, false, '2025-06-22 11:31:26.727266', '2025-06-22 11:31:26.727266');
 INSERT INTO public.event_live_update VALUES (3, 3, 'INFO', 'Charity Run starts at 7am', NULL, NULL, NULL, NULL, 3, false, '2025-06-22 11:31:26.727266', '2025-06-22 11:31:26.727266');
@@ -129,16 +131,6 @@ INSERT INTO public.event_score_card_detail VALUES (3, 2, 'Team Alpha', 'Carol', 
 INSERT INTO public.event_score_card_detail VALUES (4, 2, 'Team Beta', 'David', 7, 'Good effort', '2025-06-22 11:31:27.245277', '2025-06-22 11:31:27.245277');
 INSERT INTO public.event_score_card_detail VALUES (5, 3, 'Team One', 'Eve', 3, 'Quick start', '2025-06-22 11:31:27.245277', '2025-06-22 11:31:27.245277');
 INSERT INTO public.event_score_card_detail VALUES (6, 3, 'Team Two', 'Frank', 6, 'Solid finish', '2025-06-22 11:31:27.245277', '2025-06-22 11:31:27.245277');
-
-INSERT INTO public.discount_code VALUES (2, 'VIP50', '50% off for VIPs', 'PERCENT', 50.00, 10, 2, '2025-04-01 00:00:00', '2025-08-01 00:00:00', true, '2025-06-22 11:31:27.135034', '2025-06-22 11:31:27.135034', 2, 'tenant_demo_001');
-INSERT INTO public.discount_code VALUES (4, 'EARLYBIRD', 'Early bird discount', 'PERCENT', 20.00, 200, 20, '2025-01-01 00:00:00', '2025-04-10 00:00:00', true, '2025-06-22 11:31:27.135034', '2025-06-22 11:31:27.135034', 4, 'tenant_demo_001');
-INSERT INTO public.discount_code VALUES (5, 'SUMMERFEST', 'Summer Fest special', 'PERCENT', 15.00, 150, 15, '2025-07-01 00:00:00', '2025-08-16 00:00:00', true, '2025-06-22 11:31:27.135034', '2025-06-22 11:31:27.135034', 5, 'tenant_demo_001');
-INSERT INTO public.discount_code VALUES (6, 'FAMILY5', 'Family Picnic 5% off', 'PERCENT', 5.00, 50, 3, '2025-07-01 00:00:00', '2025-07-21 00:00:00', true, '2025-06-22 11:31:27.135034', '2025-06-22 11:31:27.135034', 6, 'tenant_demo_001');
-INSERT INTO public.discount_code VALUES (1, 'SPRING10', '10% off Spring events', 'PERCENTAGE', 10.00, 100, 5, '2025-03-01 00:00:00', '2025-06-01 00:00:00', true, '2025-06-22 11:31:27.135034', '2025-06-22 11:31:27.135034', 1, 'tenant_demo_001');
-INSERT INTO public.discount_code VALUES (3, 'FREERUN', 'Free entry for Charity Run', 'FIXED_AMOUNT', 100.00, 50, 10, '2025-05-01 00:00:00', '2025-06-02 00:00:00', true, '2025-06-22 11:31:27.135034', '2025-06-22 11:31:27.135034', 3, 'tenant_demo_001');
-INSERT INTO public.discount_code VALUES (4851, 'SPRING12', 'xcxcxc', 'FIXED_AMOUNT', 4.00, 100, NULL, NULL, NULL, true, '2025-06-23 05:29:02.585', '2025-06-23 05:29:02.585', 1, 'tenant_demo_001');
-
-
 INSERT INTO public.event_ticket_type VALUES (1, 'tenant_demo_001', 'Standard', 'Standard ticket for Spring Gala', 50.00, false, NULL, 'STD', 100, 12, true, NULL, NULL, 1, 10, false, 0, '2025-06-22 11:31:27.305395', '2025-06-22 11:31:27.363866', 6);
 INSERT INTO public.event_ticket_type VALUES (3, 'tenant_demo_001', 'Runner', 'Runner ticket for Charity Run', 0.00, false, NULL, 'RUN', 300, 103, true, NULL, NULL, 1, 10, false, 0, '2025-06-22 11:31:27.305395', '2025-06-22 11:31:27.363866', 3);
 INSERT INTO public.event_ticket_type VALUES (4, 'tenant_demo_001', 'Family', 'Family ticket for Picnic', 20.00, false, NULL, 'FAM', 30, 14, true, NULL, NULL, 1, 10, false, 0, '2025-06-22 11:31:27.305395', '2025-06-22 11:31:27.363866', 4);
@@ -176,7 +168,13 @@ INSERT INTO public.event_ticket_transaction VALUES (4846, 'tenant_demo_001', NUL
 INSERT INTO public.event_ticket_transaction VALUES (4847, 'tenant_demo_001', NULL, 'giventauser@gmail.com', 'Gain Joseph', 'Joseph', NULL, 1, 20.00, 20.00, NULL, NULL, NULL, NULL, 20.00, 'COMPLETED', NULL, NULL, 'cs_test_a1uXQ8XeDoKoK1uzCkfN3ZDr6KZOBWQsVXcuj4Z8FwcgTQxYmKQufPLa1g', 'pi_3Rd2cKK5BrggeAHM01P5Q2HJ', '2025-06-23 05:08:50.971', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-06-23 05:08:50.971', '2025-06-23 05:08:50.971', 1, 4751, 4651);
 INSERT INTO public.event_ticket_transaction VALUES (4848, 'tenant_demo_001', NULL, 'giventauser@gmail.com', 'Gain Joseph', 'Joseph', NULL, 1, 20.00, 20.00, NULL, NULL, NULL, NULL, 20.00, 'COMPLETED', NULL, NULL, 'cs_test_a1OnIMbsHPKGVTtlHSNo66mCBlrGWhEmdqgIIx9tztuCIVCeiaB91eFLlj', 'pi_3Rd2k0K5BrggeAHM14YgwnCv', '2025-06-23 05:16:34.374', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-06-23 05:16:34.374', '2025-06-23 05:16:34.374', 1, 4751, 4651);
 INSERT INTO public.event_ticket_transaction VALUES (4849, 'tenant_demo_001', NULL, 'giventauser@gmail.com', 'Gain Joseph', 'Joseph', NULL, 1, 18.00, 20.00, NULL, NULL, NULL, NULL, 18.00, 'COMPLETED', NULL, NULL, 'cs_test_a1Qjztm0NdJv6zDrmFThBmNvixMR0IO6mqQWCoSIIzyyr6H8aHrmCu9oJv', 'pi_3Rd2kyK5BrggeAHM0biXxlqV', '2025-06-23 05:17:30.631', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-06-23 05:17:30.631', '2025-06-23 05:17:30.631', 1, 4751, 4651);
-
+INSERT INTO public.discount_code VALUES (2, 'VIP50', '50% off for VIPs', 'PERCENT', 50.00, 10, 2, '2025-04-01 00:00:00', '2025-08-01 00:00:00', true, '2025-06-22 11:31:27.135034', '2025-06-22 11:31:27.135034', 2, 'tenant_demo_001');
+INSERT INTO public.discount_code VALUES (4, 'EARLYBIRD', 'Early bird discount', 'PERCENT', 20.00, 200, 20, '2025-01-01 00:00:00', '2025-04-10 00:00:00', true, '2025-06-22 11:31:27.135034', '2025-06-22 11:31:27.135034', 4, 'tenant_demo_001');
+INSERT INTO public.discount_code VALUES (5, 'SUMMERFEST', 'Summer Fest special', 'PERCENT', 15.00, 150, 15, '2025-07-01 00:00:00', '2025-08-16 00:00:00', true, '2025-06-22 11:31:27.135034', '2025-06-22 11:31:27.135034', 5, 'tenant_demo_001');
+INSERT INTO public.discount_code VALUES (6, 'FAMILY5', 'Family Picnic 5% off', 'PERCENT', 5.00, 50, 3, '2025-07-01 00:00:00', '2025-07-21 00:00:00', true, '2025-06-22 11:31:27.135034', '2025-06-22 11:31:27.135034', 6, 'tenant_demo_001');
+INSERT INTO public.discount_code VALUES (1, 'SPRING10', '10% off Spring events', 'PERCENTAGE', 10.00, 100, 5, '2025-03-01 00:00:00', '2025-06-01 00:00:00', true, '2025-06-22 11:31:27.135034', '2025-06-22 11:31:27.135034', 1, 'tenant_demo_001');
+INSERT INTO public.discount_code VALUES (3, 'FREERUN', 'Free entry for Charity Run', 'FIXED_AMOUNT', 100.00, 50, 10, '2025-05-01 00:00:00', '2025-06-02 00:00:00', true, '2025-06-22 11:31:27.135034', '2025-06-22 11:31:27.135034', 3, 'tenant_demo_001');
+INSERT INTO public.discount_code VALUES (4851, 'SPRING12', 'xcxcxc', 'FIXED_AMOUNT', 4.00, 100, NULL, NULL, NULL, true, '2025-06-23 05:29:02.585', '2025-06-23 05:29:02.585', 1, 'tenant_demo_001');
 INSERT INTO public.qr_code_usage VALUES (1, 'tenant_demo_001', 1, 'QR1', 'CHECK_IN', '2025-06-22 11:31:27.426132', NULL, NULL, 0, 1, NULL, NULL, NULL, NULL, true, NULL, NULL, '2025-06-22 11:31:27.426132');
 INSERT INTO public.qr_code_usage VALUES (2, 'tenant_demo_001', 2, 'QR2', 'CHECK_IN', '2025-06-22 11:31:27.426132', NULL, NULL, 0, 1, NULL, NULL, NULL, NULL, true, NULL, NULL, '2025-06-22 11:31:27.426132');
 INSERT INTO public.qr_code_usage VALUES (3, 'tenant_demo_001', 3, 'QR3', 'CHECK_IN', '2025-06-22 11:31:27.426132', NULL, NULL, 0, 1, NULL, NULL, NULL, NULL, true, NULL, NULL, '2025-06-22 11:31:27.426132');

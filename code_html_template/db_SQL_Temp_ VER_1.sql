@@ -2912,3 +2912,49 @@ GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.us
 -- PostgreSQL database dump complete
 --
 
+-- Communication and Campaign Logging Tables (added from JDL)
+
+CREATE TABLE public.communication_campaign (
+    id bigint DEFAULT nextval('public.sequence_generator'::regclass) NOT NULL,
+    tenant_id character varying(255) NOT NULL,
+    name character varying(255) NOT NULL,
+    type character varying(50), -- EMAIL, WHATSAPP
+    description character varying(1000),
+    created_by_id bigint,
+    created_at timestamp without time zone NOT NULL,
+    scheduled_at timestamp without time zone,
+    sent_at timestamp without time zone,
+    status character varying(50), -- DRAFT, SCHEDULED, SENT, FAILED
+    CONSTRAINT communication_campaign_pkey PRIMARY KEY (id),
+    CONSTRAINT fk_communication_campaign_created_by FOREIGN KEY (created_by_id) REFERENCES public.user_profile(id) ON DELETE SET NULL
+);
+
+CREATE TABLE public.email_log (
+    id bigint DEFAULT nextval('public.sequence_generator'::regclass) NOT NULL,
+    tenant_id character varying(255) NOT NULL,
+    recipient_email character varying(255) NOT NULL,
+    subject character varying(255),
+    body text,
+    sent_at timestamp without time zone NOT NULL,
+    status character varying(50), -- SENT, FAILED, etc.
+    type character varying(50), -- TRANSACTIONAL, BULK
+    campaign_id bigint,
+    metadata text,
+    CONSTRAINT email_log_pkey PRIMARY KEY (id),
+    CONSTRAINT fk_email_log_campaign FOREIGN KEY (campaign_id) REFERENCES public.communication_campaign(id) ON DELETE SET NULL
+);
+
+CREATE TABLE public.whatsapp_log (
+    id bigint DEFAULT nextval('public.sequence_generator'::regclass) NOT NULL,
+    tenant_id character varying(255) NOT NULL,
+    recipient_phone character varying(50) NOT NULL,
+    message_body text,
+    sent_at timestamp without time zone NOT NULL,
+    status character varying(50), -- SENT, FAILED, etc.
+    type character varying(50), -- TRANSACTIONAL, BULK
+    campaign_id bigint,
+    metadata text,
+    CONSTRAINT whatsapp_log_pkey PRIMARY KEY (id),
+    CONSTRAINT fk_whatsapp_log_campaign FOREIGN KEY (campaign_id) REFERENCES public.communication_campaign(id) ON DELETE SET NULL
+);
+

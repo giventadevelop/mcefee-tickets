@@ -11,16 +11,16 @@ export async function fetchDiscountCodesForEvent(eventId: string): Promise<Disco
   const url = `${API_BASE_URL}/api/discount-codes?eventId.equals=${eventId}&tenantId.equals=${tenantId}`;
 
   const response = await fetchWithJwtRetry(url, {
-    next: { revalidate: 0 },
-  });
+      next: { revalidate: 0 },
+    });
 
-  if (!response.ok) {
-    const errorBody = await response.text();
+    if (!response.ok) {
+      const errorBody = await response.text();
     console.error(`[ Server ] Error fetching discount codes for event ${eventId}: ${response.status} ${response.statusText}`, errorBody);
-    throw new Error(`Failed to fetch discount codes. Status: ${response.status}`);
-  }
+      throw new Error(`Failed to fetch discount codes. Status: ${response.status}`);
+    }
 
-  return await response.json();
+    return await response.json();
 }
 
 export async function createDiscountCodeServer(
@@ -37,20 +37,20 @@ export async function createDiscountCodeServer(
   });
 
   const response = await fetchWithJwtRetry(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
 
-  if (!response.ok) {
-    const errorBody = await response.text();
+    if (!response.ok) {
+      const errorBody = await response.text();
     console.error(`[ Server ] Error creating discount code: ${response.status} ${response.statusText}`, errorBody);
-    throw new Error(`Failed to create discount code. Status: ${response.status}`);
-  }
+      throw new Error(`Failed to create discount code. Status: ${response.status}`);
+    }
 
-  return await response.json();
+    return await response.json();
 }
 
 export async function deleteDiscountCodeServer(discountCodeId: number): Promise<{ success: boolean }> {
@@ -86,7 +86,7 @@ export async function fetchDiscountCodeByIdServer(
         response.status,
         await response.text()
       );
-    }
+  }
     return null;
   }
   return response.json();
