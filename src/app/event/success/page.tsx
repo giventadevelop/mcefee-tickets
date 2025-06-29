@@ -4,7 +4,7 @@ import { fetchUserProfileServer } from '@/app/admin/ApiServerActions';
 import { fetchEventDetailsByIdServer } from '@/app/admin/events/[id]/media/ApiServerActions';
 import {
   FaCheckCircle, FaTicketAlt, FaCalendarAlt, FaUser, FaEnvelope,
-  FaMoneyBillWave, FaInfoCircle, FaReceipt
+  FaMoneyBillWave, FaInfoCircle, FaReceipt, FaMapMarkerAlt, FaClock, FaMapPin
 } from 'react-icons/fa';
 import { notFound } from 'next/navigation';
 import { auth } from '@clerk/nextjs/server';
@@ -37,11 +37,35 @@ async function getHeroImageUrl(eventId: number): Promise<string> {
   return imageUrl || defaultHeroImageUrl;
 }
 
-export default async function SuccessPage({ searchParams }: { searchParams: { session_id?: string } }) {
-  const { session_id } = searchParams;
-  const { userId } = auth();
+async function fetchTransactionItemsByTransactionId(transactionId: number) {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  const res = await fetch(`${baseUrl}/api/proxy/event-ticket-transaction-items?transactionId.equals=${transactionId}`, { cache: 'no-store' });
+  if (!res.ok) return [];
+  return res.json();
+}
 
-  if (!session_id || !userId) {
+async function fetchTicketTypeById(ticketTypeId: number) {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  const res = await fetch(`${baseUrl}/api/proxy/event-ticket-types/${ticketTypeId}`, { cache: 'no-store' });
+  if (!res.ok) return null;
+  return res.json();
+}
+
+function formatTime(time: string): string {
+  if (!time) return '';
+  // Accepts 'HH:mm' or 'hh:mm AM/PM' and returns 'hh:mm AM/PM'
+  if (time.match(/AM|PM/i)) return time;
+  const [hourStr, minute] = time.split(':');
+  let hour = parseInt(hourStr, 10);
+  const ampm = hour >= 12 ? 'PM' : 'AM';
+  hour = hour % 12;
+  if (hour === 0) hour = 12;
+  return `${hour.toString().padStart(2, '0')}:${minute} ${ampm}`;
+}
+
+export default async function SuccessPage({ searchParams }: { searchParams: { session_id?: string } }) {
+  const session_id = searchParams.session_id;
+  if (!session_id) {
     return notFound();
   }
 
@@ -57,7 +81,11 @@ export default async function SuccessPage({ searchParams }: { searchParams: { se
     );
   }
 
-  const eventDetails = transaction.event;
+  // Refetch event details if missing
+  let eventDetails = transaction.event;
+  if (!eventDetails?.id && transaction.eventId) {
+    eventDetails = await fetchEventDetailsByIdServer(transaction.eventId);
+  }
   if (!eventDetails?.id) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 text-center p-4">
@@ -69,16 +97,86 @@ export default async function SuccessPage({ searchParams }: { searchParams: { se
   }
 
   const heroImageUrl = await getHeroImageUrl(eventDetails.id);
-  const displayName = transaction.firstName ? `${transaction.firstName} ${transaction.lastName || ''}`.trim() : '';
+  const displayName = transaction.firstName || '';
+
+  // Fetch transaction items
+  const transactionItems: any[] = transaction.id ? await fetchTransactionItemsByTransactionId(transaction.id) : [];
+  // Optionally fetch ticket type names if not present
+  const ticketTypeCache: Record<number, any> = {};
+  for (const item of transactionItems) {
+    if (!item.ticketTypeName && item.ticketTypeId) {
+      if (!ticketTypeCache[item.ticketTypeId]) {
+        ticketTypeCache[item.ticketTypeId] = await fetchTicketTypeById(item.ticketTypeId);
+      }
+      item.ticketTypeName = ticketTypeCache[item.ticketTypeId]?.name || `Ticket Type #${item.ticketTypeId}`;
+    }
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 sm:p-6">
-      <div className="max-w-4xl w-full mx-auto">
-        <div className="relative w-full h-48 sm:h-64 rounded-t-2xl overflow-hidden">
-          <Image src={heroImageUrl} alt={eventDetails.title || 'Event Image'} layout="fill" objectFit="cover" />
-          <div className="absolute inset-0 bg-black bg-opacity-40" />
+    <div className="min-h-screen bg-gray-100 pb-12">
+      {/* Hero Section - matches ticketing page */}
+      <section className="hero-section relative w-full h-[350px] md:h-[350px] sm:h-[220px] h-[160px] bg-transparent pb-0 mb-8">
+        <div className="absolute hero-image-container left-0 top-0 right-0 bottom-0 z-0">
+          <div className="w-full h-full relative">
+            {/* Blurred background image for width fill */}
+            <Image
+              src={heroImageUrl}
+              alt={eventDetails.title || 'Event Image'}
+              fill
+              className="object-cover w-full h-full blur-lg scale-105"
+              style={{ zIndex: 0, filter: 'blur(24px) brightness(1.1)', objectPosition: 'center' }}
+              aria-hidden="true"
+              priority
+            />
+            {/* Main hero image, fully visible */}
+            <Image
+              src={heroImageUrl}
+              alt={eventDetails.title || 'Event Image'}
+              fill
+              className="object-cover w-full h-full"
+              style={{ objectFit: 'cover', objectPosition: 'center', zIndex: 1, background: 'linear-gradient(to bottom, #f8fafc 0%, #fff 100%)' }}
+              priority
+            />
+            {/* Fade overlays for all four borders */}
+            <div className="pointer-events-none absolute left-0 top-0 w-full h-8" style={{ background: 'linear-gradient(to bottom, rgba(248,250,252,1) 0%, rgba(248,250,252,0) 100%)', zIndex: 20 }} />
+            <div className="pointer-events-none absolute left-0 bottom-0 w-full h-8" style={{ background: 'linear-gradient(to top, rgba(248,250,252,1) 0%, rgba(248,250,252,0) 100%)', zIndex: 20 }} />
+            <div className="pointer-events-none absolute left-0 top-0 h-full w-8" style={{ background: 'linear-gradient(to right, rgba(248,250,252,1) 0%, rgba(248,250,252,0) 100%)', zIndex: 20 }} />
+            <div className="pointer-events-none absolute right-0 top-0 h-full w-8" style={{ background: 'linear-gradient(to left, rgba(248,250,252,1) 0%, rgba(248,250,252,0) 100%)', zIndex: 20 }} />
+          </div>
         </div>
-        <div className="bg-white p-6 sm:p-8 rounded-b-2xl shadow-2xl border-t-4 border-teal-500 text-center -mt-16 relative z-10 mx-4 sm:mx-8">
+        {/* Event Details Card */}
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="bg-teal-50 rounded-xl shadow-lg p-6 md:p-8 mb-8 mt-16" style={{ position: 'relative', top: '60px' }}>
+            <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2">
+              {eventDetails.title}
+            </h2>
+            {eventDetails.caption && (
+              <div className="text-lg text-teal-700 font-semibold mb-2">{eventDetails.caption}</div>
+            )}
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-gray-600 mb-4">
+              <div className="flex items-center gap-2">
+                <FaCalendarAlt />
+                <span>{new Date(eventDetails.startDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <FaClock />
+                <span>{formatTime(eventDetails.startTime)}{eventDetails.endTime ? ` - ${formatTime(eventDetails.endTime)}` : ''}</span>
+              </div>
+              {eventDetails.location && (
+                <div className="flex items-center gap-2">
+                  <FaMapPin />
+                  <span>{eventDetails.location}</span>
+                </div>
+              )}
+            </div>
+            {eventDetails.description && <p className="text-gray-700 text-base">{eventDetails.description}</p>}
+          </div>
+        </div>
+      </section>
+      {/* --- END HERO SECTION --- */}
+      <div className="max-w-4xl w-full mx-auto">
+        {/* Payment Success Card */}
+        <div className="bg-white p-6 sm:p-8 rounded-b-2xl shadow-2xl border-t-4 border-teal-500 text-center relative z-10 mx-4 sm:mx-8" style={{ marginTop: '-40px' }}>
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100 ring-4 ring-white -mt-16 mb-4">
             <FaCheckCircle className="h-10 w-10 text-green-500" />
           </div>
@@ -105,26 +203,47 @@ export default async function SuccessPage({ searchParams }: { searchParams: { se
               <p className="text-lg text-gray-800 font-medium">{transaction.email}</p>
             </div>
             <div className="flex flex-col">
-              <label className="text-sm font-medium text-gray-500 flex items-center gap-2 mb-1"><FaTicketAlt /> Ticket Type</label>
-              <div>
-                <p className="text-lg text-gray-800 font-medium">
-                  {transaction.ticketType?.name || 'Ticket'} (x{transaction.quantity})
-                </p>
-                {transaction.ticketType?.description && (
-                  <p className="text-sm text-gray-500 mt-1">{transaction.ticketType.description}</p>
-                )}
-              </div>
+              <label className="text-sm font-medium text-gray-500 flex items-center gap-2 mb-1"><FaCalendarAlt /> Date of Purchase</label>
+              <p className="text-lg text-gray-800 font-medium">{new Date(transaction.purchaseDate).toLocaleString()}</p>
             </div>
             <div className="flex flex-col">
               <label className="text-sm font-medium text-gray-500 flex items-center gap-2 mb-1"><FaMoneyBillWave /> Amount Paid</label>
               <p className="text-lg text-gray-800 font-medium">${(transaction.finalAmount ?? 0).toFixed(2)}</p>
             </div>
-            <div className="flex flex-col">
-              <label className="text-sm font-medium text-gray-500 flex items-center gap-2 mb-1"><FaCalendarAlt /> Date of Purchase</label>
-              <p className="text-lg text-gray-800 font-medium">{new Date(transaction.purchaseDate).toLocaleString()}</p>
-            </div>
           </div>
         </div>
+
+        {/* Transaction Item Breakdown */}
+        {transactionItems.length > 0 && (
+          <div className="w-full bg-white p-6 sm:p-8 rounded-2xl shadow-lg border border-gray-200 mt-8">
+            <h2 className="text-2xl font-semibold text-gray-800 flex items-center gap-3 mb-6">
+              <FaTicketAlt className="text-teal-500" />
+              Ticket Breakdown
+            </h2>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead>
+                  <tr>
+                    <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Ticket Type</th>
+                    <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Quantity</th>
+                    <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Price Per Unit</th>
+                    <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Total</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {transactionItems.map((item: any) => (
+                    <tr key={item.id}>
+                      <td className="px-4 py-2">{item.ticketTypeName || `Ticket Type #${item.ticketTypeId}`}</td>
+                      <td className="px-4 py-2">{item.quantity}</td>
+                      <td className="px-4 py-2">${item.pricePerUnit.toFixed(2)}</td>
+                      <td className="px-4 py-2">${item.totalAmount.toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

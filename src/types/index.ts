@@ -65,19 +65,20 @@ export interface EventDetailsDTO {
   title: string;
   caption?: string;
   description?: string;
-  startDate: string; // ISO date string
-  endDate: string;   // ISO date string
+  startDate: string;
+  endDate: string;
   startTime: string;
   endTime: string;
   location?: string;
   directionsToVenue?: string;
   capacity?: number;
-  admissionType: string;
+  admissionType?: string;
   isActive?: boolean;
   maxGuestsPerAttendee?: number;
   allowGuests?: boolean;
   requireGuestApproval?: boolean;
   enableGuestPricing?: boolean;
+  enableQrCode?: boolean;
   isRegistrationRequired?: boolean;
   isSportsEvent?: boolean;
   isLive?: boolean;
@@ -326,9 +327,9 @@ export interface EventTicketTransactionDTO {
   pricePerUnit: number;
   totalAmount: number;
   taxAmount?: number;
-  feeAmount?: number;
-  discountCodeId?: number | null;
-  discountAmount?: number | null;
+  platformFeeAmount?: number;
+  discountCodeId?: number;
+  discountAmount?: number;
   finalAmount: number;
   status: string;
   paymentMethod?: string;
@@ -339,22 +340,36 @@ export interface EventTicketTransactionDTO {
   refundDate?: string;
   refundReason?: string;
   stripeCheckoutSessionId?: string;
-  stripePaymentIntentId?: string | null;
-  stripeCustomerId?: string | null;
+  stripePaymentIntentId?: string;
+  stripeCustomerId?: string;
   stripePaymentStatus?: string;
   stripeCustomerEmail?: string;
   stripePaymentCurrency?: string;
   stripeAmountDiscount?: number;
   stripeAmountTax?: number;
-  customerName?: string | null;
-  paymentStatus: string;
-  amountTotal: number;
-  amountSubtotal: number;
+  stripeFeeAmount?: number;
+  eventId?: number;
+  userId?: number;
   createdAt: string;
   updatedAt: string;
-  event: Partial<EventDetailsDTO> & { id: number };
-  ticketType?: Partial<EventTicketTypeDTO> & { id: number };
-  user?: Partial<UserProfileDTO> & { id: number };
+  event?: EventDetailsDTO;
+  user?: UserProfileDTO;
+}
+
+export interface EventTicketTransactionItemDTO {
+  id?: number;
+  tenantId?: string;
+  transactionId: number;
+  ticketTypeId: number;
+  quantity: number;
+  pricePerUnit: number;
+  totalAmount: number;
+  discountAmount?: number;
+  serviceFee?: number;
+  createdAt: string;
+  updatedAt: string;
+  transaction?: EventTicketTransactionDTO;
+  ticketType?: EventTicketTypeDTO;
 }
 
 export interface QrCodeUsageDTO {
@@ -399,6 +414,12 @@ export interface TenantSettingsDTO {
   enableEmailMarketing?: boolean;
   whatsappApiKey?: string;
   emailProviderConfig?: string;
+  maxEventsPerMonth?: number;
+  maxAttendeesPerEvent?: number;
+  enableGuestRegistration?: boolean;
+  maxGuestsPerAttendee?: number;
+  defaultEventCapacity?: number;
+  platformFeePercentage?: number;
   customCss?: string;
   customJs?: string;
   createdAt: string;

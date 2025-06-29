@@ -10,7 +10,7 @@ interface CartItem {
 
 export async function createStripeCheckoutSession(
   cart: CartItem[],
-  user: UserProfileDTO,
+  user: { email: string; userId?: string },
   discountCodeId: number | null | undefined,
   eventId: number
 ) {
@@ -39,7 +39,7 @@ export async function createStripeCheckoutSession(
     success_url: `${process.env.NEXT_PUBLIC_APP_URL}/event/success?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/`,
     metadata: {
-      userId: user.userId,
+      ...(user.userId && { userId: user.userId }),
       eventId: String(eventId),
       ticketTypeId: String(ticketTypeId),
       cart: JSON.stringify(
@@ -51,7 +51,8 @@ export async function createStripeCheckoutSession(
         })),
       ),
       ...(discountCodeId && { discountCodeId: String(discountCodeId) }),
-    }
+    },
+    automatic_tax: { enabled: true },
   };
 
   // If a discount code is provided, create a coupon and apply it

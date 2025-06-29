@@ -126,17 +126,7 @@ export async function processStripeSessionServer(
   try {
     const existingTransaction = await findTransactionBySessionId(sessionId);
     if (existingTransaction) {
-      console.log(
-        `Transaction for session ${sessionId} already processed. Returning existing record.`,
-      );
-      const ticketType = existingTransaction.ticketType?.id
-        ? await fetchTicketTypeByIdServer(existingTransaction.ticketType.id)
-        : null;
-
-      return {
-        ...existingTransaction,
-        ticketType: ticketType || undefined,
-      };
+      return existingTransaction;
     }
 
     const session = await stripe.checkout.sessions.retrieve(sessionId, {
@@ -155,27 +145,97 @@ export async function processStripeSessionServer(
       return null;
     }
 
-    const { userId } = auth();
-    if (!userId) {
-      throw new Error('User is not authenticated.');
+    // Fetch PaymentIntent and BalanceTransaction for fee/net details
+    let stripeFeeAmount: number | undefined = undefined;
+    let stripeNetAmount: number | undefined = undefined;
+    let stripeCustomerId: string | undefined = undefined;
+    try {
+      const paymentIntent = await stripe.paymentIntents.retrieve(session.payment_intent as string, {
+        expand: ['charges', 'charges.data.balance_transaction', 'customer'],
+      }) as Stripe.PaymentIntent & { charges?: { data: Stripe.Charge[] } };
+      console.log('[DEBUG] Stripe PaymentIntent:', JSON.stringify(paymentIntent, null, 2));
+      const charges = (paymentIntent.charges && Array.isArray(paymentIntent.charges.data)) ? paymentIntent.charges.data : [];
+      let charge = charges[0];
+      console.log('[DEBUG] Stripe Charge:', JSON.stringify(charge, null, 2));
+      // Fallback: fetch latest_charge if charge is undefined
+      if (!charge && paymentIntent.latest_charge) {
+        try {
+          const fetchedCharge = await stripe.charges.retrieve(paymentIntent.latest_charge as string, {
+            expand: ['balance_transaction'],
+          });
+          charge = fetchedCharge;
+          console.log('[DEBUG] Fetched Stripe Charge:', JSON.stringify(fetchedCharge, null, 2));
+        } catch (fetchChargeErr) {
+          console.error('Error fetching latest_charge:', fetchChargeErr);
+        }
+      }
+      if (charge && charge.balance_transaction) {
+        const balanceTx = typeof charge.balance_transaction === 'string'
+          ? await stripe.balanceTransactions.retrieve(charge.balance_transaction)
+          : charge.balance_transaction;
+        console.log('[DEBUG] Stripe BalanceTransaction:', JSON.stringify(balanceTx, null, 2));
+        stripeFeeAmount = balanceTx.fee ? balanceTx.fee / 100 : undefined;
+        stripeNetAmount = balanceTx.net ? balanceTx.net / 100 : undefined;
+      }
+      if (paymentIntent.customer && typeof paymentIntent.customer === 'string') {
+        stripeCustomerId = paymentIntent.customer;
+      } else if (paymentIntent.customer && typeof paymentIntent.customer === 'object' && 'id' in paymentIntent.customer) {
+        stripeCustomerId = (paymentIntent.customer as { id: string }).id;
+      }
+    } catch (err) {
+      console.error('Error fetching Stripe PaymentIntent/BalanceTransaction:', err);
     }
 
-    const userProfile = await fetchUserProfileServer(userId);
-    if (!userProfile?.id || !userProfile.email) {
-      throw new Error('User profile not found or is missing an email.');
+    // --- User Profile Lookup/Create by Email ---
+    // Use the email from the Stripe session (session.customer_details.email or session.customer_email)
+    const email = session.customer_details?.email || session.customer_email;
+    let userProfileByEmail: UserProfileDTO | null = null;
+    if (email) {
+      // 1. Try to find user profile by email
+      const params = new URLSearchParams({ 'email.equals': email, 'tenantId.equals': getTenantId() });
+      const userProfileRes = await fetchWithJwtRetry(`${API_BASE_URL}/api/user-profiles?${params.toString()}`);
+      if (userProfileRes.ok) {
+        const profiles: UserProfileDTO[] = await userProfileRes.json();
+        if (profiles.length > 0) {
+          userProfileByEmail = profiles[0];
+        }
+      }
+      // 2. If not found, create minimal user profile with guest userId
+      if (!userProfileByEmail) {
+        const now = new Date().toISOString();
+        // Generate a unique userId for guest users
+        const guestUserId = email ? `guest_${email.replace(/[^a-zA-Z0-9]/g, '_')}` : `guest_${Date.now()}`;
+        const newProfile: Partial<UserProfileDTO> = withTenantId({
+          userId: guestUserId,
+          email,
+          firstName: session.customer_details?.name || '',
+          phone: session.customer_details?.phone || '',
+          createdAt: now,
+          updatedAt: now,
+          userStatus: 'ACTIVE',
+        });
+        const createRes = await fetchWithJwtRetry(`${API_BASE_URL}/api/user-profiles`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newProfile),
+        });
+        if (createRes.ok) {
+          userProfileByEmail = await createRes.json();
+        } else {
+          console.error('Failed to create user profile by email:', await createRes.text());
+          // Do not throw; proceed with userProfileByEmail as null
+        }
+      }
     }
+
+    const userProfile = userProfileByEmail;
+    // If userProfile is missing, proceed with transaction creation (userId will be undefined)
 
     const cart: ShoppingCart = JSON.parse(session.metadata.cart || '[]');
     const eventId = parseInt(session.metadata.eventId, 10);
-
     if (!eventId || cart.length === 0) {
       throw new Error('Invalid metadata in Stripe session.');
     }
-
-    const firstTicketId =
-      cart.length > 0 && cart[0].ticketTypeId
-        ? parseInt(cart[0].ticketTypeId, 10)
-        : undefined;
 
     const totalQuantity = cart.reduce(
       (acc: number, item: ShoppingCartItem) => acc + (item.quantity || 0),
@@ -184,55 +244,89 @@ export async function processStripeSessionServer(
     const amountTotal = session.amount_total ? session.amount_total / 100 : 0;
     const now = new Date().toISOString();
 
-    const transactionData: Omit<EventTicketTransactionDTO, 'id'> =
-      withTenantId({
-        // Fields from DTO
-        email: userProfile.email,
-        firstName: userProfile.firstName,
-        lastName: userProfile.lastName,
-        quantity: totalQuantity,
-        pricePerUnit:
-          totalQuantity > 0 ? amountTotal / totalQuantity : 0,
-        totalAmount: session.amount_subtotal ? session.amount_subtotal / 100 : 0,
-        finalAmount: amountTotal,
-        status: 'COMPLETED',
-        purchaseDate: now,
-        paymentStatus: 'PAID',
-        amountTotal: amountTotal,
-        amountSubtotal: session.amount_subtotal ? session.amount_subtotal / 100 : 0,
-        createdAt: now,
-        updatedAt: now,
-        event: { id: eventId },
-        ticketType: firstTicketId ? { id: firstTicketId } : undefined,
-        user: { id: userProfile.id },
-        // Stripe-specific fields
-        stripeCheckoutSessionId: session.id,
-        stripePaymentIntentId: session.payment_intent as string,
-        stripePaymentStatus: session.payment_status,
-        stripePaymentCurrency: session.currency || 'usd',
-      });
+    // Stripe details (type-safe)
+    const totalDetails = session.total_details || {};
+    const stripeAmountDiscount = (totalDetails as any).amount_discount ? (totalDetails as any).amount_discount / 100 : 0;
+    const stripeAmountTax = (totalDetails as any).amount_tax ? (totalDetails as any).amount_tax / 100 : 0;
 
+    // Build transaction DTO (flat fields, all required fields, all stripe fields)
+    const transactionData: Omit<EventTicketTransactionDTO, 'id'> = withTenantId({
+      email: userProfile?.email || email || '',
+      firstName: userProfile?.firstName || session.customer_details?.name || '',
+      phone: userProfile?.phone || session.customer_details?.phone || '',
+      quantity: totalQuantity,
+      pricePerUnit: totalQuantity > 0 ? amountTotal / totalQuantity : 0,
+      totalAmount: session.amount_subtotal ? session.amount_subtotal / 100 : 0,
+      taxAmount: stripeAmountTax,
+      platformFeeAmount: stripeFeeAmount,
+      netAmount: stripeNetAmount,
+      discountCodeId: session.metadata.discountCodeId ? parseInt(session.metadata.discountCodeId, 10) : undefined,
+      discountAmount: stripeAmountDiscount,
+      finalAmount: amountTotal,
+      status: 'COMPLETED',
+      paymentMethod: session.payment_method_types?.[0] || undefined,
+      paymentReference: session.payment_intent as string,
+      purchaseDate: now,
+      confirmationSentAt: undefined,
+      refundAmount: undefined,
+      refundDate: undefined,
+      refundReason: undefined,
+      stripeCheckoutSessionId: session.id,
+      stripePaymentIntentId: session.payment_intent as string,
+      stripeCustomerId: stripeCustomerId || (session.customer as string),
+      stripePaymentStatus: session.payment_status,
+      stripeCustomerEmail: session.customer_details?.email ?? undefined,
+      stripePaymentCurrency: session.currency || 'usd',
+      stripeAmountDiscount,
+      stripeAmountTax,
+      stripeFeeAmount,
+      eventId: eventId,
+      userId: userProfile?.id, // This may be undefined for true guests
+      createdAt: now,
+      updatedAt: now,
+    });
+    console.log('[DEBUG] Outgoing transactionData payload:', JSON.stringify(transactionData, null, 2));
+
+    // Create the main transaction
     const newTransaction = await createTransaction(transactionData);
 
+    // Persist breakdown for each ticket type in the cart
+    for (const item of cart) {
+      const itemPayload = withTenantId({
+        transactionId: newTransaction.id,
+        ticketTypeId: parseInt(item.ticketTypeId, 10),
+        quantity: item.quantity,
+        pricePerUnit: item.price,
+        totalAmount: item.price * item.quantity,
+        // Add discountAmount, serviceFee, etc. if available
+        createdAt: now,
+        updatedAt: now,
+      });
+      await fetchWithJwtRetry(
+        `${API_BASE_URL}/api/event-ticket-transaction-items`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(itemPayload),
+        }
+      );
+    }
+
+    // Optionally update user profile name if changed
     const purchaserName = session.customer_details?.name;
     if (
       purchaserName &&
-      purchaserName.toLowerCase() !==
-        (userProfile.firstName || '').toLowerCase()
+      purchaserName.toLowerCase() !== (userProfile?.firstName || '').toLowerCase()
     ) {
-      await patchUserProfileServer(userProfile.id, {
-        firstName: purchaserName,
-      });
+      if (userProfile?.id) {
+        await patchUserProfileServer(userProfile.id, {
+          firstName: purchaserName,
+        });
+      }
+      // else: skip patch, as there is no user profile to update
     }
 
-    const finalTicketType = newTransaction.ticketType?.id
-      ? await fetchTicketTypeByIdServer(newTransaction.ticketType.id)
-      : null;
-
-    return {
-      ...newTransaction,
-      ticketType: finalTicketType || undefined,
-    };
+    return newTransaction;
   } catch (error) {
     console.error('Error processing Stripe session:', error);
     return null;

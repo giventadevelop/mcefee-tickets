@@ -43,28 +43,6 @@ entity TenantOrganization {
     updatedAt ZonedDateTime required
 }
 
-// TenantSettings entity
-entity TenantSettings {
-    id Long,
-    tenantId String required unique maxlength(255),
-    allowUserRegistration Boolean,
-    requireAdminApproval Boolean,
-    enableWhatsappIntegration Boolean,
-    enableEmailMarketing Boolean,
-    whatsappApiKey String maxlength(500),
-    emailProviderConfig TextBlob,
-    maxEventsPerMonth Integer,
-    maxAttendeesPerEvent Integer,
-    enableGuestRegistration Boolean,
-    maxGuestsPerAttendee Integer,
-    defaultEventCapacity Integer,
-    platformFeePercentage BigDecimal,
-    customCss TextBlob,
-    customJs TextBlob,
-    createdAt ZonedDateTime required,
-    updatedAt ZonedDateTime required
-}
-
 entity UserProfile {
     id Long,
     tenantId String maxlength(255),
@@ -156,7 +134,6 @@ entity EventDetails {
     allowGuests Boolean,
     requireGuestApproval Boolean,
     enableGuestPricing Boolean,
-    enableQrCode Boolean,
     isRegistrationRequired Boolean,
     isSportsEvent Boolean,
     isLive Boolean,
@@ -172,12 +149,11 @@ entity EventTicketTransaction {
     firstName String maxlength(255),
     lastName String maxlength(255),
     phone String maxlength(255),
-    quantity Integer,
+    quantity Integer required,
     pricePerUnit BigDecimal required,
     totalAmount BigDecimal required,
     taxAmount BigDecimal,
-    platformFeeAmount BigDecimal,
-    serviceFee BigDecimal,
+    feeAmount BigDecimal,
     discountCodeId Long,
     discountAmount BigDecimal,
     finalAmount BigDecimal required,
@@ -191,29 +167,6 @@ entity EventTicketTransaction {
     refundReason TextBlob,
     stripeCheckoutSessionId String maxlength(255),
     stripePaymentIntentId String maxlength(255),
-    // Stripe-specific fields
-    stripeCustomerId String maxlength(255), // Stripe customer ID
-    stripePaymentStatus String maxlength(50), // Stripe payment status
-    stripeCustomerEmail String maxlength(255), // Stripe customer email
-    stripePaymentCurrency String maxlength(10), // Stripe payment currency
-    stripeAmountDiscount BigDecimal, // Stripe discount amount
-    stripeAmountTax BigDecimal, // Stripe tax amount
-    stripeFeeAmount BigDecimal, // Stripe fee amount
-    eventId Long,
-    userId Long,
-    createdAt ZonedDateTime required,
-    updatedAt ZonedDateTime required
-}
-
-// NEW: EventTicketTransactionItem entity for line items (multi-ticket-type support)
-entity EventTicketTransactionItem {
-    id Long,
-    tenantId String maxlength(255),
-    transactionId Long required, // FK to EventTicketTransaction
-    ticketTypeId Long required,  // FK to EventTicketType
-    quantity Integer required min(1),
-    pricePerUnit BigDecimal required,
-    totalAmount BigDecimal required,
     createdAt ZonedDateTime required,
     updatedAt ZonedDateTime required
 }
@@ -348,6 +301,21 @@ entity UserPaymentTransaction {
     updatedAt ZonedDateTime required
 }
 
+// TenantSettings entity
+entity TenantSettings {
+    id Long,
+    tenantId String required unique maxlength(255),
+    allowUserRegistration Boolean,
+    requireAdminApproval Boolean,
+    enableWhatsappIntegration Boolean,
+    enableEmailMarketing Boolean,
+    whatsappApiKey String maxlength(500),
+    emailProviderConfig TextBlob,
+    customCss TextBlob,
+    customJs TextBlob,
+    createdAt ZonedDateTime required,
+    updatedAt ZonedDateTime required
+}
 
 /**
  * Event Guest Management JDL Model
@@ -563,6 +531,7 @@ relationship ManyToOne {
     // Event Ticket relationships
     EventTicketType{event} to EventDetails,
     EventTicketTransaction{event} to EventDetails,
+    EventTicketTransaction{ticketType} to EventTicketType,
     EventTicketTransaction{user} to UserProfile,
 
     // Event Poll relationships
@@ -615,10 +584,6 @@ relationship ManyToOne {
     EmailLog{campaign} to CommunicationCampaign,
     WhatsAppLog{campaign} to CommunicationCampaign,
     CommunicationCampaign{createdBy} to UserProfile
-
-    // Event Ticket Transaction Item relationships
-    EventTicketTransactionItem{transaction required} to EventTicketTransaction,
-    EventTicketTransactionItem{ticketType required} to EventTicketType,
 }
 
 // ADDITIONAL VALIDATION RULES (Comments for implementation)

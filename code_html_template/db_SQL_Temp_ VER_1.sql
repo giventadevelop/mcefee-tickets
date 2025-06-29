@@ -58,6 +58,7 @@ DROP TYPE IF EXISTS public.event_admission_type CASCADE;
 DROP TYPE IF EXISTS public.transaction_type CASCADE;
 DROP TYPE IF EXISTS public.transaction_status CASCADE;
 
+
 -- Guest age group classifications
 CREATE TYPE public.guest_age_group AS ENUM ('ADULT', 'TEEN', 'CHILD', 'INFANT');
 
@@ -128,6 +129,7 @@ DROP TABLE IF EXISTS public.event_poll_response CASCADE;
 DROP TABLE IF EXISTS public.event_poll_option CASCADE;
 DROP TABLE IF EXISTS public.event_poll CASCADE;
 DROP TABLE IF EXISTS public.event_ticket_transaction CASCADE;
+DROP TABLE IF EXISTS public.event_ticket_transaction_item CASCADE;
 DROP TABLE IF EXISTS public.user_payment_transaction CASCADE;
 DROP TABLE IF EXISTS public.event_ticket_type CASCADE;
 DROP TABLE IF EXISTS public.event_organizer CASCADE;
@@ -147,6 +149,9 @@ DROP TABLE IF EXISTS public.tenant_organization CASCADE;
 DROP TABLE IF EXISTS public.databasechangeloglock CASCADE;
 DROP TABLE IF EXISTS public.databasechangelog CASCADE;
 DROP TABLE IF EXISTS public.discount_code CASCADE;
+DROP TABLE IF EXISTS public.communication_campaign CASCADE;
+DROP TABLE IF EXISTS public.email_log CASCADE;
+DROP TABLE IF EXISTS public.whatsapp_log CASCADE;
 
 CREATE FUNCTION public.generate_attendee_qr_code() RETURNS trigger
     LANGUAGE plpgsql
@@ -218,25 +223,42 @@ ALTER FUNCTION public.generate_enhanced_qr_code() OWNER TO giventa_event_managem
 -- Name: manage_ticket_inventory(); Type: FUNCTION; Schema: public; Owner: giventa_event_management
 --
 
-CREATE FUNCTION  public.manage_ticket_inventory() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
+CREATE OR REPLACE FUNCTION public.manage_ticket_inventory() RETURNS trigger
+LANGUAGE plpgsql
+AS $$
 DECLARE
     ticket_type_record RECORD;
     available_quantity INTEGER;
+    parent_status TEXT;
+    txn_id BIGINT;
 BEGIN
-    -- Get ticket type details
-    SELECT * INTO ticket_type_record
-    FROM public.event_ticket_type
-    WHERE id = COALESCE(NEW.ticket_type_id, OLD.ticket_type_id);
-
-    IF NOT FOUND THEN
-        RAISE EXCEPTION 'Ticket type not found for ID: %', COALESCE(NEW.ticket_type_id, OLD.ticket_type_id);
+    IF TG_OP = 'INSERT' OR TG_OP = 'UPDATE' THEN
+        txn_id := NEW.transaction_id;
+    ELSE
+        txn_id := OLD.transaction_id;
     END IF;
 
-    -- Handle different operations
-    IF TG_OP = 'INSERT' AND NEW.status = 'COMPLETED' THEN
-        -- Check availability before increasing sold quantity
+    -- Get parent transaction status
+    SELECT status INTO parent_status FROM public.event_ticket_transaction WHERE id = txn_id;
+
+    IF parent_status != 'COMPLETED' THEN
+        IF TG_OP = 'DELETE' THEN
+            RETURN OLD;
+        ELSE
+            RETURN NEW;
+        END IF;
+    END IF;
+
+    -- Get ticket type details
+    IF TG_OP = 'INSERT' THEN
+        SELECT * INTO ticket_type_record
+        FROM public.event_ticket_type
+        WHERE id = NEW.ticket_type_id;
+
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'Ticket type not found for ID: %', NEW.ticket_type_id;
+        END IF;
+
         available_quantity := ticket_type_record.available_quantity - ticket_type_record.sold_quantity;
         IF available_quantity < NEW.quantity THEN
             RAISE EXCEPTION 'Insufficient tickets available. Requested: %, Available: %',
@@ -251,30 +273,25 @@ BEGIN
         RAISE NOTICE 'Added % tickets to sold quantity for ticket type %', NEW.quantity, NEW.ticket_type_id;
 
     ELSIF TG_OP = 'UPDATE' THEN
-        IF OLD.status != 'COMPLETED' AND NEW.status = 'COMPLETED' THEN
-            -- Ticket sale completed
-            UPDATE public.event_ticket_type
-            SET sold_quantity = sold_quantity + NEW.quantity,
-                updated_at = NOW()
-            WHERE id = NEW.ticket_type_id;
-
-        ELSIF OLD.status = 'COMPLETED' AND NEW.status != 'COMPLETED' THEN
-            -- Ticket sale cancelled/refunded
-            UPDATE public.event_ticket_type
-            SET sold_quantity = sold_quantity - OLD.quantity,
-                updated_at = NOW()
-            WHERE id = OLD.ticket_type_id;
-
-        ELSIF OLD.status = 'COMPLETED' AND NEW.status = 'COMPLETED' AND OLD.quantity != NEW.quantity THEN
-            -- Quantity changed for completed sale
+        IF OLD.ticket_type_id = NEW.ticket_type_id THEN
             UPDATE public.event_ticket_type
             SET sold_quantity = sold_quantity - OLD.quantity + NEW.quantity,
                 updated_at = NOW()
             WHERE id = NEW.ticket_type_id;
+        ELSE
+            -- Remove from old ticket type
+            UPDATE public.event_ticket_type
+            SET sold_quantity = sold_quantity - OLD.quantity,
+                updated_at = NOW()
+            WHERE id = OLD.ticket_type_id;
+            -- Add to new ticket type
+            UPDATE public.event_ticket_type
+            SET sold_quantity = sold_quantity + NEW.quantity,
+                updated_at = NOW()
+            WHERE id = NEW.ticket_type_id;
         END IF;
 
-    ELSIF TG_OP = 'DELETE' AND OLD.status = 'COMPLETED' THEN
-        -- Remove sold tickets when transaction is deleted
+    ELSIF TG_OP = 'DELETE' THEN
         UPDATE public.event_ticket_type
         SET sold_quantity = sold_quantity - OLD.quantity,
             updated_at = NOW()
@@ -283,7 +300,6 @@ BEGIN
         RAISE NOTICE 'Removed % tickets from sold quantity for ticket type %', OLD.quantity, OLD.ticket_type_id;
     END IF;
 
-    -- Return appropriate record
     IF TG_OP = 'DELETE' THEN
         RETURN OLD;
     ELSE
@@ -360,9 +376,9 @@ CREATE FUNCTION  public.validate_event_dates() RETURNS trigger
     AS $$
 BEGIN
     -- Ensure start_date is not in the past (allow same day)
-    IF NEW.start_date < CURRENT_DATE THEN
-        RAISE EXCEPTION 'Event start date cannot be in the past';
-    END IF;
+--    IF NEW.start_date < CURRENT_DATE THEN
+--        RAISE EXCEPTION 'Event start date cannot be in the past';
+--    END IF;
 
     -- Ensure registration deadline is before event start
     IF NEW.registration_deadline IS NOT NULL AND NEW.registration_deadline::date > NEW.start_date THEN
@@ -385,9 +401,9 @@ CREATE FUNCTION  public.validate_event_dates_alt1() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 BEGIN
-    IF NEW.start_date < CURRENT_DATE THEN
-        RAISE EXCEPTION 'Event start date cannot be in the past';
-    END IF;
+--    IF NEW.start_date < CURRENT_DATE THEN
+--        RAISE EXCEPTION 'Event start date cannot be in the past';
+--    END IF;
 
     IF NEW.registration_deadline IS NOT NULL AND NEW.registration_deadline::date > NEW.start_date THEN
         RAISE EXCEPTION 'Registration deadline must be before event start date';
@@ -409,9 +425,9 @@ CREATE FUNCTION  public.validate_event_dates_alt2() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 BEGIN
-    IF NEW.start_date < CURRENT_DATE THEN
-        RAISE EXCEPTION 'Event start date cannot be in the past';
-    END IF;
+--    IF NEW.start_date < CURRENT_DATE THEN
+--        RAISE EXCEPTION 'Event start date cannot be in the past';
+--    END IF;
 
     IF NEW.registration_deadline IS NOT NULL AND NEW.registration_deadline::date > NEW.start_date THEN
         RAISE EXCEPTION 'Registration deadline must be before event start date';
@@ -434,16 +450,16 @@ CREATE FUNCTION  public.validate_event_details() RETURNS trigger
     AS $$
 BEGIN
     -- Validate start date
-    IF NEW.start_date < CURRENT_DATE THEN
-        RAISE EXCEPTION 'Event start date (%) cannot be in the past. Current date: %',
-            NEW.start_date, CURRENT_DATE;
-    END IF;
+--    IF NEW.start_date < CURRENT_DATE THEN
+--        RAISE EXCEPTION 'Event start date (%) cannot be in the past. Current date: %',
+--            NEW.start_date, CURRENT_DATE;
+--    END IF;
 
     -- Validate end date
-    IF NEW.end_date < NEW.start_date THEN
-        RAISE EXCEPTION 'Event end date (%) cannot be before start date (%)',
-            NEW.end_date, NEW.start_date;
-    END IF;
+--    IF NEW.end_date < NEW.start_date THEN
+--        RAISE EXCEPTION 'Event end date (%) cannot be before start date (%)',
+--            NEW.end_date, NEW.start_date;
+--    END IF;
 
     -- JDL VALIDATION: If allowGuests = true, maxGuestsPerAttendee should be > 0
     IF NEW.allow_guests = TRUE AND (NEW.max_guests_per_attendee IS NULL OR NEW.max_guests_per_attendee <= 0) THEN
@@ -483,6 +499,62 @@ ALTER SEQUENCE public.sequence_generator OWNER TO giventa_event_management;
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
+
+
+
+--
+-- TOC entry 230 (class 1259 OID 82796)
+-- Name: user_profile; Type: TABLE; Schema: public; Owner: giventa_event_management
+--
+
+CREATE TABLE public.user_profile (
+    id bigint DEFAULT nextval('public.sequence_generator'::regclass) NOT NULL,
+    tenant_id character varying(255),
+    user_id character varying(255) NOT NULL,
+    first_name character varying(255),
+    last_name character varying(255),
+    email character varying(255),
+    phone character varying(255),
+    address_line_1 character varying(255),
+    address_line_2 character varying(255),
+    city character varying(255),
+    state character varying(255),
+    zip_code character varying(255),
+    country character varying(255),
+    notes text,
+    family_name character varying(255),
+    city_town character varying(255),
+    district character varying(255),
+    educational_institution character varying(255),
+    profile_image_url character varying(1024),
+    user_status character varying(50),
+    user_role character varying(50),
+    reviewed_by_admin_at timestamp without time zone,
+    reviewed_by_admin_id bigint,
+    created_at timestamp without time zone DEFAULT now() NOT NULL,
+    updated_at timestamp without time zone DEFAULT now() NOT NULL,
+    CONSTRAINT check_email_format CHECK (((email IS NULL) OR ((email)::text ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'::text))),
+    request_id character varying(255) UNIQUE,
+    request_reason text,
+    status character varying(50),
+    admin_comments text,
+    submitted_at timestamp without time zone,
+    reviewed_at timestamp without time zone,
+    approved_at timestamp without time zone,
+    rejected_at timestamp without time zone,
+    CONSTRAINT user_profile_pkey PRIMARY KEY (id)
+);
+
+
+ALTER TABLE public.user_profile OWNER TO giventa_event_management;
+
+--
+-- TOC entry 3991 (class 0 OID 0)
+-- Dependencies: 230
+-- Name: TABLE user_profile; Type: COMMENT; Schema: public; Owner: giventa_event_management
+--
+
+COMMENT ON TABLE public.user_profile IS 'User profiles with tenant isolation and enhanced fields';
 
 --
 -- TOC entry 238 (class 1259 OID 82938)
@@ -807,6 +879,7 @@ CREATE TABLE public.event_details (
     maximum_age integer,
     requires_approval boolean DEFAULT false,
     enable_waitlist boolean DEFAULT true,
+    enable_qr_code boolean DEFAULT false,
     external_registration_url character varying(1024),
     created_by_id bigint,
     event_type_id bigint,
@@ -1360,11 +1433,11 @@ CREATE TABLE public.event_ticket_transaction (
     first_name character varying(255),
     last_name character varying(255),
     phone character varying(255),
-    quantity integer NOT NULL,
+    quantity INTEGER NOT NULL,
     price_per_unit numeric(21,2) NOT NULL,
     total_amount numeric(21,2) NOT NULL,
     tax_amount numeric(21,2) DEFAULT 0,
-    fee_amount numeric(21,2) DEFAULT 0,
+    platform_fee_amount numeric(21,2) DEFAULT 0,
     discount_code_id bigint,
     discount_amount numeric(21,2) DEFAULT 0,
     final_amount numeric(21,2) NOT NULL,
@@ -1384,13 +1457,16 @@ CREATE TABLE public.event_ticket_transaction (
     stripe_payment_currency varchar(10) NULL,
     stripe_amount_discount numeric(21,2) NULL,
     stripe_amount_tax numeric(21,2) NULL,
+    stripe_fee_amount  numeric(21,2) NULL,
+    event_id bigint,
+    user_id bigint,
     created_at timestamp DEFAULT now() NOT NULL,
     updated_at timestamp DEFAULT now() NOT NULL,
-    event_id bigint,
-    ticket_type_id bigint,
-    user_id bigint,
+
     CONSTRAINT check_email_format_transaction CHECK (((email)::text ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'::text)),
-    CONSTRAINT check_transaction_amounts CHECK (((total_amount >= (0)::numeric) AND (tax_amount >= (0)::numeric) AND (fee_amount >= (0)::numeric) AND (discount_amount >= (0)::numeric) AND (refund_amount >= (0)::numeric) AND (final_amount >= (0)::numeric) AND (quantity > 0))),
+    CONSTRAINT check_transaction_amounts CHECK (((total_amount >= (0)::numeric) AND (tax_amount >= (0)::numeric) AND (discount_amount >= (0)::numeric) AND (refund_amount >= (0)::numeric) AND (final_amount >= (0)::numeric))),
+    CONSTRAINT fk_event FOREIGN KEY (event_id) REFERENCES public.event_details(id) ON DELETE CASCADE,
+    CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES public.user_profile(id) ON DELETE SET null,
     CONSTRAINT event_ticket_transaction_pkey PRIMARY KEY (id)
 );
 
@@ -1460,6 +1536,18 @@ ALTER TABLE public.event_ticket_type OWNER TO giventa_event_management;
 COMMENT ON COLUMN public.event_ticket_type.sold_quantity IS 'Number of tickets sold (auto-updated by triggers)';
 
 
+CREATE TABLE public.event_ticket_transaction_item (
+    id BIGSERIAL PRIMARY KEY,
+    tenant_id character varying(255),
+    transaction_id BIGINT NOT NULL REFERENCES public.event_ticket_transaction(id) ON DELETE CASCADE,
+    ticket_type_id BIGINT NOT NULL REFERENCES public.event_ticket_type(id),
+    quantity INTEGER NOT NULL,
+    price_per_unit NUMERIC(21,2) NOT NULL,
+    total_amount NUMERIC(21,2) NOT NULL,
+    -- Optionally: discount_amount, fee_amount, etc.
+    created_at TIMESTAMP DEFAULT now() NOT NULL,
+    updated_at TIMESTAMP DEFAULT now() NOT NULL
+);
 --
 -- TOC entry 232 (class 1259 OID 82832)
 -- Name: event_type_details; Type: TABLE; Schema: public; Owner: giventa_event_management
@@ -1579,7 +1667,9 @@ CREATE TABLE public.tenant_organization (
     updated_at timestamp without time zone DEFAULT now() NOT NULL,
     CONSTRAINT check_monthly_fee_positive CHECK ((monthly_fee_usd >= (0)::numeric)),
     CONSTRAINT check_subscription_dates CHECK (((subscription_end_date IS NULL) OR (subscription_end_date >= subscription_start_date))),
-    CONSTRAINT tenant_organization_pkey PRIMARY KEY (id)
+    CONSTRAINT tenant_organization_pkey PRIMARY KEY (id),
+    CONSTRAINT tenant_organization_tenant_id_key UNIQUE (tenant_id),
+    CONSTRAINT tenant_organization_domain_key UNIQUE (domain)
 );
 
 
@@ -1615,12 +1705,16 @@ CREATE TABLE public.tenant_settings (
     enable_guest_registration boolean DEFAULT true,
     max_guests_per_attendee integer DEFAULT 5,
     default_event_capacity integer DEFAULT 100,
+    platform_fee_percentage decimal(6,4),
     created_at timestamp without time zone DEFAULT now() NOT NULL,
     updated_at timestamp without time zone DEFAULT now() NOT NULL,
     CONSTRAINT check_default_capacity_positive CHECK (((default_event_capacity IS NULL) OR (default_event_capacity > 0))),
     CONSTRAINT check_max_attendees_positive CHECK (((max_attendees_per_event IS NULL) OR (max_attendees_per_event > 0))),
     CONSTRAINT check_max_events_positive CHECK (((max_events_per_month IS NULL) OR (max_events_per_month > 0))),
-    CONSTRAINT check_max_guests_positive CHECK (((max_guests_per_attendee IS NULL) OR (max_guests_per_attendee >= 0)))
+    CONSTRAINT check_max_guests_positive CHECK (((max_guests_per_attendee IS NULL) OR (max_guests_per_attendee >= 0))),
+    CONSTRAINT tenant_settings_pkey PRIMARY KEY (id),
+    CONSTRAINT tenant_settings_tenant_id_key UNIQUE (tenant_id),
+    CONSTRAINT fk_tenant_settings__tenant_id FOREIGN KEY (tenant_id) REFERENCES public.tenant_organization(tenant_id) ON DELETE CASCADE
 );
 
 
@@ -1717,62 +1811,6 @@ CREATE TABLE public.user_payment_transaction (
 
 
 ALTER TABLE public.user_payment_transaction OWNER TO giventa_event_management;
-
---
--- TOC entry 230 (class 1259 OID 82796)
--- Name: user_profile; Type: TABLE; Schema: public; Owner: giventa_event_management
---
-
-CREATE TABLE public.user_profile (
-    id bigint DEFAULT nextval('public.sequence_generator'::regclass) NOT NULL,
-    tenant_id character varying(255),
-    user_id character varying(255) NOT NULL,
-    first_name character varying(255),
-    last_name character varying(255),
-    email character varying(255),
-    phone character varying(255),
-    address_line_1 character varying(255),
-    address_line_2 character varying(255),
-    city character varying(255),
-    state character varying(255),
-    zip_code character varying(255),
-    country character varying(255),
-    notes text,
-    family_name character varying(255),
-    city_town character varying(255),
-    district character varying(255),
-    educational_institution character varying(255),
-    profile_image_url character varying(1024),
-    user_status character varying(50),
-    user_role character varying(50),
-    reviewed_by_admin_at timestamp without time zone,
-    reviewed_by_admin_id bigint,
-    created_at timestamp without time zone DEFAULT now() NOT NULL,
-    updated_at timestamp without time zone DEFAULT now() NOT NULL,
-    CONSTRAINT check_email_format CHECK (((email IS NULL) OR ((email)::text ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'::text))),
-    request_id character varying(255) UNIQUE,
-    request_reason text,
-    status character varying(50),
-    admin_comments text,
-    submitted_at timestamp without time zone,
-    reviewed_at timestamp without time zone,
-    approved_at timestamp without time zone,
-    rejected_at timestamp without time zone,
-    CONSTRAINT user_profile_pkey PRIMARY KEY (id)
-);
-
-
-ALTER TABLE public.user_profile OWNER TO giventa_event_management;
-
---
--- TOC entry 3991 (class 0 OID 0)
--- Dependencies: 230
--- Name: TABLE user_profile; Type: COMMENT; Schema: public; Owner: giventa_event_management
---
-
-COMMENT ON TABLE public.user_profile IS 'User profiles with tenant isolation and enhanced fields';
-
-
 
 
 
@@ -1926,31 +1964,6 @@ SELECT pg_catalog.setval('public.sequence_generator', 4000, true);
 ALTER TABLE ONLY public.discount_code
     ADD CONSTRAINT discount_code_code_key UNIQUE (code);
 
-
-
-ALTER TABLE ONLY public.tenant_organization
-    ADD CONSTRAINT tenant_organization_domain_key UNIQUE (domain);
-
-
-
-
---
--- TOC entry 3583 (class 2606 OID 82793)
--- Name: tenant_organization tenant_organization_tenant_id_key; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.tenant_organization
-    ADD CONSTRAINT tenant_organization_tenant_id_key UNIQUE (tenant_id);
-
-
-
---
--- TOC entry 3591 (class 2606 OID 82831)
--- Name: tenant_settings tenant_settings_tenant_id_key; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.tenant_settings
-    ADD CONSTRAINT tenant_settings_tenant_id_key UNIQUE (tenant_id);
 
 --
 -- TOC entry 3655 (class 2606 OID 83100)
@@ -2214,7 +2227,11 @@ CREATE TRIGGER generate_enhanced_qr_code_trigger BEFORE INSERT OR UPDATE ON publ
 -- Name: event_ticket_transaction manage_ticket_inventory_trigger; Type: TRIGGER; Schema: public; Owner: giventa_event_management
 --
 
-CREATE TRIGGER manage_ticket_inventory_trigger AFTER INSERT OR DELETE OR UPDATE ON public.event_ticket_transaction FOR EACH ROW EXECUTE FUNCTION public.manage_ticket_inventory();
+      CREATE TRIGGER manage_ticket_inventory_trigger
+       AFTER INSERT OR UPDATE OR DELETE
+       ON public.event_ticket_transaction_item
+       FOR EACH ROW
+       EXECUTE FUNCTION public.manage_ticket_inventory();
 
 
 --
@@ -2551,15 +2568,6 @@ ALTER TABLE ONLY public.event_score_card_detail
 
 
 --
--- TOC entry 3684 (class 2606 OID 83183)
--- Name: tenant_settings fk_tenant_settings__tenant_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.tenant_settings
-    ADD CONSTRAINT fk_tenant_settings__tenant_id FOREIGN KEY (tenant_id) REFERENCES public.tenant_organization(tenant_id) ON DELETE CASCADE;
-
-
---
 -- TOC entry 3697 (class 2606 OID 83405)
 -- Name: event_ticket_transaction fk_ticket_transaction__discount_code_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
@@ -2575,15 +2583,6 @@ ALTER TABLE ONLY public.event_ticket_transaction
 
 ALTER TABLE ONLY public.event_ticket_transaction
     ADD CONSTRAINT fk_ticket_transaction__event_id FOREIGN KEY (event_id) REFERENCES public.event_details(id) ON DELETE CASCADE;
-
-
---
--- TOC entry 3699 (class 2606 OID 83258)
--- Name: event_ticket_transaction fk_ticket_transaction__ticket_type_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_ticket_transaction
-    ADD CONSTRAINT fk_ticket_transaction__ticket_type_id FOREIGN KEY (ticket_type_id) REFERENCES public.event_ticket_type(id) ON DELETE RESTRICT;
 
 
 --

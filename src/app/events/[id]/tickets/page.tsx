@@ -3,7 +3,8 @@
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import { FaTags, FaCreditCard, FaCalendarAlt, FaClock, FaMapMarkerAlt } from 'react-icons/fa';
+import { FaTags, FaCreditCard, FaCalendarAlt, FaClock, FaMapMarkerAlt, FaMapPin } from 'react-icons/fa';
+import { Modal } from '@/components/Modal';
 
 export default function TicketingPage() {
   const params = useParams();
@@ -23,6 +24,7 @@ export default function TicketingPage() {
   const [heroImageUrl, setHeroImageUrl] = useState<string | null>(null);
   const [totalAmount, setTotalAmount] = useState(0);
   const [savedAmount, setSavedAmount] = useState(0);
+  const [showDiscountModal, setShowDiscountModal] = useState(false);
 
   const defaultHeroImageUrl = `/images/side_images/chilanka_2025.webp?v=${Date.now()}`;
 
@@ -171,6 +173,17 @@ export default function TicketingPage() {
   };
 
   const handleApplyDiscount = () => {
+    // Validation 1: No tickets selected
+    if (Object.values(selectedTickets).every(q => q === 0)) {
+      setDiscountError('Please select at least one ticket before applying a discount.');
+      return;
+    }
+    // Validation 2: Discount code is empty
+    if (!discountCode.trim()) {
+      setDiscountError('Please enter the discount code.');
+      return;
+    }
+    setDiscountError('');
     validateAndApplyDiscount(discountCode);
   };
 
@@ -186,6 +199,12 @@ export default function TicketingPage() {
     let finalDiscount = appliedDiscount;
     if (discountCode && (!appliedDiscount || appliedDiscount.code.toLowerCase() !== discountCode.toLowerCase())) {
       finalDiscount = validateAndApplyDiscount(discountCode);
+    }
+
+    // Block checkout if there is a discount code error and the field is not empty
+    if (discountError && discountCode.trim()) {
+      setShowDiscountModal(true);
+      return;
     }
 
     // 3. Build cart.
@@ -212,6 +231,7 @@ export default function TicketingPage() {
           cart,
           discountCodeId: finalDiscount?.id || null,
           eventId,
+          email,
         }),
       });
 
@@ -363,6 +383,9 @@ export default function TicketingPage() {
           <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2">
             {event.title}
           </h2>
+          {event.caption && (
+            <div className="text-lg text-teal-700 font-semibold mb-2">{event.caption}</div>
+          )}
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-gray-600 mb-4">
             <div className="flex items-center gap-2">
               <FaCalendarAlt />
@@ -370,8 +393,14 @@ export default function TicketingPage() {
             </div>
             <div className="flex items-center gap-2">
               <FaClock />
-              <span>{event.startTime}</span>
+              <span>{formatTime(event.startTime)}{event.endTime ? ` - ${formatTime(event.endTime)}` : ''}</span>
             </div>
+            {event.location && (
+              <div className="flex items-center gap-2">
+                <FaMapPin />
+                <span>{event.location}</span>
+              </div>
+            )}
             {event.venueName && (
               <div className="flex items-center gap-2">
                 <FaMapMarkerAlt />
@@ -492,6 +521,33 @@ export default function TicketingPage() {
           </div>
         </div>
       </div>
+      <Modal open={showDiscountModal} onClose={() => setShowDiscountModal(false)} title="Discount Code Error">
+        <div className="text-center">
+          <p className="text-lg">
+            Please enter valid discount code or clear the field before proceeding.
+          </p>
+          <div className="mt-6 flex justify-center gap-4">
+            <button
+              onClick={() => setShowDiscountModal(false)}
+              className="bg-teal-100 hover:bg-teal-200 text-teal-800 px-4 py-2 rounded-md flex items-center gap-2"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
+}
+
+function formatTime(time: string): string {
+  if (!time) return '';
+  // Accepts 'HH:mm' or 'hh:mm AM/PM' and returns 'hh:mm AM/PM'
+  if (time.match(/AM|PM/i)) return time;
+  const [hourStr, minute] = time.split(':');
+  let hour = parseInt(hourStr, 10);
+  const ampm = hour >= 12 ? 'PM' : 'AM';
+  hour = hour % 12;
+  if (hour === 0) hour = 12;
+  return `${hour.toString().padStart(2, '0')}:${minute} ${ampm}`;
 }
