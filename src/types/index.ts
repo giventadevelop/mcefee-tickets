@@ -495,3 +495,20 @@ export interface DiscountCodeDTO {
   eventId: number;
   tenantId: string;
 }
+
+/**
+ * DTO for event ticket transaction statistics, matches backend OpenAPI schema.
+ * Used for /api/event-ticket-transactions/statistics/{eventId} endpoint.
+ */
+export interface EventTicketTransactionStatisticsDTO {
+  /** Event ID for which statistics are calculated */
+  eventId: number;
+  /** Total number of tickets sold for the event */
+  totalTicketsSold: number;
+  /** Total amount collected for the event */
+  totalAmount: number;
+  /** Map of ticket status to count (e.g., { COMPLETED: 26 }) */
+  ticketsByStatus: Record<string, number>;
+  /** Map of ticket status to total amount (e.g., { COMPLETED: 444 }) */
+  amountByStatus: Record<string, number>;
+}

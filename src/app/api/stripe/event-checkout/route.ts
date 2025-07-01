@@ -3,17 +3,25 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createStripeCheckoutSession } from '@/lib/stripe/checkout';
+import { auth } from '@clerk/nextjs/server';
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { cart, discountCodeId, eventId, email } = body;
+    const { cart, discountCodeId, eventId, email, name, phone } = body;
 
     if (!email) {
       return new NextResponse('Email is required for guest checkout', { status: 400 });
     }
 
-    const userArg = { email };
+    const { userId } = auth();
+
+    const userArg = {
+      email,
+      name,
+      phone,
+      ...(userId ? { clerkUserId: userId } : {}),
+    };
     const stripeSession = await createStripeCheckoutSession(cart, userArg, discountCodeId, eventId);
 
     return NextResponse.json({ url: stripeSession.url });

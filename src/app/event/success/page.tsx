@@ -1,5 +1,5 @@
 'use server';
-import { processStripeSessionServer } from '@/app/event/success/ApiServerActions';
+import { processStripeSessionServer, fetchTransactionQrCode } from '@/app/event/success/ApiServerActions';
 import { fetchUserProfileServer } from '@/app/admin/ApiServerActions';
 import { fetchEventDetailsByIdServer } from '@/app/admin/events/[id]/media/ApiServerActions';
 import {
@@ -69,7 +69,20 @@ export default async function SuccessPage({ searchParams }: { searchParams: { se
     return notFound();
   }
 
-  const transaction = await processStripeSessionServer(session_id);
+  // Fetch Clerk user info if logged in
+  const { userId } = auth();
+  let clerkUserInfo = undefined;
+  if (userId) {
+    // Fetch Clerk user object (server-side)
+    // Use Clerk SDK or fetch from API if needed; for now, just pass userId
+    // Optionally, fetch more details if available
+    clerkUserInfo = { userId };
+  }
+
+  // Step 1: Process the Stripe session and create transaction/items
+  const result = await processStripeSessionServer(session_id, clerkUserInfo);
+  const transaction = result?.transaction;
+  const userProfile = result?.userProfile;
 
   if (!transaction) {
     return (
@@ -99,7 +112,19 @@ export default async function SuccessPage({ searchParams }: { searchParams: { se
   const heroImageUrl = await getHeroImageUrl(eventDetails.id);
   const displayName = transaction.firstName || '';
 
-  // Fetch transaction items
+  // Step 2: Show a temporary message while fetching QR code
+  if (!transaction.id) {
+    throw new Error('Transaction ID missing after creation');
+  }
+  let qrCodeData: { qrCodeImageUrl?: string; qrCodeData?: string } | null = null;
+  let qrError: string | null = null;
+  try {
+    qrCodeData = await fetchTransactionQrCode(eventDetails.id, transaction.id as number);
+  } catch (err: any) {
+    qrError = err?.message || 'Failed to fetch QR code.';
+  }
+
+  // Fetch transaction items (for summary, not for QR code)
   const transactionItems: any[] = transaction.id ? await fetchTransactionItemsByTransactionId(transaction.id) : [];
   // Optionally fetch ticket type names if not present
   const ticketTypeCache: Record<number, any> = {};
@@ -184,6 +209,33 @@ export default async function SuccessPage({ searchParams }: { searchParams: { se
           <p className="mt-2 text-gray-600">
             Thank you for your purchase. Your tickets for <strong>{eventDetails.title}</strong> are confirmed.
           </p>
+        </div>
+
+        {/* QR Code Section */}
+        <div className="w-full bg-white p-6 sm:p-8 rounded-2xl shadow-lg border border-gray-200 mt-8 text-center">
+          {!qrCodeData && !qrError && (
+            <div className="text-lg text-teal-700 font-semibold flex items-center justify-center gap-2">
+              <FaTicketAlt className="animate-bounce" />
+              Please wait while your tickets are created…
+            </div>
+          )}
+          {qrError && (
+            <div className="text-red-500 font-semibold">{qrError}</div>
+          )}
+          {qrCodeData && (
+            <>
+              <div className="flex flex-col items-center justify-center gap-4">
+                <div className="text-lg font-semibold text-gray-800">Your Ticket QR Code</div>
+                {qrCodeData.qrCodeImageUrl ? (
+                  <img src={qrCodeData.qrCodeImageUrl} alt="Ticket QR Code" className="mx-auto w-48 h-48 object-contain border border-gray-300 rounded-lg shadow" />
+                ) : qrCodeData.qrCodeData ? (
+                  <div className="bg-gray-100 p-4 rounded text-xs break-all max-w-full">{qrCodeData.qrCodeData}</div>
+                ) : (
+                  <div className="text-gray-500">QR code not available.</div>
+                )}
+              </div>
+            </>
+          )}
         </div>
 
         <div className="w-full bg-white p-6 sm:p-8 rounded-2xl shadow-lg border border-gray-200 mt-8">

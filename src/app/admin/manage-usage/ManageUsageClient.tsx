@@ -24,18 +24,9 @@ function UserDetailsTooltip({ user, anchorRect, onClose }: { user: UserProfileDT
   const tooltipWidth = 450;
   const spacing = 12;
 
-  // Calculate position
+  // Always show tooltip to the right of the anchor cell, never above the columns
   let top = anchorRect.top;
-  let left;
-
-  // Decide whether to show on the right or left of the anchor
-  const hasSpaceRight = window.innerWidth > anchorRect.right + tooltipWidth + spacing;
-
-  if (hasSpaceRight) {
-    left = anchorRect.right + spacing;
-  } else {
-    left = anchorRect.left - tooltipWidth - spacing;
-  }
+  let left = anchorRect.right + spacing;
 
   // Clamp position to stay within the viewport
   const estimatedHeight = 300; // Heuristic average height
@@ -45,8 +36,8 @@ function UserDetailsTooltip({ user, anchorRect, onClose }: { user: UserProfileDT
   if (top < spacing) {
     top = spacing;
   }
-  if (left < spacing) {
-    left = spacing;
+  if (left + tooltipWidth > window.innerWidth - spacing) {
+    left = window.innerWidth - tooltipWidth - spacing;
   }
 
   const style: React.CSSProperties = {
@@ -73,13 +64,15 @@ function UserDetailsTooltip({ user, anchorRect, onClose }: { user: UserProfileDT
       tabIndex={-1}
       className="admin-tooltip"
     >
-      <button
-        onClick={onClose}
-        className="absolute top-2 right-2 text-gray-500 hover:text-red-500 text-lg font-bold"
-        aria-label="Close tooltip"
-      >
-        &times;
-      </button>
+      <div className="sticky top-0 right-0 z-10 bg-white flex justify-end" style={{ minHeight: 0 }}>
+        <button
+          onClick={onClose}
+          className="w-10 h-10 text-2xl bg-red-500 hover:bg-red-600 text-white rounded-full shadow-lg flex items-center justify-center transition-all"
+          aria-label="Close tooltip"
+        >
+          &times;
+        </button>
+      </div>
       <table className="admin-tooltip-table">
         <tbody>
           {entries.map(([key, value]) => (
@@ -524,15 +517,15 @@ export default function ManageUsageClient({ adminProfile }: { adminProfile: User
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="flex justify-center mb-8">
         <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-2xl">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 justify-center">
-            <Link href="/admin/manage-usage" className="flex flex-col items-center justify-center bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg shadow-sm px-4 py-4 transition font-semibold text-sm">
-              <FaUsers className="mb-2 text-2xl" />
-              <span>Manage Users [Usage]</span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 justify-items-center mx-auto">
+            <Link href="/admin/manage-usage" className="w-48 max-w-xs mx-auto flex flex-col items-center justify-center bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-md shadow p-1 sm:p-2 text-xs sm:text-xs transition-all">
+              <FaUsers className="text-base sm:text-lg mb-1 mx-auto" />
+              <span className="font-semibold text-center leading-tight">Manage Users [Usage]</span>
               <span className="text-xs text-blue-500 mt-1">[Users]</span>
             </Link>
-            <Link href="/admin" className="flex flex-col items-center justify-center bg-green-50 hover:bg-green-100 text-green-700 rounded-lg shadow-sm px-4 py-4 transition font-semibold text-sm">
-              <FaCalendarAlt className="mb-2 text-2xl" />
-              Manage Events
+            <Link href="/admin" className="w-48 max-w-xs mx-auto flex flex-col items-center justify-center bg-green-50 hover:bg-green-100 text-green-700 rounded-md shadow p-1 sm:p-2 text-xs sm:text-xs transition-all">
+              <FaCalendarAlt className="text-base sm:text-lg mb-1 mx-auto" />
+              <span className="font-semibold text-center leading-tight">Manage Events</span>
             </Link>
           </div>
         </div>

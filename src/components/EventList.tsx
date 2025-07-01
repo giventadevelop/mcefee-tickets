@@ -7,6 +7,7 @@ import { Modal } from './Modal';
 import { getTenantId } from '@/lib/env';
 import { formatDateLocal } from '@/lib/date';
 import Link from 'next/link';
+import ReactDOM from 'react-dom';
 
 interface EventListProps {
   events: EventDetailsDTO[];
@@ -42,6 +43,8 @@ export function EventList({
   const [eventTypes, setEventTypes] = useState<EventTypeDetailsDTO[]>(eventTypesProp || []);
   const [showTicketTypeModal, setShowTicketTypeModal] = useState(false);
   const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
+  const [tooltipEvent, setTooltipEvent] = useState<EventDetailsDTO | null>(null);
+  const [tooltipAnchor, setTooltipAnchor] = useState<DOMRect | null>(null);
 
   useEffect(() => {
     // Fetch all calendar events for quick lookup
@@ -90,6 +93,77 @@ export function EventList({
     return `${year}${month}${day}T${String(h).padStart(2, '0')}${minute}00`;
   }
 
+  function EventDetailsTooltip({ event, anchorRect, onClose }: { event: EventDetailsDTO, anchorRect: DOMRect | null, onClose: () => void }) {
+    if (!anchorRect) return null;
+    if (typeof window === 'undefined' || !document.body) return null;
+    const tooltipWidth = 420;
+    const spacing = 12;
+    let top = anchorRect.top;
+    let left = anchorRect.right + spacing;
+    const estimatedHeight = 300;
+    if (top + estimatedHeight > window.innerHeight) {
+      top = window.innerHeight - estimatedHeight - spacing;
+    }
+    if (top < spacing) {
+      top = spacing;
+    }
+    if (left + tooltipWidth > window.innerWidth) {
+      left = window.innerWidth - tooltipWidth - spacing;
+    }
+    const style: React.CSSProperties = {
+      position: 'fixed',
+      top,
+      left,
+      zIndex: 9999,
+      background: 'white',
+      borderWidth: 1,
+      borderStyle: 'solid',
+      borderColor: '#cbd5e1',
+      borderRadius: 12,
+      boxShadow: '0 4px 24px rgba(0,0,0,0.15)',
+      padding: 16,
+      width: tooltipWidth,
+      fontSize: 14,
+      maxHeight: 400,
+      overflowY: 'auto',
+      transition: 'opacity 0.1s ease-in-out',
+    };
+    return ReactDOM.createPortal(
+      <div style={style} tabIndex={-1} className="admin-tooltip">
+        <div className="sticky top-0 right-0 z-10 bg-white flex justify-end">
+          <button
+            onClick={onClose}
+            className="w-10 h-10 text-2xl bg-red-500 hover:bg-red-600 text-white rounded-full shadow-lg flex items-center justify-center transition-all"
+            aria-label="Close tooltip"
+          >
+            &times;
+          </button>
+        </div>
+        <table className="w-full text-sm border border-gray-300">
+          <tbody>
+            {Object.entries(event).map(([key, value]) => {
+              let displayValue: string | number = '';
+              if ((key === 'createdBy' || key === 'eventType') && value && typeof value === 'object' && 'id' in value) {
+                displayValue = value.id;
+              } else if (typeof value === 'object' && value !== null) {
+                displayValue = JSON.stringify(value);
+              } else {
+                displayValue = String(value);
+              }
+              return (
+                <tr key={key} className="border-b border-gray-200">
+                  <td className="font-bold pr-4 border-r border-gray-200 align-top">{key}:</td>
+                  <td className="align-top break-all">{displayValue}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>,
+      document.body
+    );
+  }
+
   if (loading) return <div>Loading events...</div>;
   if (!events.length) return <div>No events found.</div>;
 
@@ -99,6 +173,8 @@ export function EventList({
 
   const startItem = totalCount > 0 ? (page - 1) * pageSize + 1 : 0;
   const endItem = (page - 1) * pageSize + events.length;
+
+  const handleTooltipClose = () => setTooltipEvent(null);
 
   return (
     <>
@@ -138,7 +214,12 @@ export function EventList({
               >
                 <td
                   className="p-2 border font-medium align-middle"
-                  onMouseEnter={() => showDetailsOnHover && setHoveredEventId(event.id ?? null)}
+                  onMouseEnter={e => {
+                    if (showDetailsOnHover) {
+                      setTooltipEvent(event);
+                      setTooltipAnchor((e.currentTarget as HTMLElement).getBoundingClientRect());
+                    }
+                  }}
                 >
                   <div className="text-xs text-gray-500" style={boldEventIdLabel ? { fontWeight: 700 } : {}}>
                     {boldEventIdLabel ? <b>Event ID:</b> : 'Event ID:'} {event.id}
@@ -147,13 +228,23 @@ export function EventList({
                 </td>
                 <td
                   className="p-2 border align-middle"
-                  onMouseEnter={() => showDetailsOnHover && setHoveredEventId(event.id ?? null)}
+                  onMouseEnter={e => {
+                    if (showDetailsOnHover) {
+                      setTooltipEvent(event);
+                      setTooltipAnchor((e.currentTarget as HTMLElement).getBoundingClientRect());
+                    }
+                  }}
                 >
                   {getEventTypeName(event) || <span className="text-gray-400 italic">Unknown</span>}
                 </td>
                 <td
                   className="p-2 border align-middle w-40"
-                  onMouseEnter={() => showDetailsOnHover && setHoveredEventId(event.id ?? null)}
+                  onMouseEnter={e => {
+                    if (showDetailsOnHover) {
+                      setTooltipEvent(event);
+                      setTooltipAnchor((e.currentTarget as HTMLElement).getBoundingClientRect());
+                    }
+                  }}
                 >
                   <div>
                     <span className="font-semibold">{formatDateLocal(event.startDate)}</span> {event.startTime}
@@ -295,6 +386,10 @@ export function EventList({
           Showing {startItem} to {endItem} of {totalCount} events
         </div>
       </div>
+
+      {tooltipEvent && (
+        <EventDetailsTooltip event={tooltipEvent} anchorRect={tooltipAnchor} onClose={handleTooltipClose} />
+      )}
     </>
   );
 }

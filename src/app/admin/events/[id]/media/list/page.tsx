@@ -16,23 +16,39 @@ function MediaDetailsTooltip({ media, anchorRect, onClose, onTooltipMouseEnter, 
   const entries = Object.entries(media).filter(([key]) => key !== 'fileUrl' && key !== 'preSignedUrl');
   const tooltipWidth = 480;
   const thWidth = 168;
+  // Always show tooltip to the right of the anchor cell, never above the columns
+  const spacing = 8;
+  let top = anchorRect.top;
+  let left = anchorRect.right + spacing;
+  // Clamp position to stay within the viewport
+  const estimatedHeight = 300;
+  if (top + estimatedHeight > window.innerHeight) {
+    top = window.innerHeight - estimatedHeight - spacing;
+  }
+  if (top < spacing) {
+    top = spacing;
+  }
+  if (left + tooltipWidth > window.innerWidth) {
+    left = window.innerWidth - tooltipWidth - spacing;
+  }
   const style: React.CSSProperties = {
     position: 'fixed',
-    top: 32,
-    left: '50%',
-    transform: 'translateX(-50%)',
+    top,
+    left,
     zIndex: 9999,
-    minWidth: tooltipWidth,
-    maxWidth: '90vw',
-    maxHeight: '40vh',
+    width: tooltipWidth,
+    maxWidth: 480,
+    maxHeight: 320,
     overflowY: 'auto',
     pointerEvents: 'auto',
     background: '#fff',
-    border: '1px solid #cbd5e1',
-    borderRadius: '0.75rem',
+    borderWidth: 1,
+    borderStyle: 'solid',
+    borderColor: '#cbd5e1',
+    borderRadius: 12,
     boxShadow: '0 4px 24px rgba(0,0,0,0.15)',
-    fontSize: '0.95rem',
-    padding: '1rem',
+    fontSize: 15,
+    padding: 16,
     paddingBottom: 16,
   };
   return createPortal(
@@ -43,14 +59,16 @@ function MediaDetailsTooltip({ media, anchorRect, onClose, onTooltipMouseEnter, 
       onMouseEnter={onTooltipMouseEnter}
       onMouseLeave={onTooltipMouseLeave}
     >
-      <button
-        className="absolute top-2 right-2 text-gray-400 hover:text-red-500 text-lg font-bold focus:outline-none"
-        onClick={onClose}
-        aria-label="Close tooltip"
-        style={{ position: 'absolute', top: 8, right: 12 }}
-      >
-        &times;
-      </button>
+      {/* Sticky, always-visible close button */}
+      <div className="sticky top-0 right-0 z-10 bg-white flex justify-end">
+        <button
+          onClick={onClose}
+          className="w-10 h-10 text-2xl bg-red-500 hover:bg-red-600 text-white rounded-full shadow-lg flex items-center justify-center transition-all"
+          aria-label="Close tooltip"
+        >
+          &times;
+        </button>
+      </div>
       <table className="admin-tooltip-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
         <tbody>
           {entries.map(([key, value]) => (
@@ -442,18 +460,18 @@ export default function EventMediaListPage() {
     <div className="w-[80%] mx-auto py-8">
       <div className="mb-8">
         <div className="bg-white rounded-lg shadow-md p-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Link href="/admin/manage-usage" className="flex flex-col items-center justify-center bg-blue-50 hover:bg-blue-100 text-blue-800 rounded-lg p-4 transition duration-300 font-semibold">
-              <FaUsers className="text-3xl mb-2" />
-              <span>Manage Users [Usage]</span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 justify-items-center mx-auto">
+            <Link href="/admin/manage-usage" className="w-48 max-w-xs mx-auto flex flex-col items-center justify-center bg-blue-50 hover:bg-blue-100 text-blue-800 rounded-md shadow p-1 sm:p-2 text-xs sm:text-xs transition-all">
+              <FaUsers className="text-base sm:text-lg mb-1 mx-auto" />
+              <span className="font-semibold text-center leading-tight">Manage Users [Usage]</span>
             </Link>
-            <Link href="/admin" className="flex flex-col items-center justify-center bg-green-50 hover:bg-green-100 text-green-800 rounded-lg p-4 transition duration-300 font-semibold">
-              <FaCalendarAlt className="text-3xl mb-2" />
-              <span>Manage Events</span>
+            <Link href="/admin" className="w-48 max-w-xs mx-auto flex flex-col items-center justify-center bg-green-50 hover:bg-green-100 text-green-800 rounded-md shadow p-1 sm:p-2 text-xs sm:text-xs transition-all">
+              <FaCalendarAlt className="text-base sm:text-lg mb-1 mx-auto" />
+              <span className="font-semibold text-center leading-tight">Manage Events</span>
             </Link>
-            <Link href={`/admin/events/${eventId}/ticket-types/list`} className="flex flex-col items-center justify-center bg-purple-50 hover:bg-purple-100 text-purple-800 rounded-lg p-4 transition duration-300 font-semibold">
-              <FaTicketAlt className="text-3xl mb-2" />
-              <span>Manage Ticket Types</span>
+            <Link href={`/admin/events/${eventId}/ticket-types/list`} className="w-48 max-w-xs mx-auto flex flex-col items-center justify-center bg-purple-50 hover:bg-purple-100 text-purple-800 rounded-md shadow p-1 sm:p-2 text-xs sm:text-xs transition-all">
+              <FaTicketAlt className="text-base sm:text-lg mb-1 mx-auto" />
+              <span className="font-semibold text-center leading-tight">Manage Ticket Types</span>
             </Link>
           </div>
         </div>

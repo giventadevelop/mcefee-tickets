@@ -149,6 +149,17 @@ export function createProxyHandler({ injectTenantId = true, allowedMethods = ['G
         headers: { 'Content-Type': contentType, ...extraHeaders },
         ...(bodyToSend ? { body: bodyToSend } : {}),
       }, `proxy-${backendPath}-${method}`);
+
+      // Forward x-total-count header for GET requests
+      if (method === 'GET') {
+        const totalCount = apiRes.headers.get('x-total-count');
+        if (totalCount) {
+          res.setHeader('x-total-count', totalCount);
+        }
+        const data = await apiRes.json();
+        res.status(apiRes.status).json(data);
+        return;
+      }
       const data = await apiRes.text();
       res.status(apiRes.status).send(data);
     } catch (err) {

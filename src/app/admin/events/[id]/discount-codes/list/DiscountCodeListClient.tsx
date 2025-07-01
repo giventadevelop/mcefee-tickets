@@ -117,18 +117,18 @@ export default function DiscountCodeListClient({
     <div className="max-w-5xl mx-auto px-8 py-8">
       <div className="flex justify-center mb-8">
         <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-4xl">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 justify-center">
-            <Link href={`/admin/events/${eventId}/media/list`} className="flex flex-col items-center justify-center bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg shadow-sm px-4 py-4 transition font-semibold text-sm">
-              <FaPhotoVideo className="mb-2 text-2xl" />
-              Manage Media Files
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 justify-items-center mx-auto">
+            <Link href={`/admin/events/${eventId}/media/list`} className="w-48 max-w-xs mx-auto flex flex-col items-center justify-center bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-md shadow p-1 sm:p-2 text-xs sm:text-xs transition-all">
+              <FaPhotoVideo className="text-base sm:text-lg mb-1 mx-auto" />
+              <span className="font-semibold text-center leading-tight">Manage Media Files</span>
             </Link>
-            <Link href={`/admin/events/${eventId}/ticket-types/list`} className="flex flex-col items-center justify-center bg-green-50 hover:bg-green-100 text-green-700 rounded-lg shadow-sm px-4 py-4 transition font-semibold text-sm">
-              <FaTicketAlt className="mb-2 text-2xl" />
-              Manage Ticket Types
+            <Link href={`/admin/events/${eventId}/ticket-types/list`} className="w-48 max-w-xs mx-auto flex flex-col items-center justify-center bg-green-50 hover:bg-green-100 text-green-700 rounded-md shadow p-1 sm:p-2 text-xs sm:text-xs transition-all">
+              <FaTicketAlt className="text-base sm:text-lg mb-1 mx-auto" />
+              <span className="font-semibold text-center leading-tight">Manage Ticket Types</span>
             </Link>
-            <Link href={`/admin/events/${eventId}/discount-codes/list`} className="flex flex-col items-center justify-center bg-yellow-50 hover:bg-yellow-100 text-yellow-700 rounded-lg shadow-sm px-4 py-4 transition font-semibold text-sm">
-              <FaTags className="mb-2 text-2xl" />
-              Manage Discount Codes
+            <Link href={`/admin/events/${eventId}/discount-codes/list`} className="w-48 max-w-xs mx-auto flex flex-col items-center justify-center bg-yellow-50 hover:bg-yellow-100 text-yellow-700 rounded-md shadow p-1 sm:p-2 text-xs sm:text-xs transition-all">
+              <FaTags className="text-base sm:text-lg mb-1 mx-auto" />
+              <span className="font-semibold text-center leading-tight">Manage Discount Codes</span>
             </Link>
           </div>
         </div>

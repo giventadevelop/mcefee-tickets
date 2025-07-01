@@ -1,6 +1,6 @@
 ---
-description:
-globs:
+description: 
+globs: 
 alwaysApply: true
 ---
 - **No local DTO/interface declarations**
@@ -39,6 +39,20 @@ alwaysApply: true
       }
       return params.toString();
     }
+    ```
+
+- **Do NOT add tenantId.equals in your client/server code when calling the proxy**
+  - The proxy handler will always inject tenantId.equals automatically.
+  - Only add tenantId.equals if you are calling the backend API directly (not via /api/proxy/...).
+  - This prevents duplicate tenantId.equals parameters and backend criteria errors.
+  - Example:
+    ```typescript
+    // ✅ DO: Only add email.equals or userId.equals
+    const params = new URLSearchParams({ 'email.equals': email });
+    await fetch('/api/proxy/user-profiles?' + params.toString());
+    // ❌ DON'T: Add tenantId.equals when calling the proxy
+    const params = new URLSearchParams({ 'email.equals': email, 'tenantId.equals': tenantId });
+    await fetch('/api/proxy/user-profiles?' + params.toString()); // Will result in duplicate tenantId
     ```
 
 - **JWT handling**
