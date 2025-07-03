@@ -1,8 +1,3 @@
----
-description:
-globs:
-alwaysApply: true
----
 - **No local DTO/interface declarations**
   - All DTOs should be imported from `@/types` if needed (none should be declared locally)
   - No DTO redeclaration: All DTOs should be imported from `@/types` (none needed in this handler)
@@ -331,6 +326,43 @@ alwaysApply: true
     await patchUserProfileServer(user.id, payload);
     ```
   - This is now the standard for all modules with API calls.
+
+## PATCH/PUT Server Actions: Direct Backend Update Pattern (Service JWT, No Proxy)
+
+- **For PATCH/PUT operations that update backend resources, prefer direct backend calls from server actions using a service JWT, not via the proxy, when sessionless service access is required.**
+  - Use `getCachedApiJwt()` (and `generateApiJwt()` as fallback) to obtain a service JWT.
+  - Always include the `id` field in the payload for PATCH/PUT, as required by backend conventions.
+  - Set `Content-Type: application/merge-patch+json` for PATCH (or `application/json` for PUT if required by backend).
+  - Attach the JWT as an `Authorization` header: `Bearer <token>`.
+  - Do not rely on Clerk session or cookies for these calls.
+  - Example:
+    ```typescript
+    import { getCachedApiJwt, generateApiJwt } from '@/lib/api/jwt';
+    export async function patchResourceServer(resourceId: number, payload: Partial<ResourceDTO>) {
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+      const url = `${API_BASE_URL}/api/resource/${resourceId}`;
+      let token = await getCachedApiJwt();
+      if (!token) token = await generateApiJwt();
+      const finalPayload = { ...payload, id: resourceId };
+      const res = await fetch(url, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/merge-patch+json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(finalPayload),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    }
+    ```
+  - See `patchUserProfileServer` and `updateEventTicketTransactionCheckIn` for real examples.
+  - This pattern is required for all PATCH/PUT server actions that do not require user session context.
+
+
+
+
+
 
 
 

@@ -315,6 +315,9 @@ export interface EventPollResponseDTO {
   user?: UserProfileDTO;
 }
 
+/**
+ * DTO for event ticket transactions, matches backend OpenAPI schema.
+ */
 export interface EventTicketTransactionDTO {
   id?: number;
   tenantId?: string;
@@ -354,6 +357,11 @@ export interface EventTicketTransactionDTO {
   updatedAt: string;
   event?: EventDetailsDTO;
   user?: UserProfileDTO;
+  /** New check-in fields */
+  checkInStatus?: string;
+  numberOfGuestsCheckedIn?: number;
+  checkInTime?: string;
+  checkOutTime?: string;
 }
 
 export interface EventTicketTransactionItemDTO {
@@ -372,6 +380,9 @@ export interface EventTicketTransactionItemDTO {
   ticketType?: EventTicketTypeDTO;
 }
 
+/**
+ * DTO for QR code usage, matches backend OpenAPI schema.
+ */
 export interface QrCodeUsageDTO {
   id?: number;
   tenantId?: string;
@@ -382,6 +393,10 @@ export interface QrCodeUsageDTO {
   lastScannedBy?: string;
   createdAt: string;
   attendee?: EventAttendeeDTO;
+  transaction?: EventTicketTransactionDTO;
+  items?: EventTicketTransactionItemDTO[];
+  eventDetails?: EventDetailsDTO;
+  eventTicketTypes?: EventTicketTypeDTO[];
 }
 
 export interface TenantOrganizationDTO {

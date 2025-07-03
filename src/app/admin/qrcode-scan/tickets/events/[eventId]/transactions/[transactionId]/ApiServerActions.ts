@@ -1,0 +1,55 @@
+"use server";
+import { QrCodeUsageDTO, EventTicketTransactionDTO } from '@/types';
+import { cookies } from "next/headers";
+import { getCachedApiJwt, generateApiJwt } from '@/lib/api/jwt';
+
+const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+
+export async function fetchQrCodeUsageDetails(eventId: string, transactionId: string): Promise<QrCodeUsageDTO | null> {
+  const url = `${BASE_URL}/api/proxy/qrcode-scan/tickets/events/${eventId}/transactions/${transactionId}`;
+  const res = await fetch(url, { cache: 'no-store' });
+  if (!res.ok) return null;
+  return res.json();
+}
+
+export async function updateQrCodeCheckIn(
+  eventId: string,
+  transactionId: string,
+  payload: Partial<QrCodeUsageDTO>
+): Promise<QrCodeUsageDTO | null> {
+  const url = `${BASE_URL}/api/proxy/qrcode-scan/tickets/events/${eventId}/transactions/${transactionId}`;
+  const cookieHeader = cookies().toString();
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (cookieHeader) headers['Cookie'] = cookieHeader;
+  const res = await fetch(url, {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function updateEventTicketTransactionCheckIn(transactionId: string, payload: Partial<EventTicketTransactionDTO>) {
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+  const url = `${API_BASE_URL}/api/event-ticket-transactions/${transactionId}`;
+  let token = await getCachedApiJwt();
+  if (!token) {
+    token = await generateApiJwt();
+  }
+  const finalPayload = { ...payload, id: Number(transactionId) };
+  const res = await fetch(url, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/merge-patch+json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify(finalPayload),
+  });
+  if (!res.ok) {
+    const errorBody = await res.text();
+    console.error(`Failed to update event ticket transaction ${transactionId}:`, errorBody);
+    throw new Error('Failed to update event ticket transaction');
+  }
+  return res.json();
+}
