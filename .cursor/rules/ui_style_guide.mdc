@@ -1,11 +1,7 @@
----
-description:
-globs:
-alwaysApply: false
----
 # UI Component Style Guide
 
-This guide provides standards for creating consistent and maintainable UI components across the application.
+This guide provides standards for creating consistent and maintainable UI components across the application UI
+.
 
 ---
 
@@ -329,12 +325,68 @@ const endItem = (currentPage - 1) * pageSize + rows.length;
 
 ---
 
+## 7. Date & Timezone Formatting
+
+### Date Display Standards
+
+- **Rule:** Always display event dates and times using the event's intended timezone, not the user's local timezone.
+- **Purpose:** Prevents off-by-one-day errors and ensures all users see the correct event date as intended by organizers.
+
+#### Implementation
+
+- **Use `date-fns-tz` for formatting:**
+  - Install with:
+    ```bash
+    npm install date-fns date-fns-tz
+    ```
+  - Import and use in your component:
+    ```tsx
+    import { formatInTimeZone } from 'date-fns-tz';
+
+    // Example usage:
+    <span>
+      {formatInTimeZone(eventDetails.startDate, eventDetails.timezone, 'EEEE, MMMM d, yyyy (zzz)')}
+    </span>
+    ```
+    - `eventDetails.startDate` should be a string in `YYYY-MM-DD` format.
+    - `eventDetails.timezone` should be an IANA timezone string (e.g., `"America/New_York"`).
+    - The format string `'EEEE, MMMM d, yyyy (zzz)'` will display:
+      `Wednesday, August 7, 2025 (EDT)`
+
+- **Never use `new Date('YYYY-MM-DD')` for display.**
+  - This parses as UTC and can cause the date to appear as the previous day in US timezones.
+
+- **Always store and use the IANA timezone name in the DTO/database.**
+  - Example: `"America/New_York"`, not `"EST"` or `"PST"`.
+
+#### UI Example
+
+```tsx
+<div className="flex items-center gap-2">
+  <FaCalendarAlt />
+  <span>
+    {formatInTimeZone(eventDetails.startDate, eventDetails.timezone, 'EEEE, MMMM d, yyyy (zzz)')}
+  </span>
+</div>
+```
+
+#### References
+- See: `src/app/event/success/page.tsx` for a working implementation.
+- DTO: `EventDetailsDTO` in `src/types/index.ts` (must include a `timezone: string` field).
+
+---
+
 ## References
 - **CSS:** `src/styles/globals.css`
 - **Example Pages:**
   - `src/app/admin/events/[id]/media/list/page.tsx`
   - `src/app/admin/manage-usage/page.tsx`
   - `src/components/EventList.tsx`
+
+
+
+
+
 
 
 

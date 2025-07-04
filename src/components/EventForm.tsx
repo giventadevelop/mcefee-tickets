@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { EventDetailsDTO, EventTypeDetailsDTO } from '@/types';
+import timezones from '@/lib/timezones'; // (We'll create this file for the IANA timezone list)
 
 interface EventFormProps {
   event?: EventDetailsDTO;
@@ -50,6 +51,7 @@ export function EventForm({ event, eventTypes, onSubmit, loading }: EventFormPro
     if (!form.startTime) errs.startTime = 'Start time is required';
     if (!form.endTime) errs.endTime = 'End time is required';
     if (!form.admissionType) errs.admissionType = 'Admission type is required';
+    if (!form.timezone) errs.timezone = 'Timezone is required';
 
     // Date and time validations
     const today = new Date();
@@ -216,6 +218,22 @@ export function EventForm({ event, eventTypes, onSubmit, loading }: EventFormPro
           <input type="time" name="endTime" value={to24HourFormat(form.endTime)} onChange={handleChange} className="w-full border rounded p-2" />
           {errors.endTime && <div className="text-red-500 text-sm">{errors.endTime}</div>}
         </div>
+      </div>
+      <div>
+        <label className="block font-medium">Timezone *</label>
+        <select
+          name="timezone"
+          value={form.timezone || ''}
+          onChange={handleChange}
+          className="w-full border rounded p-2"
+          required
+        >
+          <option value="">Select timezone</option>
+          {timezones.map((tz) => (
+            <option key={tz} value={tz}>{tz}</option>
+          ))}
+        </select>
+        {errors.timezone && <div className="text-red-500 text-sm">{errors.timezone}</div>}
       </div>
       <div>
         <label className="block font-medium">Location</label>

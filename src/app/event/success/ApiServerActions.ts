@@ -107,6 +107,12 @@ async function createTransactionItemsBulk(items: any[]): Promise<any[]> {
   return response.json();
 }
 
+// Utility to omit id from an object
+function omitId<T extends object>(obj: T): Omit<T, 'id'> {
+  const { id, ...rest } = obj as any;
+  return rest;
+}
+
 export async function processStripeSessionServer(
   sessionId: string,
   clerkUserInfo?: {
@@ -116,7 +122,7 @@ export async function processStripeSessionServer(
     phone?: string;
     imageUrl?: string;
   }
-): Promise<{ transaction: any, userProfile: any } | null> {
+): Promise<{ transaction: any, userProfile: any, attendee: any } | null> {
   try {
     const session = await stripe.checkout.sessions.retrieve(sessionId, {
       expand: ['line_items.data.price.product', 'customer'],
@@ -190,8 +196,8 @@ export async function processStripeSessionServer(
     });
     console.log('[DEBUG] Outgoing transactionData payload:', JSON.stringify(transactionData, null, 2));
 
-    // Create the main transaction
-    const newTransaction = await createTransaction(transactionData);
+    // Create the main transaction (omit id if present)
+    const newTransaction = await createTransaction(omitId(transactionData));
 
     // Bulk create transaction items
     if (!newTransaction.id) {
@@ -209,7 +215,55 @@ export async function processStripeSessionServer(
     }));
     await createTransactionItemsBulk(itemsPayload);
 
-    return { transaction: newTransaction, userProfile: null };
+    // --- Event Attendee Upsert Logic ---
+    // Look up attendee by email and eventId
+    const attendeeLookupParams = new URLSearchParams({
+      'email.equals': transactionData.email,
+      'eventId.equals': String(eventId),
+      'tenantId.equals': getTenantId(),
+    });
+    const attendeeLookupRes = await fetchWithJwtRetry(
+      `${APP_URL}/api/proxy/event-attendees?${attendeeLookupParams.toString()}`,
+      { method: 'GET', headers: { 'Content-Type': 'application/json' } }
+    );
+    let attendee = null;
+    if (attendeeLookupRes.ok) {
+      const attendees = await attendeeLookupRes.json();
+      if (Array.isArray(attendees) && attendees.length > 0) {
+        attendee = attendees[0];
+      }
+    }
+    if (!attendee) {
+      // Insert new attendee
+      const attendeePayload = withTenantId({
+        firstName: transactionData.firstName,
+        lastName: transactionData.lastName,
+        email: transactionData.email,
+        phone: transactionData.phone,
+        eventId: eventId,
+        registrationStatus: 'REGISTERED',
+        registrationDate: now,
+        createdAt: now,
+        updatedAt: now,
+      });
+      const attendeeInsertRes = await fetchWithJwtRetry(
+        `${APP_URL}/api/proxy/event-attendees`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(attendeePayload),
+        }
+      );
+      if (attendeeInsertRes.ok) {
+        attendee = await attendeeInsertRes.json();
+      } else {
+        const errorBody = await attendeeInsertRes.text();
+        console.error('Failed to insert event attendee:', attendeeInsertRes.status, errorBody);
+      }
+    }
+    // --- End Event Attendee Upsert Logic ---
+
+    return { transaction: newTransaction, userProfile: null, attendee };
   } catch (error) {
     console.error('Error processing Stripe session:', error);
     return null;

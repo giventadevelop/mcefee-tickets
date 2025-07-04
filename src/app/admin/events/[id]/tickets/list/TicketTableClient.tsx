@@ -2,6 +2,7 @@
 import React, { useState, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import type { EventTicketTransactionDTO } from '@/types';
+import { FaEnvelope } from 'react-icons/fa';
 
 function TicketDetailsTooltip({ ticket, anchorRect, onClose }: { ticket: EventTicketTransactionDTO, anchorRect: DOMRect | null, onClose: () => void }) {
   if (!anchorRect) return null;
@@ -68,11 +69,38 @@ function TicketDetailsTooltip({ ticket, anchorRect, onClose }: { ticket: EventTi
 export default function TicketTableClient({ rows }: { rows: EventTicketTransactionDTO[] }) {
   const [popoverTicket, setPopoverTicket] = useState<EventTicketTransactionDTO | null>(null);
   const [popoverAnchor, setPopoverAnchor] = useState<DOMRect | null>(null);
+  const [sendingEmailId, setSendingEmailId] = useState<number | null>(null);
+  const [emailSentId, setEmailSentId] = useState<number | null>(null);
+  const [emailErrorId, setEmailErrorId] = useState<number | null>(null);
+
   const handleMouseEnter = (ticket: EventTicketTransactionDTO, e: React.MouseEvent) => {
     setPopoverTicket(ticket);
     setPopoverAnchor((e.currentTarget as HTMLElement).getBoundingClientRect());
   };
   const handleClose = () => setPopoverTicket(null);
+
+  async function handleSendEmail(ticket: EventTicketTransactionDTO) {
+    setSendingEmailId(typeof ticket.id === 'number' ? ticket.id : -1);
+    setEmailSentId(null);
+    setEmailErrorId(null);
+    try {
+      const res = await fetch(`/api/proxy/events/${ticket.eventId}/transactions/${ticket.id}/send-ticket-email?to=${encodeURIComponent(ticket.email ?? '')}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
+      if (res.ok) {
+        setEmailSentId(typeof ticket.id === 'number' ? ticket.id : -1);
+      } else {
+        setEmailErrorId(typeof ticket.id === 'number' ? ticket.id : -1);
+      }
+    } catch (err) {
+      setEmailErrorId(typeof ticket.id === 'number' ? ticket.id : -1);
+    } finally {
+      setSendingEmailId(null);
+    }
+  }
+
   return (
     <>
       {rows.length === 0 ? (
@@ -84,7 +112,25 @@ export default function TicketTableClient({ rows }: { rows: EventTicketTransacti
           <tr key={ticket.id} className="hover:bg-gray-50">
             <td className="px-4 py-2" onMouseEnter={e => handleMouseEnter(ticket, e)}>{ticket.id}</td>
             <td className="px-4 py-2" onMouseEnter={e => handleMouseEnter(ticket, e)}>{ticket.firstName} {ticket.lastName}</td>
-            <td className="px-4 py-2">{ticket.email}</td>
+            <td className="px-4 py-2">
+              <div>{ticket.email}</div>
+              <div className="flex items-center gap-2 mt-1">
+                <button
+                  className="text-blue-600 hover:text-blue-800 focus:outline-none flex items-center gap-1 group"
+                  title="Resend ticket email"
+                  onClick={() => handleSendEmail(ticket)}
+                  disabled={sendingEmailId === (typeof ticket.id === 'number' ? ticket.id : -1)}
+                >
+                  <span className="relative flex items-center">
+                    <FaEnvelope className="animate-send-email" />
+                  </span>
+                  <span className="ml-1 group-hover:underline">Resend Email</span>
+                </button>
+                {sendingEmailId === (typeof ticket.id === 'number' ? ticket.id : -1) && <span className="ml-1 text-xs text-gray-400">Sending...</span>}
+                {emailSentId === (typeof ticket.id === 'number' ? ticket.id : -1) && <span className="ml-1 text-xs text-green-600">Sent!</span>}
+                {emailErrorId === (typeof ticket.id === 'number' ? ticket.id : -1) && <span className="ml-1 text-xs text-red-600">Error</span>}
+              </div>
+            </td>
             <td className="px-4 py-2">{ticket.quantity}</td>
             <td className="px-4 py-2">${ticket.finalAmount?.toFixed(2)}</td>
             <td className="px-4 py-2">{ticket.purchaseDate ? new Date(ticket.purchaseDate).toLocaleString() : ''}</td>

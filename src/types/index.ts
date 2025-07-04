@@ -56,36 +56,64 @@ export interface UserSubscriptionDTO {
 }
 
 /**
- * DTO for event data exchanged with the backend.
- * Refactored to match the latest schema.
+ * DTO for event details, matches backend OpenAPI schema.
  */
 export interface EventDetailsDTO {
+  /** Unique event ID */
   id?: number;
+  /** Tenant ID */
   tenantId?: string;
+  /** Event title */
   title: string;
+  /** Event caption */
   caption?: string;
+  /** Event description */
   description?: string;
+  /** Event start date (YYYY-MM-DD) */
   startDate: string;
+  /** Event end date (YYYY-MM-DD) */
   endDate: string;
+  /** Event start time (e.g., 18:00) */
   startTime: string;
+  /** Event end time (e.g., 21:00) */
   endTime: string;
+  /** IANA timezone name (e.g., 'America/New_York') */
+  timezone: string;
+  /** Event location */
   location?: string;
+  /** Directions to venue */
   directionsToVenue?: string;
+  /** Event capacity */
   capacity?: number;
+  /** Admission type */
   admissionType?: string;
+  /** Is event active */
   isActive?: boolean;
+  /** Max guests per attendee */
   maxGuestsPerAttendee?: number;
+  /** Allow guests */
   allowGuests?: boolean;
+  /** Require guest approval */
   requireGuestApproval?: boolean;
+  /** Enable guest pricing */
   enableGuestPricing?: boolean;
+  /** Enable QR code */
   enableQrCode?: boolean;
+  /** Is registration required */
   isRegistrationRequired?: boolean;
+  /** Is sports event */
   isSportsEvent?: boolean;
+  /** Is event live */
   isLive?: boolean;
+  /** Created at (ISO date-time) */
   createdAt: string;
+  /** Updated at (ISO date-time) */
   updatedAt: string;
+  /** Created by user profile */
   createdBy?: UserProfileDTO;
+  /** Event type details */
   eventType?: EventTypeDetailsDTO;
+  /** Discount codes */
   discountCodes?: DiscountCodeDTO[];
 }
 
@@ -181,18 +209,18 @@ export interface EventTicketTypeDTO {
 export type EventTicketTypeFormDTO = Omit<EventTicketTypeDTO, 'id' | 'event' | 'tenantId' | 'createdAt' | 'updatedAt'>;
 
 /**
- * DTO for event attendee registration and management.
- * Matches backend OpenAPI schema.
+ * DTO for event attendee, matches backend OpenAPI schema.
  */
 export type EventAttendeeDTO = {
   id?: number;
-  tenantId?: string;
   firstName?: string;
   lastName?: string;
   email?: string;
   phone?: string;
-  eventId?: number;
-  attendeeId?: number;
+  isMember?: boolean;
+  eventId: number;
+  userId?: number;
+  tenantId?: string;
   registrationStatus: string;
   registrationDate: string;
   confirmationDate?: string;
@@ -204,12 +232,24 @@ export type EventAttendeeDTO = {
   emergencyContactPhone?: string;
   checkInStatus?: string;
   checkInTime?: string;
+  totalNumberOfGuests?: number;
+  numberOfGuestsCheckedIn?: number;
   notes?: string;
   qrCodeData?: string;
   qrCodeGenerated?: boolean;
   qrCodeGeneratedAt?: string;
+  dietaryRestrictions?: string;
+  accessibilityNeeds?: string;
+  emergencyContactRelationship?: string;
+  checkOutTime?: string;
+  attendanceRating?: number;
+  feedback?: string;
+  registrationSource?: string;
+  waitListPosition?: number;
+  priorityScore?: number;
   createdAt: string;
   updatedAt: string;
+  event?: EventDetailsDTO;
 };
 
 /**

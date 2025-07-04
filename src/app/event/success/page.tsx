@@ -9,6 +9,7 @@ import {
 import { notFound } from 'next/navigation';
 import { auth } from '@clerk/nextjs/server';
 import Image from 'next/image';
+import { formatInTimeZone } from 'date-fns-tz';
 
 async function getHeroImageUrl(eventId: number): Promise<string> {
   const defaultHeroImageUrl = `/images/side_images/chilanka_2025.webp?v=${Date.now()}`;
@@ -181,11 +182,15 @@ export default async function SuccessPage({ searchParams }: { searchParams: { se
             <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-gray-600 mb-4">
               <div className="flex items-center gap-2">
                 <FaCalendarAlt />
-                <span>{new Date(eventDetails.startDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                <span>{formatInTimeZone(eventDetails.startDate, eventDetails.timezone, 'EEEE, MMMM d, yyyy')}</span>
               </div>
               <div className="flex items-center gap-2">
                 <FaClock />
-                <span>{formatTime(eventDetails.startTime)}{eventDetails.endTime ? ` - ${formatTime(eventDetails.endTime)}` : ''}</span>
+                <span>
+                  {formatTime(eventDetails.startTime)}{eventDetails.endTime ? ` - ${formatTime(eventDetails.endTime)}` : ''}
+                  {' '}
+                  ({formatInTimeZone(eventDetails.startDate, eventDetails.timezone, 'zzz')})
+                </span>
               </div>
               {eventDetails.location && (
                 <div className="flex items-center gap-2">
@@ -207,7 +212,8 @@ export default async function SuccessPage({ searchParams }: { searchParams: { se
           </div>
           <h1 className="text-3xl sm:text-4xl font-bold text-gray-800">Payment Successful!</h1>
           <p className="mt-2 text-gray-600">
-            Thank you for your purchase. Your tickets for <strong>{eventDetails.title}</strong> are confirmed.
+            Thank you for your purchase. Your tickets for <strong>{eventDetails.title}</strong> are confirmed.<br />
+            A confirmation is sent to your email: <strong>{transaction.email}</strong>
           </p>
         </div>
 

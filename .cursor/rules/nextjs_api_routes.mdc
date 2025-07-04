@@ -142,6 +142,24 @@
       body: JSON.stringify(payload),
     });
     ```
+  - **Clarification:** If the backend requires the 'id' field to be present (but null) for POST requests, explicitly set `id: null` in the payload. This is sometimes required by strict backend validation or OpenAPI schemas.
+  - Example for explicit null id:
+    ```typescript
+    // ✅ DO: Set id: null if backend requires it
+    const { id, ...rest } = form;
+    const payload = {
+      ...rest,
+      id: null, // Explicitly set to null for backend compatibility
+      event: { id: eventId },
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    await fetch('/api/proxy/ticket-types', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    ```
 
 - **Pattern Used**
   - This matches the pattern in:

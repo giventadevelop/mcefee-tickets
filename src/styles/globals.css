@@ -91,3 +91,25 @@
 .btn-secondary {
   @apply bg-gray-100 text-gray-700 hover:bg-gray-200 focus:ring-gray-500 border border-gray-300;
 }
+
+/* Animation for dashing rightward email icon */
+.animate-send-email {
+  animation: dash-right 1s linear infinite;
+}
+
+@keyframes dash-right {
+  0% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+
+  50% {
+    transform: translateX(8px);
+    opacity: 0.7;
+  }
+
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}

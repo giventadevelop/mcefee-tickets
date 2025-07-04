@@ -1,0 +1,2 @@
+import { createProxyHandler } from '@/lib/proxyHandler';
+export default createProxyHandler({ backendPath: '/api/events/[id]/transactions/[transactionId]/send-ticket-email', allowedMethods: ['POST'] });
