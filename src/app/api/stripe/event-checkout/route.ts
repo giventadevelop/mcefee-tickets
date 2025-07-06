@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
       return new NextResponse('Email is required for guest checkout', { status: 400 });
     }
 
-    const { userId } = auth();
+    const { userId } = await auth();
 
     const userArg = {
       email,

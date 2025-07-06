@@ -1,3 +1,13 @@
+---
+description: Rules for Next.js API route structure and security
+globs: src/pages/api/**/*.ts
+alwaysApply: true
+---
+
+- **All API routes must...**
+  - Use authentication middleware
+  - Return JSON responses
+  - etc.
 - **No local DTO/interface declarations**
   - All DTOs should be imported from `@/types` if needed (none should be declared locally)
   - No DTO redeclaration: All DTOs should be imported from `@/types` (none needed in this handler)
@@ -376,6 +386,24 @@
     ```
   - See `patchUserProfileServer` and `updateEventTicketTransactionCheckIn` for real examples.
   - This pattern is required for all PATCH/PUT server actions that do not require user session context.
+
+---
+**Webhooks REST API Call Pattern (Stripe, etc.)**
+- When making REST API calls from webhook files (such as Stripe webhooks in src/app/api/webhooks/stripe/route.ts), do NOT use the standard /api/proxy/... pattern or proxy API handler.
+- Instead, call the backend Rust API directly from the webhook file using fetch, and:
+  - Always include the JWT token in the Authorization header: 'Authorization: Bearer <token>'
+  - Always pass the 'id' field and all required fields in the PATCH/PUT/POST payload, matching the backend DTO requirements.
+  - Use 'Content-Type: application/merge-patch+json' for PATCH requests (or 'application/json' for POST/PUT as required).
+  - Do not rely on Clerk session or cookies; use service JWT only.
+  - See handleChargeFeeUpdate in src/app/api/webhooks/stripe/route.ts for a reference implementation.
+- Rationale: Webhook files run in a different context and must not use the proxy API pattern. This ensures correct authentication and data integrity for backend updates.
+- Project-wide convention: REST API calls from server action scripts use nextjs_api_routes.mdc. Webhook files must follow this direct-call pattern for backend updates.
+---
+
+
+
+
+
 
 
 

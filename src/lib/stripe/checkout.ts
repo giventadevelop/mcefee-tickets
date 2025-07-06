@@ -218,6 +218,22 @@ export async function createStripeCheckoutSession(
       ),
       ...(discountCodeId && { discountCodeId: String(discountCodeId) }),
     },
+    payment_intent_data: {
+      metadata: {
+        ...(upsertedUser.userId && { userId: upsertedUser.userId }),
+        eventId: String(eventId),
+        ticketTypeId: String(ticketTypeId),
+        cart: JSON.stringify(
+          cart.map(item => ({
+            ticketTypeId: item.ticketType.id,
+            quantity: item.quantity,
+            price: item.ticketType.price,
+            name: item.ticketType.name,
+          })),
+        ),
+        ...(discountCodeId && { discountCodeId: String(discountCodeId) }),
+      },
+    },
     automatic_tax: { enabled: true },
   };
 

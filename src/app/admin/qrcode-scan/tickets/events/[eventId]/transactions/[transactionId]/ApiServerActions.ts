@@ -1,6 +1,5 @@
 "use server";
 import { QrCodeUsageDTO, EventTicketTransactionDTO } from '@/types';
-import { cookies } from "next/headers";
 import { getCachedApiJwt, generateApiJwt } from '@/lib/api/jwt';
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
@@ -15,10 +14,10 @@ export async function fetchQrCodeUsageDetails(eventId: string, transactionId: st
 export async function updateQrCodeCheckIn(
   eventId: string,
   transactionId: string,
-  payload: Partial<QrCodeUsageDTO>
+  payload: Partial<QrCodeUsageDTO>,
+  cookieHeader?: string
 ): Promise<QrCodeUsageDTO | null> {
   const url = `${BASE_URL}/api/proxy/qrcode-scan/tickets/events/${eventId}/transactions/${transactionId}`;
-  const cookieHeader = cookies().toString();
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (cookieHeader) headers['Cookie'] = cookieHeader;
   const res = await fetch(url, {

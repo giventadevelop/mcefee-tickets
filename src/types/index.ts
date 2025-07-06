@@ -439,6 +439,10 @@ export interface QrCodeUsageDTO {
   eventTicketTypes?: EventTicketTypeDTO[];
 }
 
+/**
+ * DTO for tenant organization details.
+ * Matches backend OpenAPI schema.
+ */
 export interface TenantOrganizationDTO {
   id?: number;
   tenantId: string;
@@ -449,17 +453,21 @@ export interface TenantOrganizationDTO {
   logoUrl?: string;
   contactEmail: string;
   contactPhone?: string;
-  subscriptionPlan: string;
-  subscriptionStatus: string;
-  subscriptionStartDate?: string;
-  subscriptionEndDate?: string;
+  subscriptionPlan?: string;
+  subscriptionStatus?: string;
+  subscriptionStartDate?: string; // date (YYYY-MM-DD)
+  subscriptionEndDate?: string;   // date (YYYY-MM-DD)
   monthlyFeeUsd?: number;
   stripeCustomerId?: string;
   isActive?: boolean;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: string; // date-time
+  updatedAt: string; // date-time
 }
 
+/**
+ * DTO for tenant settings.
+ * Matches backend OpenAPI schema.
+ */
 export interface TenantSettingsDTO {
   id?: number;
   tenantId: string;
@@ -477,8 +485,8 @@ export interface TenantSettingsDTO {
   platformFeePercentage?: number;
   customCss?: string;
   customJs?: string;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: string; // date-time
+  updatedAt: string; // date-time
   tenantOrganization?: TenantOrganizationDTO;
 }
 

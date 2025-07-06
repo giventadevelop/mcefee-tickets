@@ -103,6 +103,7 @@ export async function POST(req: Request) {
           const newSubscription: UserSubscriptionDTO = {
             status: 'pending',
             userProfile: {
+              id: 0,
               userId,
               email,
               createdAt: new Date().toISOString(),
@@ -204,6 +205,7 @@ export async function POST(req: Request) {
             subscription_data: {
               metadata: {
                 userId: userId,
+                ...(body.eventId && { eventId: String(body.eventId) }),
               },
             },
             line_items: [
@@ -214,6 +216,7 @@ export async function POST(req: Request) {
             ],
             metadata: {
               userId: userId,
+              ...(body.eventId && { eventId: String(body.eventId) }),
             },
           });
 

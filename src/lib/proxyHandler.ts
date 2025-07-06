@@ -48,7 +48,10 @@ export function createProxyHandler({ injectTenantId = true, allowedMethods = ['G
       } else {
         qs = new URLSearchParams(req.query as Record<string, string>);
         qs.delete('slug');
-        qs.append('tenantId.equals', tenantId);
+        // Only append tenantId.equals if not already present
+        if (!Array.from(qs.keys()).includes('tenantId.equals')) {
+          qs.append('tenantId.equals', tenantId);
+        }
       }
       const queryString = qs.toString();
       const apiUrl = `${API_BASE_URL}${path}${queryString ? `?${queryString}` : ''}`;

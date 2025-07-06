@@ -8,6 +8,8 @@ import {
 import { getTenantId } from '@/lib/env';
 import { withTenantId } from '@/lib/withTenantId';
 import Stripe from 'stripe';
+import { getTenantSettings } from '@/lib/tenantSettingsCache';
+import { fetchWithJwtRetry } from '@/lib/proxyHandler';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-03-31.basil',
@@ -21,13 +23,6 @@ export interface ShoppingCartItem {
   name: string;
   price: number;
   quantity: number;
-}
-
-async function fetchWithJwtRetry(apiUrl: string, options: RequestInit = {}) {
-  // If your backend requires JWT, keep this helper. Otherwise, you can use fetch directly.
-  // (If you want to remove JWT entirely, replace this with fetch.)
-  const response = await fetch(apiUrl, options);
-  return response;
 }
 
 async function fetchTicketTypeByIdServer(
@@ -113,6 +108,26 @@ function omitId<T extends object>(obj: T): Omit<T, 'id'> {
   return rest;
 }
 
+// Utility to fetch Stripe fee for a paymentIntentId
+async function fetchStripeFeeAmount(paymentIntentId: string): Promise<number | null> {
+  try {
+    // Retrieve the PaymentIntent and expand charges
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId, { expand: ['charges'] });
+    const charges = (paymentIntent as any).charges;
+    const charge = (charges && Array.isArray(charges.data)) ? charges.data[0] : undefined;
+    if (charge && charge.balance_transaction) {
+      const balanceTx = await stripe.balanceTransactions.retrieve(charge.balance_transaction as string);
+      if (balanceTx && typeof balanceTx.fee === 'number') {
+        return balanceTx.fee / 100;
+      }
+    }
+    return null;
+  } catch (err) {
+    console.error('[fetchStripeFeeAmount] Error fetching Stripe fee:', err);
+    return null;
+  }
+}
+
 export async function processStripeSessionServer(
   sessionId: string,
   clerkUserInfo?: {
@@ -159,7 +174,7 @@ export async function processStripeSessionServer(
     const stripeAmountTax = (totalDetails as any).amount_tax ? (totalDetails as any).amount_tax / 100 : 0;
 
     // Build transaction DTO (flat fields, all required fields, all stripe fields)
-    const transactionData = withTenantId({
+    let transactionData = withTenantId({
       email: session.customer_details?.email || session.customer_email || '',
       firstName: session.customer_details?.name || '',
       lastName: '',
@@ -168,11 +183,11 @@ export async function processStripeSessionServer(
       pricePerUnit: totalQuantity > 0 ? amountTotal / totalQuantity : 0,
       totalAmount: session.amount_subtotal ? session.amount_subtotal / 100 : 0,
       taxAmount: stripeAmountTax,
-      platformFeeAmount: undefined, // Add if you have this info
+      platformFeeAmount: undefined, // Will be set below
       netAmount: undefined, // Add if you have this info
       discountCodeId: session.metadata.discountCodeId ? parseInt(session.metadata.discountCodeId, 10) : undefined,
       discountAmount: stripeAmountDiscount,
-      finalAmount: amountTotal,
+      finalAmount: amountTotal, // Will be set below
       status: 'COMPLETED',
       paymentMethod: session.payment_method_types?.[0] || undefined,
       paymentReference: session.payment_intent as string,
@@ -194,6 +209,22 @@ export async function processStripeSessionServer(
       createdAt: now,
       updatedAt: now,
     });
+
+    // Stripe fee will be set by the webhook after charge.succeeded
+    let stripeFeeAmount = 0;
+
+    // --- PLATFORM FEE CALCULATION ---
+    const tenantId = getTenantId();
+    const tenantSettings = await getTenantSettings(tenantId);
+    const platformFeePercentage = tenantSettings?.platformFeePercentage || 0;
+    const totalAmount = typeof transactionData.totalAmount === 'number' ? transactionData.totalAmount : 0;
+    const platformFeeAmount = Number(((totalAmount * platformFeePercentage) / 100).toFixed(2));
+    (transactionData as any).platformFeeAmount = platformFeeAmount;
+    (transactionData as any).stripeFeeAmount = stripeFeeAmount;
+    // Calculate final amount: total - (platformFee + stripeFee)
+    (transactionData as any).finalAmount = Number((totalAmount - (platformFeeAmount + stripeFeeAmount)).toFixed(2));
+    // --- END PLATFORM FEE CALCULATION ---
+
     console.log('[DEBUG] Outgoing transactionData payload:', JSON.stringify(transactionData, null, 2));
 
     // Create the main transaction (omit id if present)
@@ -262,6 +293,35 @@ export async function processStripeSessionServer(
       }
     }
     // --- End Event Attendee Upsert Logic ---
+
+    // After creation, fetch the Stripe fee and PATCH the transaction (single attempt, no retry)
+    /* if (newTransaction && newTransaction.id && session.payment_intent) {
+      stripeFeeAmount = 0;
+      // Wait 4 seconds before first attempt
+      await new Promise(res => setTimeout(res, 4000));
+      for (let i = 0; i < 2; i++) {
+        const fee = await fetchStripeFeeAmount(session.payment_intent as string);
+        stripeFeeAmount = fee ?? 0;
+        if (stripeFeeAmount > 0) break;
+        if (i < 1) await new Promise(res => setTimeout(res, 4000));
+      }
+      if (stripeFeeAmount > 0) {
+        const patchUrl = `${APP_URL}/api/proxy/event-ticket-transactions/${newTransaction.id}`;
+        const patchRes = await fetchWithJwtRetry(patchUrl, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/merge-patch+json' },
+          body: JSON.stringify({ stripeFeeAmount }),
+        });
+        if (patchRes.ok) {
+          console.log('[ServerAction] Successfully updated ticket transaction with stripeFeeAmount:', newTransaction.id, stripeFeeAmount);
+        } else {
+          const errorText = await patchRes.text();
+          console.error('[ServerAction] Failed to PATCH ticket transaction with stripeFeeAmount:', newTransaction.id, errorText);
+        }
+      } else {
+        console.warn('[ServerAction] Stripe fee not available for transaction', newTransaction.id, stripeFeeAmount);
+      }
+    } */
 
     return { transaction: newTransaction, userProfile: null, attendee };
   } catch (error) {

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import type { UserSubscriptionDTO } from '../../app/pricing/page';
+import type { UserSubscriptionDTO } from '@/types';
 import { Button } from '@/components/ui/button';
 import { useAuth, useUser } from '@clerk/nextjs';
 import { storeSubscriptionPlans } from '@/config/subscriptions';
@@ -30,7 +30,7 @@ export function PricingPlans({ currentSubscription }: PricingPlansProps) {
     }
   }, [userId, searchParams]);
 
-  const handleSubscribe = async () => {
+  const handleSubscribe = async (eventId = 1) => {
     try {
       setIsLoading(true);
       setError(null);
@@ -52,6 +52,7 @@ export function PricingPlans({ currentSubscription }: PricingPlansProps) {
           stripeCustomerId: currentSubscription?.stripeCustomerId,
           stripeSubscriptionId: currentSubscription?.stripeSubscriptionId,
           isCurrentPlan: false,
+          eventId,
         }),
       });
 
@@ -82,7 +83,7 @@ export function PricingPlans({ currentSubscription }: PricingPlansProps) {
     }
   };
 
-  const handleManageSubscription = async () => {
+  const handleManageSubscription = async (eventId = 1) => {
     try {
       setIsLoading(true);
       setError(null);
@@ -100,6 +101,7 @@ export function PricingPlans({ currentSubscription }: PricingPlansProps) {
           isCurrentPlan: true,
           stripePriceId: currentSubscription.stripePriceId,
           stripeSubscriptionId: currentSubscription.stripeSubscriptionId,
+          eventId,
         }),
       });
 
@@ -219,7 +221,7 @@ export function PricingPlans({ currentSubscription }: PricingPlansProps) {
             </>
           ) : showManageButton ? (
             <Button
-              onClick={handleManageSubscription}
+              onClick={() => handleManageSubscription()}
               className="w-full bg-gray-800 hover:bg-gray-900 text-white"
               size="lg"
               disabled={isLoading}
@@ -228,7 +230,7 @@ export function PricingPlans({ currentSubscription }: PricingPlansProps) {
             </Button>
           ) : (
             <Button
-              onClick={handleSubscribe}
+              onClick={() => handleSubscribe()}
               className="w-full bg-[#39E079] hover:bg-[#32c96d] text-white"
               size="lg"
               disabled={isLoading}
