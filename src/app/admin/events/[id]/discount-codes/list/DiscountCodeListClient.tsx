@@ -5,7 +5,7 @@ import type { DiscountCodeDTO, EventDetailsDTO } from '@/types';
 import Link from 'next/link';
 import { FaPhotoVideo, FaTicketAlt, FaTags, FaPlus, FaEdit, FaTrashAlt, FaSave, FaBan, FaTimes } from 'react-icons/fa';
 import { Modal } from '@/components/Modal';
-import { deleteDiscountCodeServer } from './ApiServerActions';
+import { deleteDiscountCodeServer, patchDiscountCodeServer, createDiscountCodeServer } from './ApiServerActions';
 
 interface DiscountCodeListClientProps {
   eventId: string;
@@ -71,31 +71,30 @@ export default function DiscountCodeListClient({
         setError(null);
         let updatedCode;
         if (editingCode) {
-          // Update logic will go here
-          console.log("Updating code:", { ...formData, id: editingCode.id });
-          // const response = await fetch(`/api/proxy/discount-codes/${editingCode.id}`, { ... });
-          // updatedCode = await response.json();
-          // For now, let's just log it.
-          updatedCode = { ...editingCode, ...formData }; // Mock update
-        } else {
-          // Create new code
+          // PATCH update via server action
           const payload = {
             ...formData,
             eventId: parseInt(eventId, 10),
+            createdAt: editingCode.createdAt, // preserve original
+          };
+          updatedCode = await patchDiscountCodeServer(editingCode.id!, payload);
+        } else {
+          // CREATE via server action (not direct fetch!)
+          // Ensure all required fields are present for the DTO
+          const payload = {
+            code: formData.code ?? '',
+            discountType: formData.discountType ?? '',
+            discountValue: formData.discountValue ?? 0,
+            eventId: parseInt(eventId, 10),
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
+            // Optional fields
+            description: formData.description,
+            maxUses: formData.maxUses,
+            usesCount: formData.usesCount,
+            isActive: formData.isActive,
           };
-          const response = await fetch('/api/proxy/discount-codes', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-          });
-
-          if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || `Failed to create discount code. Status: ${response.status}`);
-          }
-          updatedCode = await response.json();
+          updatedCode = await createDiscountCodeServer(payload, eventId);
         }
 
         setDiscountCodes(prev => {

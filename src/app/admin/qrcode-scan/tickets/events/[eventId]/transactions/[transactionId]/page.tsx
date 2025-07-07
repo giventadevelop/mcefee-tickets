@@ -84,7 +84,7 @@ export default async function QrCodeScanPage({ params }: { params: { eventId: st
           </div>
           <div>
             <div className="text-gray-500 text-sm">Amount Paid</div>
-            <div className="font-semibold">${transaction?.finalAmount?.toFixed(2) ?? '-'}</div>
+            <div className="font-semibold">${transaction?.totalAmount?.toFixed(2) ?? '-'}</div>
           </div>
           <div>
             <div className="text-gray-500 text-sm">Date of Purchase</div>

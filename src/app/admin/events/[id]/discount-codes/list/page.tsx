@@ -3,7 +3,8 @@ import { fetchEventDetailsServer } from "@/app/admin/ApiServerActions";
 import DiscountCodeListClient from "./DiscountCodeListClient";
 import { fetchDiscountCodesForEvent } from "./ApiServerActions";
 
-export default async function DiscountCodeListPage({ params }: { params: { id: string } }) {
+export default async function DiscountCodeListPage(props: { params: { id: string } }) {
+  const { params } = props;
   const eventId = params.id;
   const { userId } = auth();
 
@@ -11,7 +12,8 @@ export default async function DiscountCodeListPage({ params }: { params: { id: s
     return <div>You must be logged in to view this page.</div>;
   }
 
-  const eventDetails = await fetchEventDetailsServer(eventId);
+  // fetchEventDetailsServer expects a number, fetchDiscountCodesForEvent expects a string
+  const eventDetails = await fetchEventDetailsServer(Number(eventId));
   const discountCodes = await fetchDiscountCodesForEvent(eventId);
 
   return (

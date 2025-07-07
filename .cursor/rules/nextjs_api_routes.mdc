@@ -400,6 +400,75 @@ alwaysApply: true
 - Project-wide convention: REST API calls from server action scripts use nextjs_api_routes.mdc. Webhook files must follow this direct-call pattern for backend updates.
 ---
 
+- **Next.js 15+ Dynamic Route Async Context Rule**
+  - In app router page, layout, or route handlers, always `await` any async context objects such as `params`, `headers()`, or `cookies()` before using their properties.
+  - This is required in Next.js 15+ where these objects may be promises.
+  - **DO:**
+    ```typescript
+    export default async function Page(props: { params: { id: string } }) {
+      const { params } = props;
+      // If params is a promise, await it
+      const resolvedParams = typeof params.then === 'function' ? await params : params;
+      const id = resolvedParams.id;
+      // ...
+    }
+    ```
+  - **DON'T:**
+    ```typescript
+    // ❌ DON'T: Use params.id directly if params may be a promise
+    const id = params.id; // May throw in Next.js 15+
+    ```
+  - **Rationale:**
+    - Prevents runtime errors like "params should be awaited before using its properties".
+    - Ensures compatibility with Next.js 15+ dynamic route context.
+  - See: https://nextjs.org/docs/messages/sync-dynamic-apis
+
+- **TenantId Query Parameter and Body Injection Refinement**
+  - Only add `tenantId.equals` as a query parameter for list/filter endpoints **if the REST API schema requires it** (as specified in design/requirements). Do **not** inject to every list/filter request by default.
+  - Only inject `tenantId` into the request body if the DTO defines it (i.e., if the field exists in the request body object). Do **not** add `tenantId` to the body if the DTO does not have a `tenantId` field.
+  - Rationale: Prevents backend errors and ensures compliance with API contracts.
+  - Example:
+    ```typescript
+    // ✅ DO: Add tenantId.equals only if required by the API schema
+    const qs = new URLSearchParams();
+    if (shouldAddTenantIdEquals) qs.append('tenantId.equals', tenantId);
+    // ✅ DO: Inject tenantId into body only if field exists
+    if ('tenantId' in dto) dto.tenantId = tenantId;
+    ```
+  - See also: proxy handler implementation for conditional logic.
+
+---
+**PATCH/PUT/DELETE Proxy Handler Body Parser Rule**
+- For all API proxy handlers in `[...slug].ts` (or any dynamic route handler that supports PATCH/PUT/DELETE), you **MUST** set:
+  ```typescript
+  export const config = {
+    api: {
+      bodyParser: false,
+    },
+  };
+  ```
+- This disables the default body parser, allowing raw JSON/merge-patch+json payloads to be forwarded to the backend.
+- Without this, PATCH/PUT requests may hang or fail, especially for large or non-standard payloads.
+- This matches the pattern in `src/pages/api/proxy/event-ticket-transactions/[...slug].ts` and is required for all similar endpoints.
+- **References:**
+  - See `src/pages/api/proxy/event-ticket-transactions/[...slug].ts` for a working example.
+  - See `src/pages/api/proxy/discount-codes/[...slug].ts` for the required fix.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

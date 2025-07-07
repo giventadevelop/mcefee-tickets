@@ -48,8 +48,11 @@ export function createProxyHandler({ injectTenantId = true, allowedMethods = ['G
       } else {
         qs = new URLSearchParams(req.query as Record<string, string>);
         qs.delete('slug');
-        // Only append tenantId.equals if not already present
-        if (!Array.from(qs.keys()).includes('tenantId.equals')) {
+        // Only append tenantId.equals for GET/POST list endpoints, not for PATCH/PUT/DELETE by ID
+        const isListEndpoint =
+          (method === 'GET' || method === 'POST') &&
+          !/\/\d+(\/|$)/.test(path); // path does not end with /:id or /:id/...
+        if (isListEndpoint && !Array.from(qs.keys()).includes('tenantId.equals')) {
           qs.append('tenantId.equals', tenantId);
         }
       }
