@@ -1,3224 +1,609 @@
---
--- PostgreSQL database dump
---
-
--- Dumped from database version 16.0 (Debian 16.0-1.pgdg120+1)
--- Dumped by pg_dump version 17.0
-
--- Started on 2025-06-08 23:51:02
-SET ROLE giventa_event_management;
-
-SET statement_timeout = 0;
-SET lock_timeout = 0;
-SET idle_in_transaction_session_timeout = 0;
---SET transaction_timeout = 0;
-SET client_encoding = 'UTF8';
-SET standard_conforming_strings = on;
-SELECT pg_catalog.set_config('search_path', '', false);
-SET check_function_bodies = false;
-SET xmloption = content;
-SET client_min_messages = warning;
-SET row_security = off;
-
---DROP DATABASE giventa_event_management;
---
--- TOC entry 3921 (class 1262 OID 58386)
--- Name: giventa_event_management; Type: DATABASE; Schema: -; Owner: giventa_event_management
---
-
---CREATE DATABASE giventa_event_management WITH TEMPLATE = template0 ENCODING = 'UTF8' LOCALE_PROVIDER = libc LOCALE = 'en_US.utf8';
-
-
-ALTER DATABASE giventa_event_management OWNER TO giventa_event_management;
-
---\connect giventa_event_management
-
-SET statement_timeout = 0;
-SET lock_timeout = 0;
-SET idle_in_transaction_session_timeout = 0;
--- SET transaction_timeout = 0;
-SET client_encoding = 'UTF8';
-SET standard_conforming_strings = on;
-SELECT pg_catalog.set_config('search_path', '', false);
-SET check_function_bodies = false;
-SET xmloption = content;
-SET client_min_messages = warning;
-SET row_security = off;
-
--- Drop existing types if they exist (for clean recreation)
-DROP TYPE IF EXISTS public.guest_age_group CASCADE;
-DROP TYPE IF EXISTS public.user_to_guest_relationship CASCADE;
-DROP TYPE IF EXISTS public.user_event_registration_status CASCADE;
-DROP TYPE IF EXISTS public.user_event_check_in_status CASCADE;
-DROP TYPE IF EXISTS public.subscription_plan_type CASCADE;
-DROP TYPE IF EXISTS public.subscription_status_type CASCADE;
-DROP TYPE IF EXISTS public.user_role_type CASCADE;
-DROP TYPE IF EXISTS public.user_status_type CASCADE;
-DROP TYPE IF EXISTS public.event_admission_type CASCADE;
-DROP TYPE IF EXISTS public.transaction_type CASCADE;
-DROP TYPE IF EXISTS public.transaction_status CASCADE;
-
--- Guest age group classifications
-CREATE TYPE public.guest_age_group AS ENUM ('ADULT', 'TEEN', 'CHILD', 'INFANT');
-
--- User to guest relationship types
-CREATE TYPE public.user_to_guest_relationship AS ENUM ('SPOUSE', 'CHILD', 'FRIEND', 'COLLEAGUE', 'PARENT', 'SIBLING', 'RELATIVE', 'OTHER');
-
--- Registration status for events
-CREATE TYPE public.user_event_registration_status AS ENUM ('PENDING', 'CONFIRMED', 'CANCELLED', 'WAITLISTED');
-
--- Check-in status for events
-CREATE TYPE public.user_event_check_in_status AS ENUM ('NOT_CHECKED_IN', 'CHECKED_IN', 'NO_SHOW', 'LEFT_EARLY');
-
--- Subscription plans
-CREATE TYPE public.subscription_plan_type AS ENUM ('FREE', 'BASIC', 'PREMIUM', 'ENTERPRISE');
-
--- Subscription status
-CREATE TYPE public.subscription_status_type AS ENUM ('ACTIVE', 'SUSPENDED', 'CANCELLED', 'EXPIRED', 'TRIAL');
-
--- User roles
-CREATE TYPE public.user_role_type AS ENUM ('MEMBER', 'ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'VOLUNTEER');
-
--- User status
-CREATE TYPE public.user_status_type AS ENUM ('ACTIVE', 'INACTIVE', 'PENDING_APPROVAL', 'SUSPENDED', 'BANNED');
-
--- Event admission types
-CREATE TYPE public.event_admission_type AS ENUM ('FREE', 'TICKETED', 'INVITATION_ONLY', 'DONATION_BASED');
-
--- Transaction types
-CREATE TYPE public.transaction_type AS ENUM ('SUBSCRIPTION', 'TICKET_SALE', 'COMMISSION', 'REFUND', 'CHARGEBACK');
-
--- Transaction status
-CREATE TYPE public.transaction_status AS ENUM ('PENDING', 'COMPLETED', 'FAILED', 'REFUNDED', 'CANCELLED');
-
-
-
--- ===================================================
--- drop functions
--- ===================================================
-DROP FUNCTION IF EXISTS public.generate_attendee_qr_code() CASCADE;
-DROP FUNCTION IF EXISTS public.generate_enhanced_qr_code() CASCADE;
-DROP FUNCTION IF EXISTS public.manage_ticket_inventory() CASCADE;
-DROP FUNCTION IF EXISTS public.update_ticket_sold_quantity() CASCADE;
-DROP FUNCTION IF EXISTS public.update_updated_at_column() CASCADE;
-DROP FUNCTION IF EXISTS public.validate_event_dates() CASCADE;
-DROP FUNCTION IF EXISTS public.validate_event_dates_alt1() CASCADE;
-DROP FUNCTION IF EXISTS public.validate_event_dates_alt2() CASCADE;
-DROP FUNCTION IF EXISTS public.validate_event_details() CASCADE;
-
--- Drop sequence if exists and recreate
-DROP SEQUENCE IF EXISTS public.sequence_generator CASCADE;
-
--- ===================================================
--- DROP EXISTING TABLES (in reverse dependency order)
--- ===================================================
-
-DROP TABLE IF EXISTS public.bulk_operation_log CASCADE;
-DROP TABLE IF EXISTS public.qr_code_usage CASCADE;
-
-DROP TABLE IF EXISTS public.event_attendee_guest CASCADE;
-DROP TABLE IF EXISTS public.event_guest_pricing CASCADE;
-DROP TABLE IF EXISTS public.event_attendee CASCADE;
-DROP TABLE IF EXISTS public.event_admin_audit_log CASCADE;
-DROP TABLE IF EXISTS public.event_calendar_entry CASCADE;
-DROP TABLE IF EXISTS public.event_media CASCADE;
-DROP TABLE IF EXISTS public.event_poll_response CASCADE;
-DROP TABLE IF EXISTS public.event_poll_option CASCADE;
-DROP TABLE IF EXISTS public.event_poll CASCADE;
-DROP TABLE IF EXISTS public.event_ticket_transaction CASCADE;
-DROP TABLE IF EXISTS public.user_payment_transaction CASCADE;
-DROP TABLE IF EXISTS public.event_ticket_type CASCADE;
-DROP TABLE IF EXISTS public.event_organizer CASCADE;
-DROP TABLE IF EXISTS public.event_details CASCADE;
-DROP TABLE IF EXISTS public.event_admin CASCADE;
-DROP TABLE IF EXISTS public.event_live_update_attachment CASCADE;
-DROP TABLE IF EXISTS public.event_live_update CASCADE;
-DROP TABLE IF EXISTS public.event_score_card CASCADE;
-DROP TABLE IF EXISTS public.event_score_card_detail CASCADE;
-DROP TABLE IF EXISTS public.rel_event_details__discount_codes CASCADE;
-DROP TABLE IF EXISTS public.user_task CASCADE;
-DROP TABLE IF EXISTS public.user_subscription CASCADE;
-DROP TABLE IF EXISTS public.event_type_details CASCADE;
-DROP TABLE IF EXISTS public.tenant_settings CASCADE;
-DROP TABLE IF EXISTS public.user_profile CASCADE;
-DROP TABLE IF EXISTS public.tenant_organization CASCADE;
-DROP TABLE IF EXISTS public.databasechangeloglock CASCADE;
-DROP TABLE IF EXISTS public.databasechangelog CASCADE;
-DROP TABLE IF EXISTS public.discount_code CASCADE;
-DROP TABLE IF EXISTS public.event_discount_code CASCADE;
-
-CREATE FUNCTION public.generate_attendee_qr_code() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-    IF NEW.registration_status = 'CONFIRMED' AND (OLD IS NULL OR OLD.registration_status != 'CONFIRMED') THEN
-        NEW.qr_code_data = 'ATTENDEE:' || NEW.id || '|EVENT:' || NEW.event_id || '|TENANT:' || NEW.tenant_id || '|TIMESTAMP:' || extract(epoch from NOW());
-        NEW.qr_code_generated = TRUE;
-    END IF;
-
-    RETURN NEW;
-END;
-$$;
-
-
-ALTER FUNCTION public.generate_attendee_qr_code() OWNER TO giventa_event_management;
-
---
--- TOC entry 272 (class 1255 OID 71151)
--- Name: generate_enhanced_qr_code(); Type: FUNCTION; Schema: public; Owner: giventa_event_management
---
-
-CREATE FUNCTION  public.generate_enhanced_qr_code() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-DECLARE
-    qr_data TEXT;
-    event_title TEXT;
-    attendee_name TEXT;
-BEGIN
-    -- Only generate QR code for confirmed attendees
-    IF NEW.registration_status = 'CONFIRMED' AND
-       (OLD IS NULL OR OLD.registration_status != 'CONFIRMED' OR OLD.qr_code_data IS NULL) THEN
-
-        -- Get event title and attendee name for better QR code
-        SELECT e.title INTO event_title
-        FROM public.event_details e
-        WHERE e.id = NEW.event_id;
-
-        SELECT up.first_name || ' ' || up.last_name INTO attendee_name
-        FROM public.user_profile up
-        WHERE up.id = NEW.attendee_id;
-
-        -- Generate comprehensive QR code data
-        qr_data := 'ATTENDEE:' || NEW.id ||
-                   '|EVENT:' || NEW.event_id ||
-                   '|TENANT:' || NEW.tenant_id ||
-                   '|NAME:' || COALESCE(attendee_name, 'Unknown') ||
-                   '|EVENT_TITLE:' || COALESCE(event_title, 'Unknown Event') ||
-                   '|TIMESTAMP:' || extract(epoch from NOW()) ||
-                   '|TYPE:' || COALESCE(NEW.attendee_type, 'MEMBER');
-
-        NEW.qr_code_data = qr_data;
-        NEW.qr_code_generated = TRUE;
-        NEW.qr_code_generated_at = NOW();
-
-        RAISE NOTICE 'Generated QR code for attendee % at event %', attendee_name, event_title;
-    END IF;
-
-    RETURN NEW;
-END;
-$$;
-
-
-ALTER FUNCTION public.generate_enhanced_qr_code() OWNER TO giventa_event_management;
-
---
--- TOC entry 273 (class 1255 OID 71150)
--- Name: manage_ticket_inventory(); Type: FUNCTION; Schema: public; Owner: giventa_event_management
---
-
-CREATE FUNCTION  public.manage_ticket_inventory() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-DECLARE
-    ticket_type_record RECORD;
-    available_quantity INTEGER;
-BEGIN
-    -- Get ticket type details
-    SELECT * INTO ticket_type_record
-    FROM public.event_ticket_type
-    WHERE id = COALESCE(NEW.ticket_type_id, OLD.ticket_type_id);
-
-    IF NOT FOUND THEN
-        RAISE EXCEPTION 'Ticket type not found for ID: %', COALESCE(NEW.ticket_type_id, OLD.ticket_type_id);
-    END IF;
-
-    -- Handle different operations
-    IF TG_OP = 'INSERT' AND NEW.status = 'COMPLETED' THEN
-        -- Check availability before increasing sold quantity
-        available_quantity := ticket_type_record.available_quantity - ticket_type_record.sold_quantity;
-        IF available_quantity < NEW.quantity THEN
-            RAISE EXCEPTION 'Insufficient tickets available. Requested: %, Available: %',
-                NEW.quantity, available_quantity;
-        END IF;
-
-        UPDATE public.event_ticket_type
-        SET sold_quantity = sold_quantity + NEW.quantity,
-            updated_at = NOW()
-        WHERE id = NEW.ticket_type_id;
-
-        RAISE NOTICE 'Added % tickets to sold quantity for ticket type %', NEW.quantity, NEW.ticket_type_id;
-
-    ELSIF TG_OP = 'UPDATE' THEN
-        IF OLD.status != 'COMPLETED' AND NEW.status = 'COMPLETED' THEN
-            -- Ticket sale completed
-            UPDATE public.event_ticket_type
-            SET sold_quantity = sold_quantity + NEW.quantity,
-                updated_at = NOW()
-            WHERE id = NEW.ticket_type_id;
-
-        ELSIF OLD.status = 'COMPLETED' AND NEW.status != 'COMPLETED' THEN
-            -- Ticket sale cancelled/refunded
-            UPDATE public.event_ticket_type
-            SET sold_quantity = sold_quantity - OLD.quantity,
-                updated_at = NOW()
-            WHERE id = OLD.ticket_type_id;
-
-        ELSIF OLD.status = 'COMPLETED' AND NEW.status = 'COMPLETED' AND OLD.quantity != NEW.quantity THEN
-            -- Quantity changed for completed sale
-            UPDATE public.event_ticket_type
-            SET sold_quantity = sold_quantity - OLD.quantity + NEW.quantity,
-                updated_at = NOW()
-            WHERE id = NEW.ticket_type_id;
-        END IF;
-
-    ELSIF TG_OP = 'DELETE' AND OLD.status = 'COMPLETED' THEN
-        -- Remove sold tickets when transaction is deleted
-        UPDATE public.event_ticket_type
-        SET sold_quantity = sold_quantity - OLD.quantity,
-            updated_at = NOW()
-        WHERE id = OLD.ticket_type_id;
-
-        RAISE NOTICE 'Removed % tickets from sold quantity for ticket type %', OLD.quantity, OLD.ticket_type_id;
-    END IF;
-
-    -- Return appropriate record
-    IF TG_OP = 'DELETE' THEN
-        RETURN OLD;
-    ELSE
-        RETURN NEW;
-    END IF;
-END;
-$$;
-
-
-ALTER FUNCTION public.manage_ticket_inventory() OWNER TO giventa_event_management;
-
---
--- TOC entry 255 (class 1255 OID 71143)
--- Name: update_ticket_sold_quantity(); Type: FUNCTION; Schema: public; Owner: giventa_event_management
---
-
-CREATE FUNCTION  public.update_ticket_sold_quantity() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-    IF TG_OP = 'INSERT' AND NEW.status = 'COMPLETED' THEN
-        UPDATE public.event_ticket_type
-        SET sold_quantity = sold_quantity + NEW.quantity
-        WHERE id = NEW.ticket_type_id;
-    ELSIF TG_OP = 'UPDATE' AND OLD.status != 'COMPLETED' AND NEW.status = 'COMPLETED' THEN
-        UPDATE public.event_ticket_type
-        SET sold_quantity = sold_quantity + NEW.quantity
-        WHERE id = NEW.ticket_type_id;
-    ELSIF TG_OP = 'UPDATE' AND OLD.status = 'COMPLETED' AND NEW.status != 'COMPLETED' THEN
-        UPDATE public.event_ticket_type
-        SET sold_quantity = sold_quantity - OLD.quantity
-        WHERE id = OLD.ticket_type_id;
-    ELSIF TG_OP = 'DELETE' AND OLD.status = 'COMPLETED' THEN
-        UPDATE public.event_ticket_type
-        SET sold_quantity = sold_quantity - OLD.quantity
-        WHERE id = OLD.ticket_type_id;
-    END IF;
-
-    IF TG_OP = 'DELETE' THEN
-        RETURN OLD;
-    ELSE
-        RETURN NEW;
-    END IF;
-END;
-$$;
-
-
-ALTER FUNCTION public.update_ticket_sold_quantity() OWNER TO giventa_event_management;
-
---
--- TOC entry 271 (class 1255 OID 70264)
--- Name: update_updated_at_column(); Type: FUNCTION; Schema: public; Owner: giventa_event_management
---
-
-CREATE FUNCTION  public.update_updated_at_column() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-    NEW.updated_at = NOW();
-    RETURN NEW;
-END;
-$$;
-
-
-ALTER FUNCTION public.update_updated_at_column() OWNER TO giventa_event_management;
-
---
--- TOC entry 254 (class 1255 OID 71141)
--- Name: validate_event_dates(); Type: FUNCTION; Schema: public; Owner: giventa_event_management
---
-
-CREATE FUNCTION  public.validate_event_dates() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-    -- Ensure start_date is not in the past (allow same day)
-    IF NEW.start_date < CURRENT_DATE THEN
-        RAISE EXCEPTION 'Event start date cannot be in the past';
-    END IF;
-
-    -- Ensure registration deadline is before event start
-    IF NEW.registration_deadline IS NOT NULL AND NEW.registration_deadline::date > NEW.start_date THEN
-        RAISE EXCEPTION 'Registration deadline must be before event start date';
-    END IF;
-
-    RETURN NEW;
-END;
-$$;
-
-
-ALTER FUNCTION public.validate_event_dates() OWNER TO giventa_event_management;
-
---
--- TOC entry 257 (class 1255 OID 71147)
--- Name: validate_event_dates_alt1(); Type: FUNCTION; Schema: public; Owner: giventa_event_management
---
-
-CREATE FUNCTION  public.validate_event_dates_alt1() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-    IF NEW.start_date < CURRENT_DATE THEN
-        RAISE EXCEPTION 'Event start date cannot be in the past';
-    END IF;
-
-    IF NEW.registration_deadline IS NOT NULL AND NEW.registration_deadline::date > NEW.start_date THEN
-        RAISE EXCEPTION 'Registration deadline must be before event start date';
-    END IF;
-
-    RETURN NEW;
-END;
-$$;
-
-
-ALTER FUNCTION public.validate_event_dates_alt1() OWNER TO giventa_event_management;
-
---
--- TOC entry 258 (class 1255 OID 71148)
--- Name: validate_event_dates_alt2(); Type: FUNCTION; Schema: public; Owner: giventa_event_management
---
-
-CREATE FUNCTION  public.validate_event_dates_alt2() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-    IF NEW.start_date < CURRENT_DATE THEN
-        RAISE EXCEPTION 'Event start date cannot be in the past';
-    END IF;
-
-    IF NEW.registration_deadline IS NOT NULL AND NEW.registration_deadline::date > NEW.start_date THEN
-        RAISE EXCEPTION 'Registration deadline must be before event start date';
-    END IF;
-
-    RETURN NEW;
-END;
-$$;
-
-
-ALTER FUNCTION public.validate_event_dates_alt2() OWNER TO giventa_event_management;
-
---
--- TOC entry 270 (class 1255 OID 71149)
--- Name: validate_event_details(); Type: FUNCTION; Schema: public; Owner: giventa_event_management
---
-
-CREATE FUNCTION  public.validate_event_details() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-    -- Validate start date
-    IF NEW.start_date < CURRENT_DATE THEN
-        RAISE EXCEPTION 'Event start date (%) cannot be in the past. Current date: %',
-            NEW.start_date, CURRENT_DATE;
-    END IF;
-
-    -- Validate end date
-    IF NEW.end_date < NEW.start_date THEN
-        RAISE EXCEPTION 'Event end date (%) cannot be before start date (%)',
-            NEW.end_date, NEW.start_date;
-    END IF;
-
-    -- JDL VALIDATION: If allowGuests = true, maxGuestsPerAttendee should be > 0
-    IF NEW.allow_guests = TRUE AND (NEW.max_guests_per_attendee IS NULL OR NEW.max_guests_per_attendee <= 0) THEN
-        RAISE EXCEPTION 'When guests are allowed, max_guests_per_attendee must be greater than 0';
-    END IF;
-
-    -- JDL VALIDATION: Validate capacity
-    IF NEW.capacity IS NOT NULL AND NEW.capacity <= 0 THEN
-        RAISE EXCEPTION 'Event capacity must be greater than zero, got: %', NEW.capacity;
-    END IF;
-
-    -- Log the validation success
-    RAISE NOTICE 'Event validation passed for event: %', NEW.title;
-
-    RETURN NEW;
-END;
-$$;
-
-
-ALTER FUNCTION public.validate_event_details() OWNER TO giventa_event_management;
-
---
--- TOC entry 224 (class 1259 OID 82754)
--- Name: sequence_generator; Type: SEQUENCE; Schema: public; Owner: giventa_event_management
---
-
-CREATE SEQUENCE public.sequence_generator
-    START WITH 1050
-    INCREMENT BY 50
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER SEQUENCE public.sequence_generator OWNER TO giventa_event_management;
-
-SET default_tablespace = '';
-
-SET default_table_access_method = heap;
-
---
--- TOC entry 238 (class 1259 OID 82938)
--- Name: bulk_operation_log; Type: TABLE; Schema: public; Owner: giventa_event_management
---
-
-CREATE TABLE public.bulk_operation_log (
-    id bigint DEFAULT nextval('public.sequence_generator'::regclass) NOT NULL,
-    tenant_id character varying(255),
-    operation_type character varying(50) NOT NULL,
-    operation_name character varying(255),
-    performed_by bigint,
-    target_count integer NOT NULL,
-    success_count integer DEFAULT 0,
-    error_count integer DEFAULT 0,
-    skipped_count integer DEFAULT 0,
-    operation_details text,
-    error_details text,
-    execution_time_ms integer,
-    created_at timestamp without time zone DEFAULT now() NOT NULL,
-    completed_at timestamp without time zone,
-    CONSTRAINT check_operation_counts CHECK ((((success_count + error_count) + skipped_count) <= target_count))
-);
-
-
-ALTER TABLE public.bulk_operation_log OWNER TO giventa_event_management;
-
---
--- TOC entry 225 (class 1259 OID 82755)
--- Name: databasechangelog; Type: TABLE; Schema: public; Owner: giventa_event_management
---
-
-CREATE TABLE public.databasechangelog (
-    id character varying(255) NOT NULL,
-    author character varying(255) NOT NULL,
-    filename character varying(255) NOT NULL,
-    dateexecuted timestamp without time zone NOT NULL,
-    orderexecuted integer NOT NULL,
-    exectype character varying(10) NOT NULL,
-    md5sum character varying(35),
-    description character varying(255),
-    comments character varying(255),
-    tag character varying(255),
-    liquibase character varying(20),
-    contexts character varying(255),
-    labels character varying(255),
-    deployment_id character varying(10)
-);
-
-
-ALTER TABLE public.databasechangelog OWNER TO giventa_event_management;
-
---
--- TOC entry 226 (class 1259 OID 82760)
--- Name: databasechangeloglock; Type: TABLE; Schema: public; Owner: giventa_event_management
---
-
-CREATE TABLE public.databasechangeloglock (
-    id integer NOT NULL,
-    locked boolean NOT NULL,
-    lockgranted timestamp without time zone,
-    lockedby character varying(255)
-);
-
-
-ALTER TABLE public.databasechangeloglock OWNER TO giventa_event_management;
-
---
--- TOC entry 228 (class 1259 OID 82766)
--- Name: discount_code; Type: TABLE; Schema: public; Owner: giventa_event_management
---
-
-CREATE TABLE public.discount_code (
-    id bigint NOT NULL,
-    code character varying(50) NOT NULL,
-    description character varying(255),
-    discount_type character varying(20) DEFAULT 'PERCENT'::character varying NOT NULL,
-    discount_value numeric(10,2) NOT NULL,
-    max_uses integer,
-    uses_count integer DEFAULT 0,
-    valid_from timestamp without time zone,
-    valid_to timestamp without time zone,
-    is_active boolean DEFAULT true,
-    created_at timestamp without time zone DEFAULT now(),
-    updated_at timestamp without time zone DEFAULT now());
-
-
-ALTER TABLE public.discount_code OWNER TO giventa_event_management;
-
---
--- TOC entry 3927 (class 0 OID 0)
--- Dependencies: 228
--- Name: TABLE discount_code; Type: COMMENT; Schema: public; Owner: giventa_event_management
---
-
-COMMENT ON TABLE public.discount_code IS 'Discount codes for ticket purchases';
-
-
---
--- TOC entry 227 (class 1259 OID 82765)
--- Name: discount_code_id_seq; Type: SEQUENCE; Schema: public; Owner: giventa_event_management
---
-
-CREATE SEQUENCE public.discount_code_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER SEQUENCE public.discount_code_id_seq OWNER TO giventa_event_management;
-
---
--- TOC entry 3929 (class 0 OID 0)
--- Dependencies: 227
--- Name: discount_code_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: giventa_event_management
---
-
-ALTER SEQUENCE public.discount_code_id_seq OWNED BY public.discount_code.id;
-
-
---
--- TOC entry 235 (class 1259 OID 82890)
--- Name: event_admin; Type: TABLE; Schema: public; Owner: giventa_event_management
---
-
-CREATE TABLE public.event_admin (
-    id bigint DEFAULT nextval('public.sequence_generator'::regclass) NOT NULL,
-    tenant_id character varying(255),
-    role character varying(255) NOT NULL,
-    permissions text[],
-    is_active boolean DEFAULT true,
-    created_at timestamp without time zone DEFAULT now() NOT NULL,
-    updated_at timestamp without time zone DEFAULT now() NOT NULL,
-    user_id bigint,
-    created_by_id bigint
-);
-
-
-ALTER TABLE public.event_admin OWNER TO giventa_event_management;
-
---
--- TOC entry 249 (class 1259 OID 83122)
--- Name: event_admin_audit_log; Type: TABLE; Schema: public; Owner: giventa_event_management
---
-
-CREATE TABLE public.event_admin_audit_log (
-    id bigint DEFAULT nextval('public.sequence_generator'::regclass) NOT NULL,
-    tenant_id character varying(255),
-    action character varying(255) NOT NULL,
-    table_name character varying(255) NOT NULL,
-    record_id character varying(255) NOT NULL,
-    changes jsonb,
-    old_values jsonb,
-    new_values jsonb,
-    ip_address inet,
-    user_agent text,
-    session_id character varying(255),
-    created_at timestamp without time zone DEFAULT now() NOT NULL,
-    admin_id bigint
-);
-
-
-ALTER TABLE public.event_admin_audit_log OWNER TO giventa_event_management;
-
---
--- TOC entry 3932 (class 0 OID 0)
--- Dependencies: 249
--- Name: TABLE event_admin_audit_log; Type: COMMENT; Schema: public; Owner: giventa_event_management
---
-
-COMMENT ON TABLE public.event_admin_audit_log IS 'Comprehensive audit logging for all admin actions';
-
-
---
--- TOC entry 248 (class 1259 OID 83101)
--- Name: event_attendee; Type: TABLE; Schema: public; Owner: giventa_event_management
---
-
-CREATE TABLE public.event_attendee (
-    id bigint DEFAULT nextval('public.sequence_generator'::regclass) NOT NULL,
-    tenant_id character varying(255),
-    event_id bigint NOT NULL,
-    attendee_id bigint NOT NULL,
-    registration_status character varying(20) DEFAULT 'PENDING'::character varying NOT NULL,
-    registration_date timestamp without time zone DEFAULT now() NOT NULL,
-    confirmation_date timestamp without time zone,
-    cancellation_date timestamp without time zone,
-    cancellation_reason text,
-    attendee_type character varying(50) DEFAULT 'MEMBER'::character varying,
-    special_requirements text,
-    dietary_restrictions text,
-    accessibility_needs text,
-    emergency_contact_name character varying(255),
-    emergency_contact_phone character varying(50),
-    emergency_contact_relationship character varying(100),
-    check_in_status character varying(20) DEFAULT 'NOT_CHECKED_IN'::character varying,
-    check_in_time timestamp without time zone,
-    check_out_time timestamp without time zone,
-    attendance_rating integer,
-    feedback text,
-    notes text,
-    qr_code_data character varying(1000),
-    qr_code_generated boolean DEFAULT false,
-    qr_code_generated_at timestamp without time zone,
-    registration_source character varying(100) DEFAULT 'DIRECT'::character varying,
-    waitlist_position integer,
-    priority_score integer DEFAULT 0,
-    created_at timestamp without time zone DEFAULT now() NOT NULL,
-    updated_at timestamp without time zone DEFAULT now() NOT NULL,
-    CONSTRAINT check_waitlist_position_positive CHECK (((waitlist_position IS NULL) OR (waitlist_position > 0))),
-    CONSTRAINT event_attendee_attendance_rating_check CHECK (((attendance_rating >= 1) AND (attendance_rating <= 5))),
-    first_name character varying(255),
-    last_name character varying(255),
-    email character varying(255),
-    phone character varying(255),
-    is_member boolean
-);
-
-
-ALTER TABLE public.event_attendee OWNER TO giventa_event_management;
-
---
--- TOC entry 3934 (class 0 OID 0)
--- Dependencies: 248
--- Name: TABLE event_attendee; Type: COMMENT; Schema: public; Owner: giventa_event_management
---
-
-COMMENT ON TABLE public.event_attendee IS 'Enhanced event registration and attendance tracking with QR code support';
-
-
---
--- TOC entry 3935 (class 0 OID 0)
--- Dependencies: 248
--- Name: COLUMN event_attendee.qr_code_data; Type: COMMENT; Schema: public; Owner: giventa_event_management
---
-
-COMMENT ON COLUMN public.event_attendee.qr_code_data IS 'QR code data for check-in (auto-generated)';
-
-
---
--- TOC entry 3936 (class 0 OID 0)
--- Dependencies: 248
--- Name: COLUMN event_attendee.qr_code_generated; Type: COMMENT; Schema: public; Owner: giventa_event_management
---
-
-COMMENT ON COLUMN public.event_attendee.qr_code_generated IS 'Whether QR code has been generated for this attendee';
-
-
---
--- TOC entry 3937 (class 0 OID 0)
--- Dependencies: 248
--- Name: COLUMN event_attendee.qr_code_generated_at; Type: COMMENT; Schema: public; Owner: giventa_event_management
---
-
-COMMENT ON COLUMN public.event_attendee.qr_code_generated_at IS 'Timestamp when QR code was generated';
-
-
---
--- TOC entry 250 (class 1259 OID 83131)
--- Name: event_attendee_guest; Type: TABLE; Schema: public; Owner: giventa_event_management
---
-
-CREATE TABLE public.event_attendee_guest (
-    id bigint DEFAULT nextval('public.sequence_generator'::regclass) NOT NULL,
-    tenant_id character varying(255),
-    primary_attendee_id bigint NOT NULL,
-    age_group character varying(20) NOT NULL,
-    relationship character varying(20),
-    special_requirements text,
-    dietary_restrictions text,
-    accessibility_needs text,
-    registration_status character varying(20) DEFAULT 'PENDING'::character varying,
-    check_in_status character varying(20) DEFAULT 'NOT_CHECKED_IN'::character varying,
-    check_in_time timestamp without time zone,
-    check_out_time timestamp without time zone,
-    approval_status character varying(50) DEFAULT 'PENDING'::character varying,
-    approved_by_id bigint,
-    approved_at timestamp without time zone,
-    rejection_reason text,
-    pricing_tier character varying(100),
-    fee_amount numeric(21,2) DEFAULT 0,
-    payment_status character varying(50) DEFAULT 'PENDING'::character varying,
-    notes text,
-    created_at timestamp without time zone DEFAULT now() NOT NULL,
-    updated_at timestamp without time zone DEFAULT now() NOT NULL,
-    CONSTRAINT check_guest_fee_non_negative CHECK ((fee_amount >= (0)::numeric)),
-    first_name character varying(255),
-    last_name character varying(255),
-    email character varying(255),
-    phone character varying(255)
-);
-
-
-ALTER TABLE public.event_attendee_guest OWNER TO giventa_event_management;
-
---
--- TOC entry 3939 (class 0 OID 0)
--- Dependencies: 250
--- Name: TABLE event_attendee_guest; Type: COMMENT; Schema: public; Owner: giventa_event_management
---
-
-COMMENT ON TABLE public.event_attendee_guest IS 'Guest registrations linked to primary attendees using JDL enum types';
-
-
---
--- TOC entry 3940 (class 0 OID 0)
--- Dependencies: 250
--- Name: COLUMN event_attendee_guest.age_group; Type: COMMENT; Schema: public; Owner: giventa_event_management
---
-
-COMMENT ON COLUMN public.event_attendee_guest.age_group IS 'Guest age group: ADULT, TEEN, CHILD, INFANT';
-
-
---
--- TOC entry 3941 (class 0 OID 0)
--- Dependencies: 250
--- Name: COLUMN event_attendee_guest.relationship; Type: COMMENT; Schema: public; Owner: giventa_event_management
---
-
-COMMENT ON COLUMN public.event_attendee_guest.relationship IS 'Relationship to primary attendee';
-
-
---
--- TOC entry 247 (class 1259 OID 83088)
--- Name: event_calendar_entry; Type: TABLE; Schema: public; Owner: giventa_event_management
---
-
-CREATE TABLE public.event_calendar_entry (
-    id bigint DEFAULT nextval('public.sequence_generator'::regclass) NOT NULL,
-    tenant_id character varying(255),
-    calendar_provider character varying(255) NOT NULL,
-    external_event_id character varying(255),
-    calendar_link character varying(2048) NOT NULL,
-    sync_status character varying(50) DEFAULT 'PENDING'::character varying,
-    last_sync_at timestamp without time zone,
-    sync_error_message text,
-    created_at timestamp without time zone DEFAULT now() NOT NULL,
-    updated_at timestamp without time zone DEFAULT now() NOT NULL,
-    event_id bigint,
-    created_by_id bigint
-);
-
-
-ALTER TABLE public.event_calendar_entry OWNER TO giventa_event_management;
-
---
--- TOC entry 234 (class 1259 OID 82865)
--- Name: event_details; Type: TABLE; Schema: public; Owner: giventa_event_management
---
-
-CREATE TABLE public.event_details (
-    id bigint DEFAULT nextval('public.sequence_generator'::regclass) NOT NULL,
-    tenant_id character varying(255),
-    title character varying(255) NOT NULL,
-    caption character varying(500),
-    description text,
-    start_date date NOT NULL,
-    end_date date NOT NULL,
-    start_time character varying(100) NOT NULL,
-    end_time character varying(100) NOT NULL,
-    location character varying(500),
-    directions_to_venue text,
-    capacity integer,
-    admission_type character varying(50),
-    is_active boolean DEFAULT true,
-    max_guests_per_attendee integer DEFAULT 0,
-    allow_guests boolean DEFAULT false,
-    require_guest_approval boolean DEFAULT false,
-    enable_guest_pricing boolean DEFAULT false,
-    registration_deadline timestamp without time zone,
-    cancellation_deadline timestamp without time zone,
-    minimum_age integer,
-    maximum_age integer,
-    requires_approval boolean DEFAULT false,
-    enable_waitlist boolean DEFAULT true,
-    external_registration_url character varying(1024),
-    created_by_id bigint,
-    event_type_id bigint,
-    created_at timestamp without time zone DEFAULT now() NOT NULL,
-    updated_at timestamp without time zone DEFAULT now() NOT NULL,
-    is_registration_required boolean DEFAULT false,
-    is_sports_event boolean DEFAULT false,
-    is_live boolean DEFAULT false,
-    CONSTRAINT check_age_ranges CHECK (((minimum_age IS NULL) OR (maximum_age IS NULL) OR (maximum_age >= minimum_age))),
-    CONSTRAINT check_capacity_positive CHECK (((capacity IS NULL) OR (capacity > 0))),
-    CONSTRAINT check_deadlines CHECK (((registration_deadline IS NULL) OR (cancellation_deadline IS NULL) OR (cancellation_deadline <= registration_deadline))),
-    CONSTRAINT check_event_dates CHECK ((end_date >= start_date)),
-    CONSTRAINT event_details_max_guests_per_attendee_check CHECK ((max_guests_per_attendee >= 0))
-);
-
-
-ALTER TABLE public.event_details OWNER TO giventa_event_management;
-
---
--- TOC entry 3944 (class 0 OID 0)
--- Dependencies: 234
--- Name: TABLE event_details; Type: COMMENT; Schema: public; Owner: giventa_event_management
---
-
-COMMENT ON TABLE public.event_details IS 'Enhanced event details with guest management and validation';
-
-
---
--- TOC entry 3945 (class 0 OID 0)
--- Dependencies: 234
--- Name: COLUMN event_details.max_guests_per_attendee; Type: COMMENT; Schema: public; Owner: giventa_event_management
---
-
-COMMENT ON COLUMN public.event_details.max_guests_per_attendee IS 'Maximum number of guests allowed per primary attendee';
-
-
---
--- TOC entry 3946 (class 0 OID 0)
--- Dependencies: 234
--- Name: COLUMN event_details.allow_guests; Type: COMMENT; Schema: public; Owner: giventa_event_management
---
-
-COMMENT ON COLUMN public.event_details.allow_guests IS 'Whether guest registrations are allowed for this event';
-
-
---
--- TOC entry 3947 (class 0 OID 0)
--- Dependencies: 234
--- Name: COLUMN event_details.require_guest_approval; Type: COMMENT; Schema: public; Owner: giventa_event_management
---
-
-COMMENT ON COLUMN public.event_details.require_guest_approval IS 'Whether guest registrations require admin approval';
-
-
---
--- TOC entry 3948 (class 0 OID 0)
--- Dependencies: 234
--- Name: COLUMN event_details.enable_guest_pricing; Type: COMMENT; Schema: public; Owner: giventa_event_management
---
-
-COMMENT ON COLUMN public.event_details.enable_guest_pricing IS 'Whether special pricing applies to guests';
-
-
---
--- TOC entry 3949 (class 0 OID 0)
--- Dependencies: 234
--- Name: COLUMN event_details.is_registration_required; Type: COMMENT; Schema: public; Owner: giventa_event_management
---
-
-COMMENT ON COLUMN public.event_details.is_registration_required IS 'Whether formal registration is required for this event';
-
-
---
--- TOC entry 3950 (class 0 OID 0)
--- Dependencies: 234
--- Name: COLUMN event_details.is_sports_event; Type: COMMENT; Schema: public; Owner: giventa_event_management
---
-
-COMMENT ON COLUMN public.event_details.is_sports_event IS 'Whether this event is a sports event';
-
-
---
--- TOC entry 3951 (class 0 OID 0)
--- Dependencies: 234
--- Name: COLUMN event_details.is_live; Type: COMMENT; Schema: public; Owner: giventa_event_management
---
-
-COMMENT ON COLUMN public.event_details.is_live IS 'Whether this event is currently live and should be featured on the home page';
-
-
---
--- TOC entry 253 (class 1259 OID 83390)
--- Name: event_discount_code; Type: TABLE; Schema: public; Owner: giventa_event_management
---
-
-CREATE TABLE public.event_discount_code (
-    event_id bigint NOT NULL,
-    discount_code_id bigint NOT NULL
-);
-
-
-ALTER TABLE public.event_discount_code OWNER TO giventa_event_management;
+INSERT INTO public.bulk_operation_log VALUES (1, 'tenant_demo_001', 'IMPORT', 'Import Users', 1, 100, 98, 1, 1, 'Imported users', NULL, 5000, '2025-06-22 11:31:27.770938', '2025-06-22 11:31:27.770938');
+INSERT INTO public.bulk_operation_log VALUES (2, 'tenant_demo_001', 'EXPORT', 'Export Events', 2, 50, 50, 0, 0, 'Exported events', NULL, 2000, '2025-06-22 11:31:27.770938', '2025-06-22 11:31:27.770938');
+INSERT INTO public.bulk_operation_log VALUES (3, 'tenant_demo_001', 'SYNC', 'Sync Calendar', 3, 20, 19, 1, 0, 'Synced calendar', '1 error', 1000, '2025-06-22 11:31:27.770938', '2025-06-22 11:31:27.770938');
+INSERT INTO public.bulk_operation_log VALUES (4, 'tenant_demo_001', 'DELETE', 'Delete Old Data', 4, 10, 10, 0, 0, 'Deleted old data', NULL, 500, '2025-06-22 11:31:27.770938', '2025-06-22 11:31:27.770938');
+INSERT INTO public.bulk_operation_log VALUES (5, 'tenant_demo_001', 'UPDATE', 'Update Settings', 5, 5, 5, 0, 0, 'Updated settings', NULL, 100, '2025-06-22 11:31:27.770938', '2025-06-22 11:31:27.770938');
+INSERT INTO public.bulk_operation_log VALUES (6, 'tenant_demo_001', 'IMPORT', 'Import Events', 6, 60, 59, 1, 0, 'Imported events', '1 error', 3000, '2025-06-22 11:31:27.770938', '2025-06-22 11:31:27.770938');
 
---
--- TOC entry 3953 (class 0 OID 0)
--- Dependencies: 253
--- Name: TABLE event_discount_code; Type: COMMENT; Schema: public; Owner: giventa_event_management
---
-
-COMMENT ON TABLE public.event_discount_code IS 'Links discount codes to events';
-
-
---
--- TOC entry 251 (class 1259 OID 83147)
--- Name: event_guest_pricing; Type: TABLE; Schema: public; Owner: giventa_event_management
---
-
-CREATE TABLE public.event_guest_pricing (
-    id bigint DEFAULT nextval('public.sequence_generator'::regclass) NOT NULL,
-    tenant_id character varying(255),
-    event_id bigint NOT NULL,
-    age_group character varying(20) NOT NULL,
-    price numeric(21,2) DEFAULT 0.00 NOT NULL,
-    is_active boolean DEFAULT true,
-    valid_from date,
-    valid_to date,
-    description character varying(255),
-    max_guests integer,
-    pricing_tier character varying(100),
-    early_bird_price numeric(21,2),
-    early_bird_deadline timestamp without time zone,
-    group_discount_threshold integer,
-    group_discount_percentage numeric(5,2),
-    created_at timestamp without time zone DEFAULT now() NOT NULL,
-    updated_at timestamp without time zone DEFAULT now() NOT NULL,
-    CONSTRAINT check_group_discount_threshold CHECK (((group_discount_threshold IS NULL) OR (group_discount_threshold > 1))),
-    CONSTRAINT check_guest_pricing_amounts CHECK (((price >= (0)::numeric) AND ((early_bird_price IS NULL) OR (early_bird_price >= (0)::numeric)) AND ((group_discount_percentage IS NULL) OR ((group_discount_percentage >= (0)::numeric) AND (group_discount_percentage <= (100)::numeric))))),
-    CONSTRAINT check_max_guests_positive CHECK (((max_guests IS NULL) OR (max_guests > 0))),
-    CONSTRAINT check_valid_date_range CHECK (((valid_from IS NULL) OR (valid_to IS NULL) OR (valid_to >= valid_from))),
-    CONSTRAINT event_guest_pricing_price_check CHECK ((price >= (0)::numeric))
-);
-
-
-ALTER TABLE public.event_guest_pricing OWNER TO giventa_event_management;
-
---
--- TOC entry 3955 (class 0 OID 0)
--- Dependencies: 251
--- Name: TABLE event_guest_pricing; Type: COMMENT; Schema: public; Owner: giventa_event_management
---
-
-COMMENT ON TABLE public.event_guest_pricing IS 'Flexible pricing structure for event guests with JDL validation';
-
-
---
--- TOC entry 3956 (class 0 OID 0)
--- Dependencies: 251
--- Name: COLUMN event_guest_pricing.price; Type: COMMENT; Schema: public; Owner: giventa_event_management
---
-
-COMMENT ON COLUMN public.event_guest_pricing.price IS 'Guest price (required, minimum 0)';
-
 
 --
--- TOC entry 3957 (class 0 OID 0)
--- Dependencies: 251
--- Name: COLUMN event_guest_pricing.is_active; Type: COMMENT; Schema: public; Owner: giventa_event_management
+-- TOC entry 3958 (class 0 OID 189005)
+-- Dependencies: 256
+-- Data for Name: communication_campaign; Type: TABLE DATA; Schema: public; Owner: giventa_event_management
 --
-
-COMMENT ON COLUMN public.event_guest_pricing.is_active IS 'Whether this pricing is currently active';
-
-
---
--- TOC entry 3958 (class 0 OID 0)
--- Dependencies: 251
--- Name: COLUMN event_guest_pricing.valid_from; Type: COMMENT; Schema: public; Owner: giventa_event_management
---
-
-COMMENT ON COLUMN public.event_guest_pricing.valid_from IS 'Start date for pricing validity';
-
-
---
--- TOC entry 3959 (class 0 OID 0)
--- Dependencies: 251
--- Name: COLUMN event_guest_pricing.valid_to; Type: COMMENT; Schema: public; Owner: giventa_event_management
---
-
-COMMENT ON COLUMN public.event_guest_pricing.valid_to IS 'End date for pricing validity';
-
-
---
--- TOC entry 3960 (class 0 OID 0)
--- Dependencies: 251
--- Name: COLUMN event_guest_pricing.description; Type: COMMENT; Schema: public; Owner: giventa_event_management
---
-
-COMMENT ON COLUMN public.event_guest_pricing.description IS 'Pricing description (max 255 chars)';
-
-
---
--- TOC entry 220 (class 1259 OID 77428)
--- Name: event_live_update; Type: TABLE; Schema: public; Owner: giventa_event_management
---
-
-CREATE TABLE public.event_live_update (
-    id bigint NOT NULL,
-    event_id bigint NOT NULL,
-    update_type character varying(20) NOT NULL,
-    content_text text,
-    content_image_url character varying(1024),
-    content_video_url character varying(1024),
-    content_link_url character varying(1024),
-    metadata jsonb,
-    display_order integer DEFAULT 0,
-    is_default boolean DEFAULT false,
-    created_at timestamp without time zone DEFAULT now(),
-    updated_at timestamp without time zone DEFAULT now()
-);
 
 
-ALTER TABLE public.event_live_update OWNER TO giventa_event_management;
 
 --
--- TOC entry 3962 (class 0 OID 0)
+-- TOC entry 3922 (class 0 OID 188344)
 -- Dependencies: 220
--- Name: TABLE event_live_update; Type: COMMENT; Schema: public; Owner: giventa_event_management
+-- Data for Name: databasechangelog; Type: TABLE DATA; Schema: public; Owner: giventa_event_management
 --
 
-COMMENT ON TABLE public.event_live_update IS 'Live updates (text, image, video, etc.) for events';
-
-
---
--- TOC entry 222 (class 1259 OID 77446)
--- Name: event_live_update_attachment; Type: TABLE; Schema: public; Owner: giventa_event_management
---
-
-CREATE TABLE public.event_live_update_attachment (
-    id bigint NOT NULL,
-    live_update_id bigint NOT NULL,
-    attachment_type character varying(20),
-    attachment_url character varying(1024),
-    display_order integer DEFAULT 0,
-    metadata jsonb,
-    created_at timestamp without time zone DEFAULT now(),
-    updated_at timestamp without time zone DEFAULT now()
-);
-
-
-ALTER TABLE public.event_live_update_attachment OWNER TO giventa_event_management;
-
---
--- TOC entry 3963 (class 0 OID 0)
--- Dependencies: 222
--- Name: TABLE event_live_update_attachment; Type: COMMENT; Schema: public; Owner: giventa_event_management
---
-
-COMMENT ON TABLE public.event_live_update_attachment IS 'Attachments (image, video, etc.) for live event updates';
+INSERT INTO public.databasechangelog VALUES ('1', 'admin', 'changelog1.sql', '2025-06-22 11:31:27.814868', 1, 'EXECUTED', 'abc123', 'Initial', NULL, NULL, '3.8.0', NULL, NULL, 'dep1');
+INSERT INTO public.databasechangelog VALUES ('2', 'admin', 'changelog2.sql', '2025-06-22 11:31:27.814868', 2, 'EXECUTED', 'def456', 'Add tables', NULL, NULL, '3.8.0', NULL, NULL, 'dep1');
+INSERT INTO public.databasechangelog VALUES ('3', 'admin', 'changelog3.sql', '2025-06-22 11:31:27.814868', 3, 'EXECUTED', 'ghi789', 'Add data', NULL, NULL, '3.8.0', NULL, NULL, 'dep1');
+INSERT INTO public.databasechangelog VALUES ('4', 'admin', 'changelog4.sql', '2025-06-22 11:31:27.814868', 4, 'EXECUTED', 'jkl012', 'Update schema', NULL, NULL, '3.8.0', NULL, NULL, 'dep1');
+INSERT INTO public.databasechangelog VALUES ('5', 'admin', 'changelog5.sql', '2025-06-22 11:31:27.814868', 5, 'EXECUTED', 'mno345', 'Patch', NULL, NULL, '3.8.0', NULL, NULL, 'dep1');
+INSERT INTO public.databasechangelog VALUES ('6', 'admin', 'changelog6.sql', '2025-06-22 11:31:27.814868', 6, 'EXECUTED', 'pqr678', 'Hotfix', NULL, NULL, '3.8.0', NULL, NULL, 'dep1');
 
 
 --
--- TOC entry 221 (class 1259 OID 77445)
--- Name: event_live_update_attachment_id_seq; Type: SEQUENCE; Schema: public; Owner: giventa_event_management
---
-
-CREATE SEQUENCE public.event_live_update_attachment_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER SEQUENCE public.event_live_update_attachment_id_seq OWNER TO giventa_event_management;
-
---
--- TOC entry 3964 (class 0 OID 0)
+-- TOC entry 3923 (class 0 OID 188349)
 -- Dependencies: 221
--- Name: event_live_update_attachment_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: giventa_event_management
+-- Data for Name: databasechangeloglock; Type: TABLE DATA; Schema: public; Owner: giventa_event_management
 --
 
-ALTER SEQUENCE public.event_live_update_attachment_id_seq OWNED BY public.event_live_update_attachment.id;
-
-
---
--- TOC entry 219 (class 1259 OID 77427)
--- Name: event_live_update_id_seq; Type: SEQUENCE; Schema: public; Owner: giventa_event_management
---
-
-CREATE SEQUENCE public.event_live_update_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER SEQUENCE public.event_live_update_id_seq OWNER TO giventa_event_management;
-
---
--- TOC entry 3965 (class 0 OID 0)
--- Dependencies: 219
--- Name: event_live_update_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: giventa_event_management
---
-
-ALTER SEQUENCE public.event_live_update_id_seq OWNED BY public.event_live_update.id;
+INSERT INTO public.databasechangeloglock VALUES (1, false, '2025-06-22 11:31:27.859976', 'admin1');
+INSERT INTO public.databasechangeloglock VALUES (2, false, '2025-06-22 11:31:27.859976', 'admin2');
+INSERT INTO public.databasechangeloglock VALUES (3, false, '2025-06-22 11:31:27.859976', 'admin3');
+INSERT INTO public.databasechangeloglock VALUES (4, false, '2025-06-22 11:31:27.859976', 'admin4');
+INSERT INTO public.databasechangeloglock VALUES (5, false, '2025-06-22 11:31:27.859976', 'admin5');
+INSERT INTO public.databasechangeloglock VALUES (6, false, '2025-06-22 11:31:27.859976', 'admin6');
 
 
 --
--- TOC entry 246 (class 1259 OID 83070)
--- Name: event_media; Type: TABLE; Schema: public; Owner: giventa_event_management
---
-
-CREATE TABLE public.event_media (
-    id bigint DEFAULT nextval('public.sequence_generator'::regclass) NOT NULL,
-    tenant_id character varying(255),
-    title character varying(255) NOT NULL,
-    description text,
-    event_media_type character varying(255) NOT NULL,
-    storage_type character varying(255) NOT NULL,
-    file_url character varying(2048),
-    file_data oid,
-    file_data_content_type character varying(255),
-    content_type character varying(255),
-    file_size bigint,
-    is_public boolean DEFAULT true,
-    event_flyer boolean DEFAULT false,
-    is_event_management_official_document boolean DEFAULT false,
-    pre_signed_url character varying(2048),
-    pre_signed_url_expires_at timestamp without time zone,
-    alt_text character varying(500),
-    display_order integer DEFAULT 0,
-    download_count integer DEFAULT 0,
-    is_featured boolean DEFAULT false,
-    is_hero_image boolean DEFAULT false,
-    is_active_hero_image boolean DEFAULT false,
-    created_at timestamp without time zone DEFAULT now() NOT NULL,
-    updated_at timestamp without time zone DEFAULT now() NOT NULL,
-    event_id bigint,
-    uploaded_by_id bigint,
-    CONSTRAINT check_download_count_non_negative CHECK ((download_count >= 0)),
-    CONSTRAINT check_file_size_positive CHECK (((file_size IS NULL) OR (file_size >= 0)))
-);
-
-ALTER TABLE public.event_media OWNER TO giventa_event_management;
-
---
--- TOC entry 3966 (class 0 OID 0)
--- Dependencies: 246
--- Name: COLUMN event_media.pre_signed_url; Type: COMMENT; Schema: public; Owner: giventa_event_management
---
-
-COMMENT ON COLUMN public.event_media.pre_signed_url IS 'Pre-signed URL for temporary access (max length 2048 chars)';
-
-
---
--- TOC entry 239 (class 1259 OID 82951)
--- Name: event_organizer; Type: TABLE; Schema: public; Owner: giventa_event_management
---
-
-CREATE TABLE public.event_organizer (
-    id bigint DEFAULT nextval('public.sequence_generator'::regclass) NOT NULL,
-    tenant_id character varying(255),
-    title character varying(255) NOT NULL,
-    designation character varying(255),
-    contact_email character varying(255),
-    contact_phone character varying(255),
-    is_primary boolean DEFAULT false,
-    display_order integer DEFAULT 0,
-    bio text,
-    profile_image_url character varying(1024),
-    created_at timestamp without time zone DEFAULT now() NOT NULL,
-    updated_at timestamp without time zone DEFAULT now() NOT NULL,
-    event_id bigint,
-    organizer_id bigint,
-    CONSTRAINT check_contact_email_format CHECK (((contact_email IS NULL) OR ((contact_email)::text ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'::text)))
-);
-
-
-ALTER TABLE public.event_organizer OWNER TO giventa_event_management;
-
---
--- TOC entry 243 (class 1259 OID 83028)
--- Name: event_poll; Type: TABLE; Schema: public; Owner: giventa_event_management
---
-
-CREATE TABLE public.event_poll (
-    id bigint DEFAULT nextval('public.sequence_generator'::regclass) NOT NULL,
-    tenant_id character varying(255),
-    title character varying(255) NOT NULL,
-    description text,
-    is_active boolean DEFAULT true,
-    is_anonymous boolean DEFAULT false,
-    allow_multiple_choices boolean DEFAULT false,
-    start_date timestamp without time zone NOT NULL,
-    end_date timestamp without time zone,
-    max_responses_per_user integer DEFAULT 1,
-    results_visible_to character varying(50) DEFAULT 'ALL'::character varying,
-    created_at timestamp without time zone DEFAULT now() NOT NULL,
-    updated_at timestamp without time zone DEFAULT now() NOT NULL,
-    event_id bigint,
-    created_by_id bigint,
-    CONSTRAINT check_max_responses_positive CHECK ((max_responses_per_user > 0)),
-    CONSTRAINT check_poll_dates CHECK (((end_date IS NULL) OR (end_date >= start_date)))
-);
-
-
-ALTER TABLE public.event_poll OWNER TO giventa_event_management;
-
---
--- TOC entry 244 (class 1259 OID 83045)
--- Name: event_poll_option; Type: TABLE; Schema: public; Owner: giventa_event_management
---
-
-CREATE TABLE public.event_poll_option (
-    id bigint DEFAULT nextval('public.sequence_generator'::regclass) NOT NULL,
-    tenant_id character varying(255),
-    option_text character varying(500) NOT NULL,
-    display_order integer DEFAULT 0,
-    is_active boolean DEFAULT true,
-    created_at timestamp without time zone DEFAULT now() NOT NULL,
-    updated_at timestamp without time zone DEFAULT now() NOT NULL,
-    poll_id bigint
-);
-
-
-ALTER TABLE public.event_poll_option OWNER TO giventa_event_management;
-
---
--- TOC entry 245 (class 1259 OID 83057)
--- Name: event_poll_response; Type: TABLE; Schema: public; Owner: giventa_event_management
---
-
-CREATE TABLE public.event_poll_response (
-    id bigint DEFAULT nextval('public.sequence_generator'::regclass) NOT NULL,
-    tenant_id character varying(255),
-    comment text,
-    response_value character varying(1000),
-    is_anonymous boolean DEFAULT false,
-    created_at timestamp without time zone DEFAULT now() NOT NULL,
-    updated_at timestamp without time zone DEFAULT now() NOT NULL,
-    poll_id bigint,
-    poll_option_id bigint,
-    user_id bigint
-);
-
-
-ALTER TABLE public.event_poll_response OWNER TO giventa_event_management;
-
---
--- TOC entry 216 (class 1259 OID 77393)
--- Name: event_score_card; Type: TABLE; Schema: public; Owner: giventa_event_management
---
-
-CREATE TABLE public.event_score_card (
-    id bigint NOT NULL,
-    event_id bigint NOT NULL,
-    team_a_name character varying(255) NOT NULL,
-    team_b_name character varying(255) NOT NULL,
-    team_a_score integer DEFAULT 0 NOT NULL,
-    team_b_score integer DEFAULT 0 NOT NULL,
-    remarks text,
-    created_at timestamp without time zone DEFAULT now(),
-    updated_at timestamp without time zone DEFAULT now()
-);
-
-
-ALTER TABLE public.event_score_card OWNER TO giventa_event_management;
-
---
--- TOC entry 3972 (class 0 OID 0)
--- Dependencies: 216
--- Name: TABLE event_score_card; Type: COMMENT; Schema: public; Owner: giventa_event_management
---
-
-COMMENT ON TABLE public.event_score_card IS 'Score card for sports events';
-
-
---
--- TOC entry 218 (class 1259 OID 77411)
--- Name: event_score_card_detail; Type: TABLE; Schema: public; Owner: giventa_event_management
---
-
-CREATE TABLE public.event_score_card_detail (
-    id bigint NOT NULL,
-    score_card_id bigint NOT NULL,
-    team_name character varying(255) NOT NULL,
-    player_name character varying(255),
-    points integer DEFAULT 0 NOT NULL,
-    remarks text,
-    created_at timestamp without time zone DEFAULT now(),
-    updated_at timestamp without time zone DEFAULT now()
-);
-
-
-ALTER TABLE public.event_score_card_detail OWNER TO giventa_event_management;
-
---
--- TOC entry 3973 (class 0 OID 0)
--- Dependencies: 218
--- Name: TABLE event_score_card_detail; Type: COMMENT; Schema: public; Owner: giventa_event_management
---
-
-COMMENT ON TABLE public.event_score_card_detail IS 'Detailed breakdown for event score cards (per player or per team)';
-
-
---
--- TOC entry 217 (class 1259 OID 77410)
--- Name: event_score_card_detail_id_seq; Type: SEQUENCE; Schema: public; Owner: giventa_event_management
---
-
-CREATE SEQUENCE public.event_score_card_detail_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER SEQUENCE public.event_score_card_detail_id_seq OWNER TO giventa_event_management;
-
---
--- TOC entry 3974 (class 0 OID 0)
--- Dependencies: 217
--- Name: event_score_card_detail_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: giventa_event_management
---
-
-ALTER SEQUENCE public.event_score_card_detail_id_seq OWNED BY public.event_score_card_detail.id;
-
-
---
--- TOC entry 215 (class 1259 OID 77392)
--- Name: event_score_card_id_seq; Type: SEQUENCE; Schema: public; Owner: giventa_event_management
---
-
-CREATE SEQUENCE public.event_score_card_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER SEQUENCE public.event_score_card_id_seq OWNER TO giventa_event_management;
-
---
--- TOC entry 3975 (class 0 OID 0)
--- Dependencies: 215
--- Name: event_score_card_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: giventa_event_management
---
-
-ALTER SEQUENCE public.event_score_card_id_seq OWNED BY public.event_score_card.id;
-
-
---
--- TOC entry 241 (class 1259 OID 82986)
--- Name: event_ticket_transaction; Type: TABLE; Schema: public; Owner: giventa_event_management
---
-
-CREATE TABLE public.event_ticket_transaction (
-    id bigint DEFAULT nextval('public.sequence_generator'::regclass) NOT NULL,
-    tenant_id character varying(255),
-    transaction_reference character varying(255),
-    email character varying(255) NOT NULL,
-    first_name character varying(255),
-    last_name character varying(255),
-    phone character varying(255),
-    quantity integer NOT NULL,
-    price_per_unit numeric(21,2) NOT NULL,
-    total_amount numeric(21,2) NOT NULL,
-    tax_amount numeric(21,2) DEFAULT 0,
-    fee_amount numeric(21,2) DEFAULT 0,
-    discount_code_id bigint,
-    discount_amount numeric(21,2) DEFAULT 0,
-    final_amount numeric(21,2) NOT NULL,
-    status character varying(255) DEFAULT 'PENDING'::character varying NOT NULL,
-    payment_method character varying(100),
-    payment_reference character varying(255),
-    purchase_date timestamp without time zone NOT NULL,
-    confirmation_sent_at timestamp without time zone,
-    refund_amount numeric(21,2) DEFAULT 0,
-    refund_date timestamp without time zone,
-    refund_reason text,
-    created_at timestamp without time zone DEFAULT now() NOT NULL,
-    updated_at timestamp without time zone DEFAULT now() NOT NULL,
-    event_id bigint,
-    ticket_type_id bigint,
-    user_id bigint,
-    CONSTRAINT check_email_format_transaction CHECK (((email)::text ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'::text)),
-    CONSTRAINT check_transaction_amounts CHECK (((total_amount >= (0)::numeric) AND (tax_amount >= (0)::numeric) AND (fee_amount >= (0)::numeric) AND (discount_amount >= (0)::numeric) AND (refund_amount >= (0)::numeric) AND (final_amount >= (0)::numeric) AND (quantity > 0)))
-);
-
-
-ALTER TABLE public.event_ticket_transaction OWNER TO giventa_event_management;
-
---
--- TOC entry 3976 (class 0 OID 0)
--- Dependencies: 241
--- Name: COLUMN event_ticket_transaction.discount_code_id; Type: COMMENT; Schema: public; Owner: giventa_event_management
---
-
-COMMENT ON COLUMN public.event_ticket_transaction.discount_code_id IS 'Discount code used for this ticket purchase';
-
-
---
--- TOC entry 3977 (class 0 OID 0)
--- Dependencies: 241
--- Name: COLUMN event_ticket_transaction.discount_amount; Type: COMMENT; Schema: public; Owner: giventa_event_management
---
-
-COMMENT ON COLUMN public.event_ticket_transaction.discount_amount IS 'Discount amount applied to this ticket purchase';
-
-
---
--- TOC entry 240 (class 1259 OID 82964)
--- Name: event_ticket_type; Type: TABLE; Schema: public; Owner: giventa_event_management
---
-
-CREATE TABLE public.event_ticket_type (
-    id bigint DEFAULT nextval('public.sequence_generator'::regclass) NOT NULL,
-    tenant_id character varying(255),
-    name character varying(255) NOT NULL,
-    description text,
-    price numeric(21,2) NOT NULL,
-    is_service_fee_included boolean DEFAULT false,
-    service_fee numeric(21,2) NOT NULL,
-    code character varying(255) NOT NULL,
-    available_quantity integer,
-    sold_quantity integer DEFAULT 0,
-    is_active boolean DEFAULT true,
-    sale_start_date timestamp without time zone,
-    sale_end_date timestamp without time zone,
-    min_quantity_per_order integer DEFAULT 1,
-    max_quantity_per_order integer DEFAULT 10,
-    requires_approval boolean DEFAULT false,
-    sort_order integer DEFAULT 0,
-    created_at timestamp without time zone DEFAULT now() NOT NULL,
-    updated_at timestamp without time zone DEFAULT now() NOT NULL,
-    event_id bigint,
-    CONSTRAINT check_price_non_negative CHECK ((price >= (0)::numeric)),
-    CONSTRAINT check_quantities_positive CHECK ((((available_quantity IS NULL) OR (available_quantity >= 0)) AND (sold_quantity >= 0) AND (min_quantity_per_order > 0) AND (max_quantity_per_order >= min_quantity_per_order))),
-    CONSTRAINT check_sale_dates CHECK (((sale_end_date IS NULL) OR (sale_start_date IS NULL) OR (sale_end_date >= sale_start_date))),
-    CONSTRAINT check_sold_vs_available CHECK (((available_quantity IS NULL) OR (sold_quantity <= available_quantity)))
-);
-
-
-ALTER TABLE public.event_ticket_type OWNER TO giventa_event_management;
-
---
--- TOC entry 3979 (class 0 OID 0)
--- Dependencies: 240
--- Name: COLUMN event_ticket_type.sold_quantity; Type: COMMENT; Schema: public; Owner: giventa_event_management
---
-
-COMMENT ON COLUMN public.event_ticket_type.sold_quantity IS 'Number of tickets sold (auto-updated by triggers)';
-
-
---
--- TOC entry 232 (class 1259 OID 82832)
--- Name: event_type_details; Type: TABLE; Schema: public; Owner: giventa_event_management
---
-
-CREATE TABLE public.event_type_details (
-    id bigint DEFAULT nextval('public.sequence_generator'::regclass) NOT NULL,
-    tenant_id character varying(255),
-    name character varying(255) NOT NULL,
-    description text,
-    color character varying(7) DEFAULT '#3B82F6'::character varying,
-    icon character varying(100),
-    is_active boolean DEFAULT true,
-    display_order integer DEFAULT 0,
-    created_at timestamp without time zone DEFAULT now() NOT NULL,
-    updated_at timestamp without time zone DEFAULT now() NOT NULL,
-    CONSTRAINT check_color_format CHECK (((color)::text ~* '^#[0-9A-Fa-f]{6}$'::text))
-);
-
-
-ALTER TABLE public.event_type_details OWNER TO giventa_event_management;
-
---
--- TOC entry 3981 (class 0 OID 0)
--- Dependencies: 232
--- Name: TABLE event_type_details; Type: COMMENT; Schema: public; Owner: giventa_event_management
---
-
-COMMENT ON TABLE public.event_type_details IS 'Event type classifications with visual customization';
-
-
---
--- TOC entry 252 (class 1259 OID 83166)
--- Name: qr_code_usage; Type: TABLE; Schema: public; Owner: giventa_event_management
---
-
-CREATE TABLE public.qr_code_usage (
-    id bigint DEFAULT nextval('public.sequence_generator'::regclass) NOT NULL,
-    tenant_id character varying(255),
-    attendee_id bigint NOT NULL,
-    qr_code_data character varying(1000) NOT NULL,
-    qr_code_type character varying(50) DEFAULT 'CHECK_IN'::character varying,
-    generated_at timestamp without time zone DEFAULT now() NOT NULL,
-    expires_at timestamp without time zone,
-    used_at timestamp without time zone,
-    usage_count integer DEFAULT 0,
-    max_usage_count integer DEFAULT 1,
-    last_scanned_by character varying(255),
-    scan_location character varying(255),
-    device_info text,
-    ip_address inet,
-    is_valid boolean DEFAULT true,
-    invalidated_at timestamp without time zone,
-    invalidation_reason text,
-    created_at timestamp without time zone DEFAULT now() NOT NULL,
-    CONSTRAINT check_usage_counts CHECK (((usage_count >= 0) AND (max_usage_count > 0) AND (usage_count <= max_usage_count)))
-);
-
-
-ALTER TABLE public.qr_code_usage OWNER TO giventa_event_management;
-
---
--- TOC entry 3983 (class 0 OID 0)
+-- TOC entry 3954 (class 0 OID 188717)
 -- Dependencies: 252
--- Name: TABLE qr_code_usage; Type: COMMENT; Schema: public; Owner: giventa_event_management
+-- Data for Name: discount_code; Type: TABLE DATA; Schema: public; Owner: giventa_event_management
 --
 
-COMMENT ON TABLE public.qr_code_usage IS 'Enhanced QR code generation and usage tracking with security features';
+INSERT INTO public.discount_code VALUES (2, 'VIP50', '50% off for VIPs', 'PERCENT', 50.00, 10, 2, '2025-04-01 00:00:00', '2025-08-01 00:00:00', true, '2025-06-22 11:31:27.135034', '2025-06-22 11:31:27.135034', 2, 'tenant_demo_001');
+INSERT INTO public.discount_code VALUES (4, 'EARLYBIRD', 'Early bird discount', 'PERCENT', 20.00, 200, 20, '2025-01-01 00:00:00', '2025-04-10 00:00:00', true, '2025-06-22 11:31:27.135034', '2025-06-22 11:31:27.135034', 4, 'tenant_demo_001');
+INSERT INTO public.discount_code VALUES (5, 'SUMMERFEST', 'Summer Fest special', 'PERCENT', 15.00, 150, 15, '2025-07-01 00:00:00', '2025-08-16 00:00:00', true, '2025-06-22 11:31:27.135034', '2025-06-22 11:31:27.135034', 5, 'tenant_demo_001');
+INSERT INTO public.discount_code VALUES (6, 'FAMILY5', 'Family Picnic 5% off', 'PERCENT', 5.00, 50, 3, '2025-07-01 00:00:00', '2025-07-21 00:00:00', true, '2025-06-22 11:31:27.135034', '2025-06-22 11:31:27.135034', 6, 'tenant_demo_001');
+INSERT INTO public.discount_code VALUES (3, 'FREERUN', 'Free entry for Charity Run', 'FIXED_AMOUNT', 100.00, 50, 10, '2025-05-01 00:00:00', '2025-06-02 00:00:00', true, '2025-06-22 11:31:27.135034', '2025-06-22 11:31:27.135034', 3, 'tenant_demo_001');
+INSERT INTO public.discount_code VALUES (4851, 'SPRING12', 'xcxcxc', 'FIXED_AMOUNT', 4.00, 100, NULL, NULL, NULL, true, '2025-06-23 05:29:02.585', '2025-06-23 05:29:02.585', 1, 'tenant_demo_001');
+INSERT INTO public.discount_code VALUES (1, 'SPRING10', 'string', 'PERCENTAGE', 5.00, 0, 0, '2025-07-06 21:15:01.9', '2025-07-06 21:15:01.9', true, '2025-07-06 21:15:01.9', '2025-07-06 21:15:01.9', 1, 'tenant_demo_001');
+INSERT INTO public.discount_code VALUES (6651, 'fdfdfd', 'dfdfdfd', 'PERCENTAGE', 8.00, 100, NULL, NULL, NULL, true, '2025-07-06 21:48:04.462', '2025-07-06 21:48:16.234', 1, 'tenant_demo_001');
+INSERT INTO public.discount_code VALUES (6652, 'vbvbvb', 'vbvvb', 'PERCENTAGE', 10.00, 100, NULL, NULL, NULL, true, '2025-07-07 03:44:24.207', '2025-07-07 04:14:02.01', 1, 'tenant_demo_001');
 
 
 --
--- TOC entry 223 (class 1259 OID 78121)
--- Name: rel_event_details__discount_codes; Type: TABLE; Schema: public; Owner: giventa_event_management
+-- TOC entry 3959 (class 0 OID 189018)
+-- Dependencies: 257
+-- Data for Name: email_log; Type: TABLE DATA; Schema: public; Owner: giventa_event_management
 --
 
-CREATE TABLE public.rel_event_details__discount_codes (
-    event_details_id bigint NOT NULL,
-    discount_codes_id bigint NOT NULL
-);
 
 
-ALTER TABLE public.rel_event_details__discount_codes OWNER TO giventa_event_management;
-
---
--- TOC entry 3985 (class 0 OID 0)
--- Dependencies: 223
--- Name: TABLE rel_event_details__discount_codes; Type: COMMENT; Schema: public; Owner: giventa_event_management
---
-
-COMMENT ON TABLE public.rel_event_details__discount_codes IS 'Join table for EventDetails <-> DiscountCode many-to-many relationship';
-
-
---
--- TOC entry 229 (class 1259 OID 82779)
--- Name: tenant_organization; Type: TABLE; Schema: public; Owner: giventa_event_management
---
-
-CREATE TABLE public.tenant_organization (
-    id bigint DEFAULT nextval('public.sequence_generator'::regclass) NOT NULL,
-    tenant_id character varying(255) NOT NULL,
-    organization_name character varying(255) NOT NULL,
-    domain character varying(255),
-    primary_color character varying(7),
-    secondary_color character varying(7),
-    logo_url character varying(1024),
-    contact_email character varying(255) NOT NULL,
-    contact_phone character varying(50),
-    subscription_plan character varying(20),
-    subscription_status character varying(20),
-    subscription_start_date date,
-    subscription_end_date date,
-    monthly_fee_usd numeric(21,2),
-    stripe_customer_id character varying(255),
-    is_active boolean DEFAULT true,
-    created_at timestamp without time zone DEFAULT now() NOT NULL,
-    updated_at timestamp without time zone DEFAULT now() NOT NULL,
-    CONSTRAINT check_monthly_fee_positive CHECK ((monthly_fee_usd >= (0)::numeric)),
-    CONSTRAINT check_subscription_dates CHECK (((subscription_end_date IS NULL) OR (subscription_end_date >= subscription_start_date)))
-);
-
-
-ALTER TABLE public.tenant_organization OWNER TO giventa_event_management;
-
---
--- TOC entry 3986 (class 0 OID 0)
--- Dependencies: 229
--- Name: TABLE tenant_organization; Type: COMMENT; Schema: public; Owner: giventa_event_management
---
-
-COMMENT ON TABLE public.tenant_organization IS 'Multi-tenant organization configuration and subscription management';
-
-
---
--- TOC entry 231 (class 1259 OID 82809)
--- Name: tenant_settings; Type: TABLE; Schema: public; Owner: giventa_event_management
---
-
-CREATE TABLE public.tenant_settings (
-    id bigint DEFAULT nextval('public.sequence_generator'::regclass) NOT NULL,
-    tenant_id character varying(255) NOT NULL,
-    allow_user_registration boolean DEFAULT true,
-    require_admin_approval boolean DEFAULT false,
-    enable_whatsapp_integration boolean DEFAULT false,
-    enable_email_marketing boolean DEFAULT false,
-    whatsapp_api_key character varying(500),
-    email_provider_config text,
-    custom_css text,
-    custom_js text,
-    max_events_per_month integer,
-    max_attendees_per_event integer,
-    enable_guest_registration boolean DEFAULT true,
-    max_guests_per_attendee integer DEFAULT 5,
-    default_event_capacity integer DEFAULT 100,
-    created_at timestamp without time zone DEFAULT now() NOT NULL,
-    updated_at timestamp without time zone DEFAULT now() NOT NULL,
-    CONSTRAINT check_default_capacity_positive CHECK (((default_event_capacity IS NULL) OR (default_event_capacity > 0))),
-    CONSTRAINT check_max_attendees_positive CHECK (((max_attendees_per_event IS NULL) OR (max_attendees_per_event > 0))),
-    CONSTRAINT check_max_events_positive CHECK (((max_events_per_month IS NULL) OR (max_events_per_month > 0))),
-    CONSTRAINT check_max_guests_positive CHECK (((max_guests_per_attendee IS NULL) OR (max_guests_per_attendee >= 0)))
-);
-
-
-ALTER TABLE public.tenant_settings OWNER TO giventa_event_management;
-
---
--- TOC entry 3988 (class 0 OID 0)
--- Dependencies: 231
--- Name: TABLE tenant_settings; Type: COMMENT; Schema: public; Owner: giventa_event_management
---
-
-COMMENT ON TABLE public.tenant_settings IS 'Tenant-specific configuration settings with enhanced options';
-
-
---
--- TOC entry 242 (class 1259 OID 83010)
--- Name: user_payment_transaction; Type: TABLE; Schema: public; Owner: giventa_event_management
---
-
-CREATE TABLE public.user_payment_transaction (
-    id bigint DEFAULT nextval('public.sequence_generator'::regclass) NOT NULL,
-    tenant_id character varying(255) NOT NULL,
-    transaction_type character varying(20) NOT NULL,
-    amount numeric(21,2) NOT NULL,
-    currency character varying(3) DEFAULT 'USD'::character varying NOT NULL,
-    stripe_payment_intent_id character varying(255),
-    stripe_transfer_group character varying(255),
-    platform_fee_amount numeric(21,2) DEFAULT 0,
-    tenant_amount numeric(21,2) DEFAULT 0,
-    status character varying(20) DEFAULT 'PENDING'::character varying NOT NULL,
-    processing_fee numeric(21,2) DEFAULT 0,
-    metadata jsonb,
-    external_transaction_id character varying(255),
-    payment_method character varying(100),
-    failure_reason text,
-    reconciliation_date date,
-    event_id bigint,
-    ticket_transaction_id bigint,
-    created_at timestamp without time zone DEFAULT now() NOT NULL,
-    updated_at timestamp without time zone DEFAULT now() NOT NULL,
-    CONSTRAINT check_payment_amounts CHECK (((amount >= (0)::numeric) AND (platform_fee_amount >= (0)::numeric) AND (tenant_amount >= (0)::numeric) AND (processing_fee >= (0)::numeric)))
-);
-
-
-ALTER TABLE public.user_payment_transaction OWNER TO giventa_event_management;
-
---
--- TOC entry 230 (class 1259 OID 82796)
--- Name: user_profile; Type: TABLE; Schema: public; Owner: giventa_event_management
---
-
-CREATE TABLE public.user_profile (
-    id bigint DEFAULT nextval('public.sequence_generator'::regclass) NOT NULL,
-    tenant_id character varying(255),
-    user_id character varying(255) NOT NULL,
-    first_name character varying(255),
-    last_name character varying(255),
-    email character varying(255),
-    phone character varying(255),
-    address_line_1 character varying(255),
-    address_line_2 character varying(255),
-    city character varying(255),
-    state character varying(255),
-    zip_code character varying(255),
-    country character varying(255),
-    notes text,
-    family_name character varying(255),
-    city_town character varying(255),
-    district character varying(255),
-    educational_institution character varying(255),
-    profile_image_url character varying(1024),
-    user_status character varying(50),
-    user_role character varying(50),
-    reviewed_by_admin_at timestamp without time zone,
-    reviewed_by_admin_id bigint,
-    created_at timestamp without time zone DEFAULT now() NOT NULL,
-    updated_at timestamp without time zone DEFAULT now() NOT NULL,
-    CONSTRAINT check_email_format CHECK (((email IS NULL) OR ((email)::text ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'::text))),
-    request_id character varying(255) UNIQUE,
-    request_reason text,
-    status character varying(50),
-    admin_comments text,
-    submitted_at timestamp without time zone,
-    reviewed_at timestamp without time zone,
-    approved_at timestamp without time zone,
-    rejected_at timestamp without time zone
-);
-
-
-ALTER TABLE public.user_profile OWNER TO giventa_event_management;
-
---
--- TOC entry 3991 (class 0 OID 0)
--- Dependencies: 230
--- Name: TABLE user_profile; Type: COMMENT; Schema: public; Owner: giventa_event_management
---
-
-COMMENT ON TABLE public.user_profile IS 'User profiles with tenant isolation and enhanced fields';
-
-
-
-
-
---
--- TOC entry 233 (class 1259 OID 82848)
--- Name: user_subscription; Type: TABLE; Schema: public; Owner: giventa_event_management
---
-
-CREATE TABLE public.user_subscription (
-    id bigint DEFAULT nextval('public.sequence_generator'::regclass) NOT NULL,
-    tenant_id character varying(255),
-    stripe_customer_id character varying(255),
-    stripe_subscription_id character varying(255),
-    stripe_price_id character varying(255),
-    stripe_current_period_end timestamp without time zone,
-    status character varying(255) NOT NULL,
-    trial_ends_at timestamp without time zone,
-    cancel_at_period_end boolean DEFAULT false,
-    user_profile_id bigint,
-    created_at timestamp without time zone DEFAULT now() NOT NULL,
-    updated_at timestamp without time zone DEFAULT now() NOT NULL
-);
-
-
-
-CREATE TABLE public.user_task (
-    id bigint DEFAULT nextval('public.sequence_generator'::regclass) NOT NULL,
-    tenant_id character varying(255),
-    title character varying(255) NOT NULL,
-    description text,
-    status character varying(255) DEFAULT 'PENDING'::character varying NOT NULL,
-    priority character varying(255) DEFAULT 'MEDIUM'::character varying NOT NULL,
-    due_date timestamp without time zone,
-    completed boolean DEFAULT false NOT NULL,
-    completion_date timestamp without time zone,
-    estimated_hours numeric(5,2),
-    actual_hours numeric(5,2),
-    progress_percentage integer DEFAULT 0,
-    event_id bigint,
-    assignee_name character varying(255),
-    assignee_contact_phone character varying(50),
-    assignee_contact_email character varying(255),
-    created_at timestamp without time zone DEFAULT now() NOT NULL,
-    updated_at timestamp without time zone DEFAULT now() NOT NULL,
-    user_id bigint,
-    CONSTRAINT check_completion_logic CHECK (((completed = false) OR ((completed = true) AND (completion_date IS NOT NULL)))),
-    CONSTRAINT user_task_progress_percentage_check CHECK (((progress_percentage >= 0) AND (progress_percentage <= 100)))
-);
-
-
-
--- TOC entry 3363 (class 2604 OID 82769)
--- Name: discount_code id; Type: DEFAULT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.discount_code ALTER COLUMN id SET DEFAULT nextval('public.discount_code_id_seq'::regclass);
-
-
---
--- TOC entry 3354 (class 2604 OID 77431)
--- Name: event_live_update id; Type: DEFAULT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_live_update ALTER COLUMN id SET DEFAULT nextval('public.event_live_update_id_seq'::regclass);
-
-
---
--- TOC entry 3359 (class 2604 OID 77449)
--- Name: event_live_update_attachment id; Type: DEFAULT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_live_update_attachment ALTER COLUMN id SET DEFAULT nextval('public.event_live_update_attachment_id_seq'::regclass);
-
-
---
--- TOC entry 3345 (class 2604 OID 77396)
--- Name: event_score_card id; Type: DEFAULT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_score_card ALTER COLUMN id SET DEFAULT nextval('public.event_score_card_id_seq'::regclass);
-
-
---
--- TOC entry 3350 (class 2604 OID 77414)
--- Name: event_score_card_detail id; Type: DEFAULT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_score_card_detail ALTER COLUMN id SET DEFAULT nextval('public.event_score_card_detail_id_seq'::regclass);
-
-
---
--- TOC entry 3996 (class 0 OID 0)
--- Dependencies: 227
--- Name: discount_code_id_seq; Type: SEQUENCE SET; Schema: public; Owner: giventa_event_management
---
-
-SELECT pg_catalog.setval('public.discount_code_id_seq', 1, false);
-
-
---
--- TOC entry 3997 (class 0 OID 0)
--- Dependencies: 221
--- Name: event_live_update_attachment_id_seq; Type: SEQUENCE SET; Schema: public; Owner: giventa_event_management
---
-
-SELECT pg_catalog.setval('public.event_live_update_attachment_id_seq', 1, false);
-
-
---
--- TOC entry 3998 (class 0 OID 0)
--- Dependencies: 219
--- Name: event_live_update_id_seq; Type: SEQUENCE SET; Schema: public; Owner: giventa_event_management
---
-
-SELECT pg_catalog.setval('public.event_live_update_id_seq', 1, false);
-
-
---
--- TOC entry 3999 (class 0 OID 0)
--- Dependencies: 217
--- Name: event_score_card_detail_id_seq; Type: SEQUENCE SET; Schema: public; Owner: giventa_event_management
---
-
-SELECT pg_catalog.setval('public.event_score_card_detail_id_seq', 1, false);
-
-
---
--- TOC entry 4000 (class 0 OID 0)
--- Dependencies: 215
--- Name: event_score_card_id_seq; Type: SEQUENCE SET; Schema: public; Owner: giventa_event_management
---
-
-SELECT pg_catalog.setval('public.event_score_card_id_seq', 1, false);
-
-
---
--- TOC entry 4001 (class 0 OID 0)
--- Dependencies: 224
--- Name: sequence_generator; Type: SEQUENCE SET; Schema: public; Owner: giventa_event_management
---
-
-SELECT pg_catalog.setval('public.sequence_generator', 4000, true);
-
-
---
--- TOC entry 3623 (class 2606 OID 82950)
--- Name: bulk_operation_log bulk_operation_log_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.bulk_operation_log
-    ADD CONSTRAINT bulk_operation_log_pkey PRIMARY KEY (id);
-
-
---
--- TOC entry 3573 (class 2606 OID 82764)
--- Name: databasechangeloglock databasechangeloglock_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.databasechangeloglock
-    ADD CONSTRAINT databasechangeloglock_pkey PRIMARY KEY (id);
-
-
---
--- TOC entry 3575 (class 2606 OID 82778)
--- Name: discount_code discount_code_code_key; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.discount_code
-    ADD CONSTRAINT discount_code_code_key UNIQUE (code);
-
-
---
--- TOC entry 3577 (class 2606 OID 82776)
--- Name: discount_code discount_code_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.discount_code
-    ADD CONSTRAINT discount_code_pkey PRIMARY KEY (id);
-
-
---
--- TOC entry 3664 (class 2606 OID 83130)
--- Name: event_admin_audit_log event_admin_audit_log_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_admin_audit_log
-    ADD CONSTRAINT event_admin_audit_log_pkey PRIMARY KEY (id);
-
-
---
--- TOC entry 3611 (class 2606 OID 82900)
--- Name: event_admin event_admin_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_admin
-    ADD CONSTRAINT event_admin_pkey PRIMARY KEY (id);
-
-
---
--- TOC entry 3666 (class 2606 OID 83146)
--- Name: event_attendee_guest event_attendee_guest_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_attendee_guest
-    ADD CONSTRAINT event_attendee_guest_pkey PRIMARY KEY (id);
-
-
---
--- TOC entry 3657 (class 2606 OID 83119)
--- Name: event_attendee event_attendee_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_attendee
-    ADD CONSTRAINT event_attendee_pkey PRIMARY KEY (id);
-
-
---
--- TOC entry 3653 (class 2606 OID 83098)
--- Name: event_calendar_entry event_calendar_entry_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_calendar_entry
-    ADD CONSTRAINT event_calendar_entry_pkey PRIMARY KEY (id);
-
-
---
--- TOC entry 3605 (class 2606 OID 82889)
--- Name: event_details event_details_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_details
-    ADD CONSTRAINT event_details_pkey PRIMARY KEY (id);
-
-
---
--- TOC entry 3680 (class 2606 OID 83394)
--- Name: event_discount_code event_discount_code_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_discount_code
-    ADD CONSTRAINT event_discount_code_pkey PRIMARY KEY (event_id, discount_code_id);
-
-
---
--- TOC entry 3668 (class 2606 OID 83163)
--- Name: event_guest_pricing event_guest_pricing_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_guest_pricing
-    ADD CONSTRAINT event_guest_pricing_pkey PRIMARY KEY (id);
-
-
---
--- TOC entry 3569 (class 2606 OID 77456)
--- Name: event_live_update_attachment event_live_update_attachment_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_live_update_attachment
-    ADD CONSTRAINT event_live_update_attachment_pkey PRIMARY KEY (id);
-
-
---
--- TOC entry 3567 (class 2606 OID 77439)
--- Name: event_live_update event_live_update_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_live_update
-    ADD CONSTRAINT event_live_update_pkey PRIMARY KEY (id);
-
-
---
--- TOC entry 3649 (class 2606 OID 83087)
--- Name: event_media event_media_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_media
-    ADD CONSTRAINT event_media_pkey PRIMARY KEY (id);
-
-
---
--- TOC entry 3625 (class 2606 OID 82963)
--- Name: event_organizer event_organizer_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_organizer
-    ADD CONSTRAINT event_organizer_pkey PRIMARY KEY (id);
-
-
---
--- TOC entry 3643 (class 2606 OID 83056)
--- Name: event_poll_option event_poll_option_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_poll_option
-    ADD CONSTRAINT event_poll_option_pkey PRIMARY KEY (id);
-
-
---
--- TOC entry 3641 (class 2606 OID 83044)
--- Name: event_poll event_poll_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_poll
-    ADD CONSTRAINT event_poll_pkey PRIMARY KEY (id);
-
-
---
--- TOC entry 3645 (class 2606 OID 83067)
--- Name: event_poll_response event_poll_response_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_poll_response
-    ADD CONSTRAINT event_poll_response_pkey PRIMARY KEY (id);
-
-
---
--- TOC entry 3565 (class 2606 OID 77421)
--- Name: event_score_card_detail event_score_card_detail_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_score_card_detail
-    ADD CONSTRAINT event_score_card_detail_pkey PRIMARY KEY (id);
-
-
---
--- TOC entry 3563 (class 2606 OID 77404)
--- Name: event_score_card event_score_card_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_score_card
-    ADD CONSTRAINT event_score_card_pkey PRIMARY KEY (id);
-
-
---
--- TOC entry 3633 (class 2606 OID 83002)
--- Name: event_ticket_transaction event_ticket_transaction_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_ticket_transaction
-    ADD CONSTRAINT event_ticket_transaction_pkey PRIMARY KEY (id);
-
-
---
--- TOC entry 3627 (class 2606 OID 82983)
--- Name: event_ticket_type event_ticket_type_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_ticket_type
-    ADD CONSTRAINT event_ticket_type_pkey PRIMARY KEY (id);
-
-
---
--- TOC entry 3593 (class 2606 OID 82845)
--- Name: event_type_details event_type_details_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_type_details
-    ADD CONSTRAINT event_type_details_pkey PRIMARY KEY (id);
-
-
---
--- TOC entry 3676 (class 2606 OID 83180)
--- Name: qr_code_usage qr_code_usage_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.qr_code_usage
-    ADD CONSTRAINT qr_code_usage_pkey PRIMARY KEY (id);
-
-
---
--- TOC entry 3571 (class 2606 OID 78125)
--- Name: rel_event_details__discount_codes rel_event_details__discount_codes_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.rel_event_details__discount_codes
-    ADD CONSTRAINT rel_event_details__discount_codes_pkey PRIMARY KEY (event_details_id, discount_codes_id);
-
-
---
--- TOC entry 3579 (class 2606 OID 82795)
--- Name: tenant_organization tenant_organization_domain_key; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.tenant_organization
-    ADD CONSTRAINT tenant_organization_domain_key UNIQUE (domain);
-
-
---
--- TOC entry 3581 (class 2606 OID 82791)
--- Name: tenant_organization tenant_organization_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.tenant_organization
-    ADD CONSTRAINT tenant_organization_pkey PRIMARY KEY (id);
-
-
---
--- TOC entry 3583 (class 2606 OID 82793)
--- Name: tenant_organization tenant_organization_tenant_id_key; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.tenant_organization
-    ADD CONSTRAINT tenant_organization_tenant_id_key UNIQUE (tenant_id);
-
-
---
--- TOC entry 3589 (class 2606 OID 82829)
--- Name: tenant_settings tenant_settings_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.tenant_settings
-    ADD CONSTRAINT tenant_settings_pkey PRIMARY KEY (id);
-
-
---
--- TOC entry 3591 (class 2606 OID 82831)
--- Name: tenant_settings tenant_settings_tenant_id_key; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.tenant_settings
-    ADD CONSTRAINT tenant_settings_tenant_id_key UNIQUE (tenant_id);
-
-
---
--- TOC entry 3637 (class 2606 OID 83025)
--- Name: user_payment_transaction user_payment_transaction_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.user_payment_transaction
-    ADD CONSTRAINT user_payment_transaction_pkey PRIMARY KEY (id);
-
-
---
--- TOC entry 3585 (class 2606 OID 82806)
--- Name: user_profile user_profile_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.user_profile
-    ADD CONSTRAINT user_profile_pkey PRIMARY KEY (id);
-
-
-
-
-
-
---
--- TOC entry 3597 (class 2606 OID 82858)
--- Name: user_subscription user_subscription_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.user_subscription
-    ADD CONSTRAINT user_subscription_pkey PRIMARY KEY (id);
-
-
---
--- TOC entry 3615 (class 2606 OID 82918)
--- Name: user_task user_task_pkey; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.user_task
-    ADD CONSTRAINT user_task_pkey PRIMARY KEY (id);
-
-
---
--- TOC entry 3655 (class 2606 OID 83100)
--- Name: event_calendar_entry ux_calendar_entry_provider_external; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_calendar_entry
-    ADD CONSTRAINT ux_calendar_entry_provider_external UNIQUE (calendar_provider, external_event_id);
-
-
---
--- TOC entry 3613 (class 2606 OID 82902)
--- Name: event_admin ux_event_admin_user_tenant; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_admin
-    ADD CONSTRAINT ux_event_admin_user_tenant UNIQUE (user_id, tenant_id);
-
-
---
--- TOC entry 3662 (class 2606 OID 83121)
--- Name: event_attendee ux_event_attendee__event_attendee; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_attendee
-    ADD CONSTRAINT ux_event_attendee__event_attendee UNIQUE (event_id, attendee_id);
-
-
---
--- TOC entry 3674 (class 2606 OID 83165)
--- Name: event_guest_pricing ux_event_guest_pricing_event_age_tier; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_guest_pricing
-    ADD CONSTRAINT ux_event_guest_pricing_event_age_tier UNIQUE (event_id, age_group, pricing_tier);
-
-
---
--- TOC entry 3631 (class 2606 OID 82985)
--- Name: event_ticket_type ux_event_ticket_type_event_code; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_ticket_type
-    ADD CONSTRAINT ux_event_ticket_type_event_code UNIQUE (event_id, code);
-
-
---
--- TOC entry 3595 (class 2606 OID 82847)
--- Name: event_type_details ux_event_type_tenant_name; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_type_details
-    ADD CONSTRAINT ux_event_type_tenant_name UNIQUE (tenant_id, name);
-
-
---
--- TOC entry 3639 (class 2606 OID 83027)
--- Name: user_payment_transaction ux_payment_transaction_stripe_intent; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.user_payment_transaction
-    ADD CONSTRAINT ux_payment_transaction_stripe_intent UNIQUE (stripe_payment_intent_id);
-
-
---
--- TOC entry 3647 (class 2606 OID 83069)
--- Name: event_poll_response ux_poll_response_user_option; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_poll_response
-    ADD CONSTRAINT ux_poll_response_user_option UNIQUE (poll_id, poll_option_id, user_id);
-
-
---
--- TOC entry 3678 (class 2606 OID 83182)
--- Name: qr_code_usage ux_qr_code_attendee_type; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.qr_code_usage
-    ADD CONSTRAINT ux_qr_code_attendee_type UNIQUE (attendee_id, qr_code_type);
-
-
---
--- TOC entry 3635 (class 2606 OID 83004)
--- Name: event_ticket_transaction ux_ticket_transaction_reference; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_ticket_transaction
-    ADD CONSTRAINT ux_ticket_transaction_reference UNIQUE (transaction_reference);
-
-
---
--- TOC entry 3587 (class 2606 OID 82808)
--- Name: user_profile ux_user_profile__user_id; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.user_profile
-    ADD CONSTRAINT ux_user_profile__user_id UNIQUE (user_id);
-
-
-
-
-
---
--- TOC entry 3599 (class 2606 OID 82860)
--- Name: user_subscription ux_user_subscription__stripe_customer_id; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.user_subscription
-    ADD CONSTRAINT ux_user_subscription__stripe_customer_id UNIQUE (stripe_customer_id);
-
-
---
--- TOC entry 3601 (class 2606 OID 82862)
--- Name: user_subscription ux_user_subscription__stripe_subscription_id; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.user_subscription
-    ADD CONSTRAINT ux_user_subscription__stripe_subscription_id UNIQUE (stripe_subscription_id);
-
-
---
--- TOC entry 3603 (class 2606 OID 82864)
--- Name: user_subscription ux_user_subscription__user_profile_id; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.user_subscription
-    ADD CONSTRAINT ux_user_subscription__user_profile_id UNIQUE (user_profile_id);
-
-
---
--- TOC entry 3658 (class 1259 OID 83371)
--- Name: idx_event_attendee_qr_data; Type: INDEX; Schema: public; Owner: giventa_event_management
---
-
-CREATE INDEX idx_event_attendee_qr_data ON public.event_attendee USING btree (qr_code_data) WHERE (qr_code_data IS NOT NULL);
-
-
---
--- TOC entry 3659 (class 1259 OID 83369)
--- Name: idx_event_attendee_qr_generated; Type: INDEX; Schema: public; Owner: giventa_event_management
---
-
-CREATE INDEX idx_event_attendee_qr_generated ON public.event_attendee USING btree (qr_code_generated) WHERE (qr_code_generated = true);
-
-
---
--- TOC entry 3660 (class 1259 OID 83370)
--- Name: idx_event_attendee_qr_generated_at; Type: INDEX; Schema: public; Owner: giventa_event_management
---
-
-CREATE INDEX idx_event_attendee_qr_generated_at ON public.event_attendee USING btree (qr_code_generated_at);
-
-
---
--- TOC entry 3606 (class 1259 OID 83363)
--- Name: idx_event_details_allow_guests; Type: INDEX; Schema: public; Owner: giventa_event_management
---
-
-CREATE INDEX idx_event_details_allow_guests ON public.event_details USING btree (allow_guests) WHERE (allow_guests = true);
-
-
---
--- TOC entry 3607 (class 1259 OID 83364)
--- Name: idx_event_details_guest_pricing; Type: INDEX; Schema: public; Owner: giventa_event_management
---
-
-CREATE INDEX idx_event_details_guest_pricing ON public.event_details USING btree (enable_guest_pricing) WHERE (enable_guest_pricing = true);
-
-
---
--- TOC entry 3608 (class 1259 OID 83366)
--- Name: idx_event_details_max_guests; Type: INDEX; Schema: public; Owner: giventa_event_management
---
-
-CREATE INDEX idx_event_details_max_guests ON public.event_details USING btree (max_guests_per_attendee) WHERE (max_guests_per_attendee > 0);
-
-
---
--- TOC entry 3609 (class 1259 OID 83365)
--- Name: idx_event_details_require_guest_approval; Type: INDEX; Schema: public; Owner: giventa_event_management
---
-
-CREATE INDEX idx_event_details_require_guest_approval ON public.event_details USING btree (require_guest_approval) WHERE (require_guest_approval = true);
-
-
---
--- TOC entry 3669 (class 1259 OID 83375)
--- Name: idx_event_guest_pricing_description; Type: INDEX; Schema: public; Owner: giventa_event_management
---
-
-CREATE INDEX idx_event_guest_pricing_description ON public.event_guest_pricing USING btree (description) WHERE (description IS NOT NULL);
-
-
---
--- TOC entry 3670 (class 1259 OID 83374)
--- Name: idx_event_guest_pricing_event_age_active; Type: INDEX; Schema: public; Owner: giventa_event_management
---
-
-CREATE INDEX idx_event_guest_pricing_event_age_active ON public.event_guest_pricing USING btree (event_id, age_group, is_active) WHERE (is_active = true);
-
-
---
--- TOC entry 3671 (class 1259 OID 83372)
--- Name: idx_event_guest_pricing_is_active; Type: INDEX; Schema: public; Owner: giventa_event_management
---
-
-CREATE INDEX idx_event_guest_pricing_is_active ON public.event_guest_pricing USING btree (is_active) WHERE (is_active = true);
-
-
---
--- TOC entry 3672 (class 1259 OID 83373)
--- Name: idx_event_guest_pricing_valid_period; Type: INDEX; Schema: public; Owner: giventa_event_management
---
-
-CREATE INDEX idx_event_guest_pricing_valid_period ON public.event_guest_pricing USING btree (valid_from, valid_to);
-
-
---
--- TOC entry 3650 (class 1259 OID 83377)
--- Name: idx_event_media_pre_signed_expires; Type: INDEX; Schema: public; Owner: giventa_event_management
---
-
-CREATE INDEX idx_event_media_pre_signed_expires ON public.event_media USING btree (pre_signed_url_expires_at);
-
-
---
--- TOC entry 3651 (class 1259 OID 83376)
--- Name: idx_event_media_pre_signed_url; Type: INDEX; Schema: public; Owner: giventa_event_management
---
-
-CREATE INDEX idx_event_media_pre_signed_url ON public.event_media USING btree (pre_signed_url) WHERE (pre_signed_url IS NOT NULL);
-
-
---
--- TOC entry 3628 (class 1259 OID 83368)
--- Name: idx_event_ticket_type_availability; Type: INDEX; Schema: public; Owner: giventa_event_management
---
-
-CREATE INDEX idx_event_ticket_type_availability ON public.event_ticket_type USING btree (available_quantity, sold_quantity);
-
-
---
--- TOC entry 3629 (class 1259 OID 83367)
--- Name: idx_event_ticket_type_sold_quantity; Type: INDEX; Schema: public; Owner: giventa_event_management
---
-
-CREATE INDEX idx_event_ticket_type_sold_quantity ON public.event_ticket_type USING btree (sold_quantity);
-
-
---
--- TOC entry 3730 (class 2620 OID 83389)
--- Name: event_attendee generate_enhanced_qr_code_trigger; Type: TRIGGER; Schema: public; Owner: giventa_event_management
---
-
-CREATE TRIGGER generate_enhanced_qr_code_trigger BEFORE INSERT OR UPDATE ON public.event_attendee FOR EACH ROW EXECUTE FUNCTION public.generate_enhanced_qr_code();
-
-
---
--- TOC entry 3729 (class 2620 OID 83388)
--- Name: event_ticket_transaction manage_ticket_inventory_trigger; Type: TRIGGER; Schema: public; Owner: giventa_event_management
---
-
-CREATE TRIGGER manage_ticket_inventory_trigger AFTER INSERT OR DELETE OR UPDATE ON public.event_ticket_transaction FOR EACH ROW EXECUTE FUNCTION public.manage_ticket_inventory();
-
-
---
--- TOC entry 3732 (class 2620 OID 83384)
--- Name: event_attendee_guest update_event_attendee_guest_updated_at; Type: TRIGGER; Schema: public; Owner: giventa_event_management
---
-
-CREATE TRIGGER update_event_attendee_guest_updated_at BEFORE UPDATE ON public.event_attendee_guest FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-
-
---
--- TOC entry 3731 (class 2620 OID 83383)
--- Name: event_attendee update_event_attendee_updated_at; Type: TRIGGER; Schema: public; Owner: giventa_event_management
---
-
-CREATE TRIGGER update_event_attendee_updated_at BEFORE UPDATE ON public.event_attendee FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-
-
---
--- TOC entry 3726 (class 2620 OID 83382)
--- Name: event_details update_event_details_updated_at; Type: TRIGGER; Schema: public; Owner: giventa_event_management
---
-
-CREATE TRIGGER update_event_details_updated_at BEFORE UPDATE ON public.event_details FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-
-
---
--- TOC entry 3733 (class 2620 OID 83385)
--- Name: event_guest_pricing update_event_guest_pricing_updated_at; Type: TRIGGER; Schema: public; Owner: giventa_event_management
---
-
-CREATE TRIGGER update_event_guest_pricing_updated_at BEFORE UPDATE ON public.event_guest_pricing FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-
-
---
--- TOC entry 3728 (class 2620 OID 83386)
--- Name: event_ticket_type update_event_ticket_type_updated_at; Type: TRIGGER; Schema: public; Owner: giventa_event_management
---
-
-CREATE TRIGGER update_event_ticket_type_updated_at BEFORE UPDATE ON public.event_ticket_type FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-
-
---
--- TOC entry 3725 (class 2620 OID 83381)
--- Name: event_type_details update_event_type_details_updated_at; Type: TRIGGER; Schema: public; Owner: giventa_event_management
---
-
-CREATE TRIGGER update_event_type_details_updated_at BEFORE UPDATE ON public.event_type_details FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-
-
---
--- TOC entry 3722 (class 2620 OID 83378)
--- Name: tenant_organization update_tenant_organization_updated_at; Type: TRIGGER; Schema: public; Owner: giventa_event_management
---
-
-CREATE TRIGGER update_tenant_organization_updated_at BEFORE UPDATE ON public.tenant_organization FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-
-
---
--- TOC entry 3724 (class 2620 OID 83379)
--- Name: tenant_settings update_tenant_settings_updated_at; Type: TRIGGER; Schema: public; Owner: giventa_event_management
---
-
-CREATE TRIGGER update_tenant_settings_updated_at BEFORE UPDATE ON public.tenant_settings FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-
-
---
--- TOC entry 3723 (class 2620 OID 83380)
--- Name: user_profile update_user_profile_updated_at; Type: TRIGGER; Schema: public; Owner: giventa_event_management
---
-
-CREATE TRIGGER update_user_profile_updated_at BEFORE UPDATE ON public.user_profile FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-
-
---
--- TOC entry 3727 (class 2620 OID 83387)
--- Name: event_details validate_event_details_trigger; Type: TRIGGER; Schema: public; Owner: giventa_event_management
---
-
-CREATE TRIGGER validate_event_details_trigger BEFORE INSERT OR UPDATE ON public.event_details FOR EACH ROW EXECUTE FUNCTION public.validate_event_details();
-
-
---
--- TOC entry 3682 (class 2606 OID 77457)
--- Name: event_live_update_attachment event_live_update_attachment_live_update_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_live_update_attachment
-    ADD CONSTRAINT event_live_update_attachment_live_update_id_fkey FOREIGN KEY (live_update_id) REFERENCES public.event_live_update(id) ON DELETE CASCADE;
-
-
---
--- TOC entry 3688 (class 2606 OID 83213)
--- Name: event_admin fk_admin__created_by_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_admin
-    ADD CONSTRAINT fk_admin__created_by_id FOREIGN KEY (created_by_id) REFERENCES public.user_profile(id) ON DELETE SET NULL;
-
-
---
--- TOC entry 3689 (class 2606 OID 83208)
--- Name: event_admin fk_admin__user_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_admin
-    ADD CONSTRAINT fk_admin__user_id FOREIGN KEY (user_id) REFERENCES public.user_profile(id) ON DELETE CASCADE;
-
-
---
--- TOC entry 3715 (class 2606 OID 83338)
--- Name: event_admin_audit_log fk_admin_audit_log__admin_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_admin_audit_log
-    ADD CONSTRAINT fk_admin_audit_log__admin_id FOREIGN KEY (admin_id) REFERENCES public.user_profile(id) ON DELETE SET NULL;
-
-
---
--- TOC entry 3693 (class 2606 OID 83233)
--- Name: bulk_operation_log fk_bulk_operation_log__performed_by; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.bulk_operation_log
-    ADD CONSTRAINT fk_bulk_operation_log__performed_by FOREIGN KEY (performed_by) REFERENCES public.user_profile(id) ON DELETE SET NULL;
-
-
---
--- TOC entry 3711 (class 2606 OID 83323)
--- Name: event_calendar_entry fk_calendar_event__created_by_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_calendar_entry
-    ADD CONSTRAINT fk_calendar_event__created_by_id FOREIGN KEY (created_by_id) REFERENCES public.user_profile(id) ON DELETE SET NULL;
-
-
---
--- TOC entry 3712 (class 2606 OID 83318)
--- Name: event_calendar_entry fk_calendar_event__event_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_calendar_entry
-    ADD CONSTRAINT fk_calendar_event__event_id FOREIGN KEY (event_id) REFERENCES public.event_details(id) ON DELETE CASCADE;
-
-
---
--- TOC entry 3686 (class 2606 OID 83198)
--- Name: event_details fk_event__created_by_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_details
-    ADD CONSTRAINT fk_event__created_by_id FOREIGN KEY (created_by_id) REFERENCES public.user_profile(id) ON DELETE SET NULL;
-
-
---
--- TOC entry 3687 (class 2606 OID 83203)
--- Name: event_details fk_event__event_type_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_details
-    ADD CONSTRAINT fk_event__event_type_id FOREIGN KEY (event_type_id) REFERENCES public.event_type_details(id) ON DELETE SET NULL;
-
-
---
--- TOC entry 3713 (class 2606 OID 83333)
--- Name: event_attendee fk_event_attendee__attendee_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_attendee
-    ADD CONSTRAINT fk_event_attendee__attendee_id FOREIGN KEY (attendee_id) REFERENCES public.user_profile(id) ON DELETE CASCADE;
-
-
---
--- TOC entry 3714 (class 2606 OID 83328)
--- Name: event_attendee fk_event_attendee__event_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_attendee
-    ADD CONSTRAINT fk_event_attendee__event_id FOREIGN KEY (event_id) REFERENCES public.event_details(id) ON DELETE CASCADE;
-
-
---
--- TOC entry 3716 (class 2606 OID 83348)
--- Name: event_attendee_guest fk_event_attendee_guest__approved_by_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_attendee_guest
-    ADD CONSTRAINT fk_event_attendee_guest__approved_by_id FOREIGN KEY (approved_by_id) REFERENCES public.user_profile(id) ON DELETE SET NULL;
-
-
---
--- TOC entry 3717 (class 2606 OID 83343)
--- Name: event_attendee_guest fk_event_attendee_guest__primary_attendee_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_attendee_guest
-    ADD CONSTRAINT fk_event_attendee_guest__primary_attendee_id FOREIGN KEY (primary_attendee_id) REFERENCES public.event_attendee(id) ON DELETE CASCADE;
-
-
---
--- TOC entry 3720 (class 2606 OID 83400)
--- Name: event_discount_code fk_event_discount_code__discount_code_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_discount_code
-    ADD CONSTRAINT fk_event_discount_code__discount_code_id FOREIGN KEY (discount_code_id) REFERENCES public.discount_code(id) ON DELETE CASCADE;
-
-
---
--- TOC entry 3721 (class 2606 OID 83395)
--- Name: event_discount_code fk_event_discount_code__event_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_discount_code
-    ADD CONSTRAINT fk_event_discount_code__event_id FOREIGN KEY (event_id) REFERENCES public.event_details(id) ON DELETE CASCADE;
-
-
---
--- TOC entry 3718 (class 2606 OID 83353)
--- Name: event_guest_pricing fk_event_guest_pricing__event_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_guest_pricing
-    ADD CONSTRAINT fk_event_guest_pricing__event_id FOREIGN KEY (event_id) REFERENCES public.event_details(id) ON DELETE CASCADE;
-
-
---
--- TOC entry 3709 (class 2606 OID 83308)
--- Name: event_media fk_event_media__event_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_media
-    ADD CONSTRAINT fk_event_media__event_id FOREIGN KEY (event_id) REFERENCES public.event_details(id) ON DELETE CASCADE;
-
-
---
--- TOC entry 3710 (class 2606 OID 83313)
--- Name: event_media fk_event_media__uploaded_by_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_media
-    ADD CONSTRAINT fk_event_media__uploaded_by_id FOREIGN KEY (uploaded_by_id) REFERENCES public.user_profile(id) ON DELETE SET NULL;
-
-
---
--- TOC entry 3694 (class 2606 OID 83238)
--- Name: event_organizer fk_event_organizer__event_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_organizer
-    ADD CONSTRAINT fk_event_organizer__event_id FOREIGN KEY (event_id) REFERENCES public.event_details(id) ON DELETE CASCADE;
-
-
---
--- TOC entry 3695 (class 2606 OID 83243)
--- Name: event_organizer fk_event_organizer__organizer_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_organizer
-    ADD CONSTRAINT fk_event_organizer__organizer_id FOREIGN KEY (organizer_id) REFERENCES public.user_profile(id) ON DELETE SET NULL;
-
-
---
--- TOC entry 3701 (class 2606 OID 83268)
--- Name: user_payment_transaction fk_payment_transaction__event_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.user_payment_transaction
-    ADD CONSTRAINT fk_payment_transaction__event_id FOREIGN KEY (event_id) REFERENCES public.event_details(id) ON DELETE SET NULL;
-
-
---
--- TOC entry 3702 (class 2606 OID 83273)
--- Name: user_payment_transaction fk_payment_transaction__ticket_transaction_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.user_payment_transaction
-    ADD CONSTRAINT fk_payment_transaction__ticket_transaction_id FOREIGN KEY (ticket_transaction_id) REFERENCES public.event_ticket_transaction(id) ON DELETE SET NULL;
-
-
---
--- TOC entry 3703 (class 2606 OID 83283)
--- Name: event_poll fk_poll__created_by_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_poll
-    ADD CONSTRAINT fk_poll__created_by_id FOREIGN KEY (created_by_id) REFERENCES public.user_profile(id) ON DELETE SET NULL;
-
-
---
--- TOC entry 3704 (class 2606 OID 83278)
--- Name: event_poll fk_poll__event_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_poll
-    ADD CONSTRAINT fk_poll__event_id FOREIGN KEY (event_id) REFERENCES public.event_details(id) ON DELETE CASCADE;
-
-
---
--- TOC entry 3705 (class 2606 OID 83288)
--- Name: event_poll_option fk_poll_option__poll_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_poll_option
-    ADD CONSTRAINT fk_poll_option__poll_id FOREIGN KEY (poll_id) REFERENCES public.event_poll(id) ON DELETE CASCADE;
-
-
---
--- TOC entry 3706 (class 2606 OID 83293)
--- Name: event_poll_response fk_poll_response__poll_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_poll_response
-    ADD CONSTRAINT fk_poll_response__poll_id FOREIGN KEY (poll_id) REFERENCES public.event_poll(id) ON DELETE CASCADE;
-
-
---
--- TOC entry 3707 (class 2606 OID 83298)
--- Name: event_poll_response fk_poll_response__poll_option_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_poll_response
-    ADD CONSTRAINT fk_poll_response__poll_option_id FOREIGN KEY (poll_option_id) REFERENCES public.event_poll_option(id) ON DELETE CASCADE;
-
-
---
--- TOC entry 3708 (class 2606 OID 83303)
--- Name: event_poll_response fk_poll_response__user_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_poll_response
-    ADD CONSTRAINT fk_poll_response__user_id FOREIGN KEY (user_id) REFERENCES public.user_profile(id) ON DELETE CASCADE;
-
-
---
--- TOC entry 3719 (class 2606 OID 83358)
--- Name: qr_code_usage fk_qr_code_usage__attendee_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.qr_code_usage
-    ADD CONSTRAINT fk_qr_code_usage__attendee_id FOREIGN KEY (attendee_id) REFERENCES public.event_attendee(id) ON DELETE CASCADE;
-
-
---
--- TOC entry 3681 (class 2606 OID 77422)
--- Name: event_score_card_detail fk_score_card_detail__score_card_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_score_card_detail
-    ADD CONSTRAINT fk_score_card_detail__score_card_id FOREIGN KEY (score_card_id) REFERENCES public.event_score_card(id) ON DELETE CASCADE;
-
-
---
--- TOC entry 3684 (class 2606 OID 83183)
--- Name: tenant_settings fk_tenant_settings__tenant_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.tenant_settings
-    ADD CONSTRAINT fk_tenant_settings__tenant_id FOREIGN KEY (tenant_id) REFERENCES public.tenant_organization(tenant_id) ON DELETE CASCADE;
-
-
---
--- TOC entry 3697 (class 2606 OID 83405)
--- Name: event_ticket_transaction fk_ticket_transaction__discount_code_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_ticket_transaction
-    ADD CONSTRAINT fk_ticket_transaction__discount_code_id FOREIGN KEY (discount_code_id) REFERENCES public.discount_code(id) ON DELETE SET NULL;
-
-
---
--- TOC entry 3698 (class 2606 OID 83253)
--- Name: event_ticket_transaction fk_ticket_transaction__event_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_ticket_transaction
-    ADD CONSTRAINT fk_ticket_transaction__event_id FOREIGN KEY (event_id) REFERENCES public.event_details(id) ON DELETE CASCADE;
-
-
---
--- TOC entry 3699 (class 2606 OID 83258)
--- Name: event_ticket_transaction fk_ticket_transaction__ticket_type_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_ticket_transaction
-    ADD CONSTRAINT fk_ticket_transaction__ticket_type_id FOREIGN KEY (ticket_type_id) REFERENCES public.event_ticket_type(id) ON DELETE RESTRICT;
-
-
---
--- TOC entry 3700 (class 2606 OID 83263)
--- Name: event_ticket_transaction fk_ticket_transaction__user_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_ticket_transaction
-    ADD CONSTRAINT fk_ticket_transaction__user_id FOREIGN KEY (user_id) REFERENCES public.user_profile(id) ON DELETE SET NULL;
-
-
---
--- TOC entry 3696 (class 2606 OID 83248)
--- Name: event_ticket_type fk_ticket_type__event_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_ticket_type
-    ADD CONSTRAINT fk_ticket_type__event_id FOREIGN KEY (event_id) REFERENCES public.event_details(id) ON DELETE CASCADE;
-
-
---
--- TOC entry 3683 (class 2606 OID 83188)
--- Name: user_profile fk_user_profile_reviewed_by_admin; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.user_profile
-    ADD CONSTRAINT fk_user_profile_reviewed_by_admin FOREIGN KEY (reviewed_by_admin_id) REFERENCES public.user_profile(id) ON DELETE SET NULL;
-
-
-
-
---
--- TOC entry 3685 (class 2606 OID 83193)
--- Name: user_subscription fk_user_subscription__user_profile_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.user_subscription
-    ADD CONSTRAINT fk_user_subscription__user_profile_id FOREIGN KEY (user_profile_id) REFERENCES public.user_profile(id) ON DELETE CASCADE;
-
-
---
--- TOC entry 3690 (class 2606 OID 83223)
--- Name: user_task fk_user_task_event_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.user_task
-    ADD CONSTRAINT fk_user_task_event_id FOREIGN KEY (event_id) REFERENCES public.event_details(id) ON DELETE SET NULL;
-
-
---
--- TOC entry 3691 (class 2606 OID 83218)
--- Name: user_task fk_user_task_user_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.user_task
-    ADD CONSTRAINT fk_user_task_user_id FOREIGN KEY (user_id) REFERENCES public.user_profile(id) ON DELETE CASCADE;
-
-
---
--- TOC entry 3922 (class 0 OID 0)
--- Dependencies: 5
--- Name: SCHEMA public; Type: ACL; Schema: -; Owner: pg_database_owner
---
-
-GRANT USAGE ON SCHEMA public TO giventa_event_management;
-
-
---
--- TOC entry 3923 (class 0 OID 0)
--- Dependencies: 224
--- Name: SEQUENCE sequence_generator; Type: ACL; Schema: public; Owner: giventa_event_management
---
-
-GRANT SELECT,USAGE ON SEQUENCE public.sequence_generator TO giventa_event_management;
-
-
---
--- TOC entry 3924 (class 0 OID 0)
--- Dependencies: 238
--- Name: TABLE bulk_operation_log; Type: ACL; Schema: public; Owner: giventa_event_management
---
-
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.bulk_operation_log TO giventa_event_management;
-
-
---
--- TOC entry 3925 (class 0 OID 0)
--- Dependencies: 225
--- Name: TABLE databasechangelog; Type: ACL; Schema: public; Owner: giventa_event_management
---
-
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.databasechangelog TO giventa_event_management;
-
-
---
--- TOC entry 3926 (class 0 OID 0)
--- Dependencies: 226
--- Name: TABLE databasechangeloglock; Type: ACL; Schema: public; Owner: giventa_event_management
---
-
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.databasechangeloglock TO giventa_event_management;
-
-
 --
--- TOC entry 3928 (class 0 OID 0)
+-- TOC entry 3930 (class 0 OID 188414)
 -- Dependencies: 228
--- Name: TABLE discount_code; Type: ACL; Schema: public; Owner: giventa_event_management
+-- Data for Name: event_admin; Type: TABLE DATA; Schema: public; Owner: giventa_event_management
 --
 
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.discount_code TO giventa_event_management;
-
-
---
--- TOC entry 3930 (class 0 OID 0)
--- Dependencies: 227
--- Name: SEQUENCE discount_code_id_seq; Type: ACL; Schema: public; Owner: giventa_event_management
---
-
-GRANT SELECT,USAGE ON SEQUENCE public.discount_code_id_seq TO giventa_event_management;
+INSERT INTO public.event_admin VALUES (1, 'tenant_demo_001', 'ADMIN', '{CREATE_EVENT,EDIT_EVENT}', true, '2025-06-22 11:31:26.430806', '2025-06-22 11:31:26.430806', 2, 1);
+INSERT INTO public.event_admin VALUES (2, 'tenant_demo_001', 'SUPER_ADMIN', '{ALL}', true, '2025-06-22 11:31:26.430806', '2025-06-22 11:31:26.430806', 5, 2);
+INSERT INTO public.event_admin VALUES (3, 'tenant_demo_001', 'ORGANIZER', '{MANAGE_ATTENDEES}', true, '2025-06-22 11:31:26.430806', '2025-06-22 11:31:26.430806', 4, 2);
+INSERT INTO public.event_admin VALUES (4, 'tenant_demo_001', 'VOLUNTEER', '{ASSIST}', true, '2025-06-22 11:31:26.430806', '2025-06-22 11:31:26.430806', 3, 1);
+INSERT INTO public.event_admin VALUES (5, 'tenant_demo_001', 'MEMBER', '{VIEW}', true, '2025-06-22 11:31:26.430806', '2025-06-22 11:31:26.430806', 1, 2);
+INSERT INTO public.event_admin VALUES (6, 'tenant_demo_001', 'ADMIN', '{CREATE_EVENT,EDIT_EVENT}', false, '2025-06-22 11:31:26.430806', '2025-06-22 11:31:26.430806', 6, 1);
 
 
 --
--- TOC entry 3931 (class 0 OID 0)
--- Dependencies: 235
--- Name: TABLE event_admin; Type: ACL; Schema: public; Owner: giventa_event_management
---
-
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.event_admin TO giventa_event_management;
-
-
---
--- TOC entry 3933 (class 0 OID 0)
--- Dependencies: 249
--- Name: TABLE event_admin_audit_log; Type: ACL; Schema: public; Owner: giventa_event_management
---
-
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.event_admin_audit_log TO giventa_event_management;
-
-
---
--- TOC entry 3938 (class 0 OID 0)
--- Dependencies: 248
--- Name: TABLE event_attendee; Type: ACL; Schema: public; Owner: giventa_event_management
---
-
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.event_attendee TO giventa_event_management;
-
-
---
--- TOC entry 3942 (class 0 OID 0)
--- Dependencies: 250
--- Name: TABLE event_attendee_guest; Type: ACL; Schema: public; Owner: giventa_event_management
---
-
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.event_attendee_guest TO giventa_event_management;
-
-
---
--- TOC entry 3943 (class 0 OID 0)
--- Dependencies: 247
--- Name: TABLE event_calendar_entry; Type: ACL; Schema: public; Owner: giventa_event_management
---
-
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.event_calendar_entry TO giventa_event_management;
-
-
---
--- TOC entry 3952 (class 0 OID 0)
--- Dependencies: 234
--- Name: TABLE event_details; Type: ACL; Schema: public; Owner: giventa_event_management
---
-
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.event_details TO giventa_event_management;
-
-
---
--- TOC entry 3954 (class 0 OID 0)
--- Dependencies: 253
--- Name: TABLE event_discount_code; Type: ACL; Schema: public; Owner: giventa_event_management
---
-
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.event_discount_code TO giventa_event_management;
-
-
---
--- TOC entry 3961 (class 0 OID 0)
--- Dependencies: 251
--- Name: TABLE event_guest_pricing; Type: ACL; Schema: public; Owner: giventa_event_management
---
-
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.event_guest_pricing TO giventa_event_management;
-
-
---
--- TOC entry 3967 (class 0 OID 0)
--- Dependencies: 246
--- Name: TABLE event_media; Type: ACL; Schema: public; Owner: giventa_event_management
---
-
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.event_media TO giventa_event_management;
-
-
---
--- TOC entry 3968 (class 0 OID 0)
--- Dependencies: 239
--- Name: TABLE event_organizer; Type: ACL; Schema: public; Owner: giventa_event_management
---
-
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.event_organizer TO giventa_event_management;
-
-
---
--- TOC entry 3969 (class 0 OID 0)
--- Dependencies: 243
--- Name: TABLE event_poll; Type: ACL; Schema: public; Owner: giventa_event_management
---
-
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.event_poll TO giventa_event_management;
-
-
---
--- TOC entry 3970 (class 0 OID 0)
--- Dependencies: 244
--- Name: TABLE event_poll_option; Type: ACL; Schema: public; Owner: giventa_event_management
---
-
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.event_poll_option TO giventa_event_management;
-
-
---
--- TOC entry 3971 (class 0 OID 0)
--- Dependencies: 245
--- Name: TABLE event_poll_response; Type: ACL; Schema: public; Owner: giventa_event_management
---
-
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.event_poll_response TO giventa_event_management;
-
-
---
--- TOC entry 3978 (class 0 OID 0)
--- Dependencies: 241
--- Name: TABLE event_ticket_transaction; Type: ACL; Schema: public; Owner: giventa_event_management
---
-
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.event_ticket_transaction TO giventa_event_management;
-
-
---
--- TOC entry 3980 (class 0 OID 0)
--- Dependencies: 240
--- Name: TABLE event_ticket_type; Type: ACL; Schema: public; Owner: giventa_event_management
---
-
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.event_ticket_type TO giventa_event_management;
-
-
---
--- TOC entry 3982 (class 0 OID 0)
--- Dependencies: 232
--- Name: TABLE event_type_details; Type: ACL; Schema: public; Owner: giventa_event_management
---
-
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.event_type_details TO giventa_event_management;
-
-
---
--- TOC entry 3984 (class 0 OID 0)
--- Dependencies: 252
--- Name: TABLE qr_code_usage; Type: ACL; Schema: public; Owner: giventa_event_management
---
-
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.qr_code_usage TO giventa_event_management;
-
-
---
--- TOC entry 3987 (class 0 OID 0)
+-- TOC entry 3931 (class 0 OID 188423)
 -- Dependencies: 229
--- Name: TABLE tenant_organization; Type: ACL; Schema: public; Owner: giventa_event_management
+-- Data for Name: event_admin_audit_log; Type: TABLE DATA; Schema: public; Owner: giventa_event_management
 --
 
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.tenant_organization TO giventa_event_management;
-
-
---
--- TOC entry 3989 (class 0 OID 0)
--- Dependencies: 231
--- Name: TABLE tenant_settings; Type: ACL; Schema: public; Owner: giventa_event_management
---
-
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.tenant_settings TO giventa_event_management;
+INSERT INTO public.event_admin_audit_log VALUES (1, 'tenant_demo_001', 'UPDATE', 'event_details', '1', '{"field": "title"}', '{"title": "Old"}', '{"title": "New"}', '192.168.1.1', 'Mozilla/5.0', 'sess1', '2025-06-22 11:31:26.48504', 1);
+INSERT INTO public.event_admin_audit_log VALUES (2, 'tenant_demo_001', 'INSERT', 'event_details', '2', '{"field": "caption"}', NULL, '{"caption": "Added"}', '192.168.1.2', 'Mozilla/5.0', 'sess2', '2025-06-22 11:31:26.48504', 2);
+INSERT INTO public.event_admin_audit_log VALUES (3, 'tenant_demo_001', 'DELETE', 'event_details', '3', NULL, '{"id": 3}', NULL, '192.168.1.3', 'Mozilla/5.0', 'sess3', '2025-06-22 11:31:26.48504', 3);
+INSERT INTO public.event_admin_audit_log VALUES (4, 'tenant_demo_001', 'UPDATE', 'event_admin', '4', '{"field": "role"}', '{"role": "MEMBER"}', '{"role": "ADMIN"}', '192.168.1.4', 'Mozilla/5.0', 'sess4', '2025-06-22 11:31:26.48504', 4);
+INSERT INTO public.event_admin_audit_log VALUES (5, 'tenant_demo_001', 'INSERT', 'event_admin', '5', '{"field": "permissions"}', NULL, '{"permissions": ["ALL"]}', '192.168.1.5', 'Mozilla/5.0', 'sess5', '2025-06-22 11:31:26.48504', 5);
+INSERT INTO public.event_admin_audit_log VALUES (6, 'tenant_demo_001', 'DELETE', 'event_admin', '6', NULL, '{"id": 6}', NULL, '192.168.1.6', 'Mozilla/5.0', 'sess6', '2025-06-22 11:31:26.48504', 6);
 
 
 --
--- TOC entry 3990 (class 0 OID 0)
--- Dependencies: 242
--- Name: TABLE user_payment_transaction; Type: ACL; Schema: public; Owner: giventa_event_management
---
-
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.user_payment_transaction TO giventa_event_management;
-
-
---
--- TOC entry 3992 (class 0 OID 0)
+-- TOC entry 3932 (class 0 OID 188430)
 -- Dependencies: 230
--- Name: TABLE user_profile; Type: ACL; Schema: public; Owner: giventa_event_management
+-- Data for Name: event_attendee; Type: TABLE DATA; Schema: public; Owner: giventa_event_management
 --
 
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.user_profile TO giventa_event_management;
+INSERT INTO public.event_attendee VALUES (4351, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-03 19:50:56.581', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-03 19:50:56.581', '2025-07-03 19:50:56.581', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (4503, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-03 20:08:31.398', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-03 20:08:31.398', '2025-07-03 20:08:31.398', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (4501, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-03 20:08:19.518', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-03 20:08:19.518', '2025-07-03 20:08:19.518', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (4504, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-03 20:08:19.535', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-03 20:08:19.535', '2025-07-03 20:08:19.535', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (4502, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-03 20:08:31.331', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-03 20:08:31.331', '2025-07-03 20:08:31.331', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (4651, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-03 20:37:29.078', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-03 20:37:29.078', '2025-07-03 20:37:29.078', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (4652, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-03 20:37:21.809', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-03 20:37:21.809', '2025-07-03 20:37:21.809', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (4653, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-03 20:37:19.957', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-03 20:37:19.957', '2025-07-03 20:37:19.957', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (4654, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-03 20:37:19.978', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-03 20:37:19.978', '2025-07-03 20:37:19.978', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (4655, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-03 20:37:31.198', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-03 20:37:31.198', '2025-07-03 20:37:31.198', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (4656, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-03 20:37:58.245', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-03 20:37:58.245', '2025-07-03 20:37:58.245', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (4801, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-04 04:31:01.98', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-04 04:31:01.98', '2025-07-04 04:31:01.98', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (4951, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-04 04:36:02.907', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-04 04:36:02.907', '2025-07-04 04:36:02.907', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (4952, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-04 04:37:44.416', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-04 04:37:44.416', '2025-07-04 04:37:44.416', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5101, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-04 04:47:39.878', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-04 04:47:39.878', '2025-07-04 04:47:39.878', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5102, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-04 04:49:49.457', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-04 04:49:49.457', '2025-07-04 04:49:49.457', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5103, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-04 04:49:53.74', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-04 04:49:53.74', '2025-07-04 04:49:53.74', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5104, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-04 04:49:53.733', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-04 04:49:53.733', '2025-07-04 04:49:53.733', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5105, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-04 04:49:49.564', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-04 04:49:49.564', '2025-07-04 04:49:49.564', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5107, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-04 04:57:11.568', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-04 04:57:11.568', '2025-07-04 04:57:11.568', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5108, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-04 04:57:11.325', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-04 04:57:11.325', '2025-07-04 04:57:11.325', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5109, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-04 04:57:11.624', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-04 04:57:11.624', '2025-07-04 04:57:11.624', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5106, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-04 04:57:11.337', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-04 04:57:11.337', '2025-07-04 04:57:11.337', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5251, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-04 05:04:53.61', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-04 05:04:53.61', '2025-07-04 05:04:53.61', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5801, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 03:16:25.174', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 03:16:25.174', '2025-07-05 03:16:25.174', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5802, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 03:16:25.184', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 03:16:25.184', '2025-07-05 03:16:25.184', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5803, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 03:17:29.237', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 03:17:29.237', '2025-07-05 03:17:29.237', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5804, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 03:17:59.95', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 03:17:59.95', '2025-07-05 03:17:59.95', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5805, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 03:33:41.152', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 03:33:41.152', '2025-07-05 03:33:41.152', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5808, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 03:33:41.119', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 03:33:41.119', '2025-07-05 03:33:41.119', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5806, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 03:33:41.11', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 03:33:41.11', '2025-07-05 03:33:41.11', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5807, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 03:33:41.137', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 03:33:41.137', '2025-07-05 03:33:41.137', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5809, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 03:34:58.614', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 03:34:58.614', '2025-07-05 03:34:58.614', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5810, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 03:34:58.638', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 03:34:58.638', '2025-07-05 03:34:58.638', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5811, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 03:34:58.585', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 03:34:58.585', '2025-07-05 03:34:58.585', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5812, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 03:34:58.606', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 03:34:58.606', '2025-07-05 03:34:58.606', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5813, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 03:41:16.633', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 03:41:16.633', '2025-07-05 03:41:16.633', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5814, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 03:41:16.43', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 03:41:16.43', '2025-07-05 03:41:16.43', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5815, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 03:41:16.456', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 03:41:16.456', '2025-07-05 03:41:16.456', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5816, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 03:41:16.387', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 03:41:16.387', '2025-07-05 03:41:16.387', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5817, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 03:42:55.293', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 03:42:55.293', '2025-07-05 03:42:55.293', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5818, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 03:42:55.399', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 03:42:55.399', '2025-07-05 03:42:55.399', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5819, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 03:42:55.352', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 03:42:55.352', '2025-07-05 03:42:55.352', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5820, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 03:42:55.392', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 03:42:55.392', '2025-07-05 03:42:55.392', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5821, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 03:52:29.438', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 03:52:29.438', '2025-07-05 03:52:29.438', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5822, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 03:52:29.487', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 03:52:29.487', '2025-07-05 03:52:29.487', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5823, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 03:52:25.204', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 03:52:25.204', '2025-07-05 03:52:25.204', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5824, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 03:52:29.46', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 03:52:29.46', '2025-07-05 03:52:29.46', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5825, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 03:55:22.452', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 03:55:22.452', '2025-07-05 03:55:22.452', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5826, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 03:55:22.412', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 03:55:22.412', '2025-07-05 03:55:22.412', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5828, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 03:55:22.436', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 03:55:22.436', '2025-07-05 03:55:22.436', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5827, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 03:55:22.472', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 03:55:22.472', '2025-07-05 03:55:22.472', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5829, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 03:59:57.56', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 03:59:57.56', '2025-07-05 03:59:57.56', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5830, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 03:59:57.553', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 03:59:57.553', '2025-07-05 03:59:57.553', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5831, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 03:59:57.545', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 03:59:57.545', '2025-07-05 03:59:57.545', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5832, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 03:59:57.571', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 03:59:57.571', '2025-07-05 03:59:57.571', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5834, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 04:13:48.5', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 04:13:48.5', '2025-07-05 04:13:48.5', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5833, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 04:13:48.515', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 04:13:48.515', '2025-07-05 04:13:48.515', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5835, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 04:13:48.524', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 04:13:48.524', '2025-07-05 04:13:48.524', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5836, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 04:20:43.116', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 04:20:43.116', '2025-07-05 04:20:43.116', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5837, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 04:20:43.132', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 04:20:43.132', '2025-07-05 04:20:43.132', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5838, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 04:20:42.821', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 04:20:42.821', '2025-07-05 04:20:42.821', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5839, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 04:26:16.436', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 04:26:16.436', '2025-07-05 04:26:16.436', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5840, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 04:26:38.904', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 04:26:38.904', '2025-07-05 04:26:38.904', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5841, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 04:26:59.295', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 04:26:59.295', '2025-07-05 04:26:59.295', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5842, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 04:27:16.578', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 04:27:16.578', '2025-07-05 04:27:16.578', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5843, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 04:28:41.822', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 04:28:41.822', '2025-07-05 04:28:41.822', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5845, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 04:28:41.793', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 04:28:41.793', '2025-07-05 04:28:41.793', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5844, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 04:28:41.81', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 04:28:41.81', '2025-07-05 04:28:41.81', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5846, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 04:28:41.816', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 04:28:41.816', '2025-07-05 04:28:41.816', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5847, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 04:31:19.646', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 04:31:19.646', '2025-07-05 04:31:19.646', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5848, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 04:31:19.634', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 04:31:19.634', '2025-07-05 04:31:19.634', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5849, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 04:31:19.627', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 04:31:19.627', '2025-07-05 04:31:19.627', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5850, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 04:31:19.621', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 04:31:19.621', '2025-07-05 04:31:19.621', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5951, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 04:38:47.205', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 04:38:47.205', '2025-07-05 04:38:47.205', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5952, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 04:38:47.256', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 04:38:47.256', '2025-07-05 04:38:47.256', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5953, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 04:38:36.583', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 04:38:36.583', '2025-07-05 04:38:36.583', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5954, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 04:38:58.16', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 04:38:58.16', '2025-07-05 04:38:58.16', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5955, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 04:40:40.415', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 04:40:40.415', '2025-07-05 04:40:40.415', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5956, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 04:40:40.442', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 04:40:40.442', '2025-07-05 04:40:40.442', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5957, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 04:40:40.461', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 04:40:40.461', '2025-07-05 04:40:40.461', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5958, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 04:40:40.495', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 04:40:40.495', '2025-07-05 04:40:40.495', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5959, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 04:41:54.851', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 04:41:54.851', '2025-07-05 04:41:54.851', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5960, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 04:41:54.707', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 04:41:54.707', '2025-07-05 04:41:54.707', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5961, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 04:41:54.816', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 04:41:54.816', '2025-07-05 04:41:54.816', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5962, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 04:41:54.829', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 04:41:54.829', '2025-07-05 04:41:54.829', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5964, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 04:48:02.958', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 04:48:02.958', '2025-07-05 04:48:02.958', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5965, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 04:48:02.985', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 04:48:02.985', '2025-07-05 04:48:02.985', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5963, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 04:48:02.945', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 04:48:02.945', '2025-07-05 04:48:02.945', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5966, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 04:48:02.969', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 04:48:02.969', '2025-07-05 04:48:02.969', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5968, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 04:55:56.827', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 04:55:56.827', '2025-07-05 04:55:56.827', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5969, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 04:55:56.856', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 04:55:56.856', '2025-07-05 04:55:56.856', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5971, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 04:55:56.844', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 04:55:56.844', '2025-07-05 04:55:56.844', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5967, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 04:55:57.138', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 04:55:57.138', '2025-07-05 04:55:57.138', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5970, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 04:55:57.23', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 04:55:57.23', '2025-07-05 04:55:57.23', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5972, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 04:56:13.085', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 04:56:13.085', '2025-07-05 04:56:13.085', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5974, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 04:56:13.073', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 04:56:13.073', '2025-07-05 04:56:13.073', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5973, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 04:56:13.08', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 04:56:13.08', '2025-07-05 04:56:13.08', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5975, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 04:59:01.569', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 04:59:01.569', '2025-07-05 04:59:01.569', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5976, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 05:04:49.435', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 05:04:49.435', '2025-07-05 05:04:49.435', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5977, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 05:05:45.437', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 05:05:45.437', '2025-07-05 05:05:45.437', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5978, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 05:09:28.596', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 05:09:28.596', '2025-07-05 05:09:28.596', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5979, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 05:11:16.998', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 05:11:16.998', '2025-07-05 05:11:16.998', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5980, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 05:14:16.182', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 05:14:16.182', '2025-07-05 05:14:16.182', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5981, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 05:14:47.322', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 05:14:47.322', '2025-07-05 05:14:47.322', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5982, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 05:15:51.22', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 05:15:51.22', '2025-07-05 05:15:51.22', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5983, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 05:16:07.824', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 05:16:07.824', '2025-07-05 05:16:07.824', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5984, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 05:16:42.735', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 05:16:42.735', '2025-07-05 05:16:42.735', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5985, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 05:16:42.674', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 05:16:42.674', '2025-07-05 05:16:42.674', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5986, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 09:26:30.798', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 09:26:30.798', '2025-07-05 09:26:30.798', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5987, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 09:39:07.217', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 09:39:07.217', '2025-07-05 09:39:07.217', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5988, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 09:41:28.18', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 09:41:28.18', '2025-07-05 09:41:28.18', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5989, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 09:41:20.142', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 09:41:20.142', '2025-07-05 09:41:20.142', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5990, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 09:48:30.103', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 09:48:30.103', '2025-07-05 09:48:30.103', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5993, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 09:55:03.727', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 09:55:03.727', '2025-07-05 09:55:03.727', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5991, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 09:48:29.844', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 09:48:29.844', '2025-07-05 09:48:29.844', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5992, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 09:54:56.694', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 09:54:56.694', '2025-07-05 09:54:56.694', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5995, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 10:53:36.118', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 10:53:36.118', '2025-07-05 10:53:36.118', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5994, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 10:53:20.099', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 10:53:20.099', '2025-07-05 10:53:20.099', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5996, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 10:53:20.129', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 10:53:20.129', '2025-07-05 10:53:20.129', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5997, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 11:09:26.534', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 11:09:26.534', '2025-07-05 11:09:26.534', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5998, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 11:14:36.971', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 11:14:36.971', '2025-07-05 11:14:36.971', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (5999, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 11:19:31.194', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 11:19:31.194', '2025-07-05 11:19:31.194', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (6000, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 11:19:38.294', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 11:19:38.294', '2025-07-05 11:19:38.294', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (6101, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 11:22:10.715', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 11:22:10.715', '2025-07-05 11:22:10.715', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (6102, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 11:27:45.446', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 11:27:45.446', '2025-07-05 11:27:45.446', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (6103, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 11:27:45.427', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 11:27:45.427', '2025-07-05 11:27:45.427', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (6104, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 11:30:28.097', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 11:30:28.097', '2025-07-05 11:30:28.097', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (6105, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 11:40:49.632', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 11:40:49.632', '2025-07-05 11:40:49.632', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (6108, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 11:47:51.511', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 11:47:51.511', '2025-07-05 11:47:51.511', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (6107, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 11:47:56.445', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 11:47:56.445', '2025-07-05 11:47:56.445', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (6106, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 11:47:55.177', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 11:47:55.177', '2025-07-05 11:47:55.177', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (6109, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 11:47:52.581', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 11:47:52.581', '2025-07-05 11:47:52.581', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (6110, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 11:50:02.842', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 11:50:02.842', '2025-07-05 11:50:02.842', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (6111, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 11:59:32.587', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 11:59:32.587', '2025-07-05 11:59:32.587', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (6112, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 11:59:32.559', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 11:59:32.559', '2025-07-05 11:59:32.559', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (6113, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 11:59:32.611', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 11:59:32.611', '2025-07-05 11:59:32.611', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (6114, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 11:59:32.57', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 11:59:32.57', '2025-07-05 11:59:32.57', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (6115, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 12:02:15.695', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 12:02:15.695', '2025-07-05 12:02:15.695', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (6116, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 12:02:15.727', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 12:02:15.727', '2025-07-05 12:02:15.727', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (6117, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 12:02:15.743', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 12:02:15.743', '2025-07-05 12:02:15.743', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (6118, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 12:03:20.239', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 12:03:20.239', '2025-07-05 12:03:20.239', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
+INSERT INTO public.event_attendee VALUES (6119, 'tenant_demo_001', 1, NULL, 'REGISTERED', '2025-07-05 12:03:19.997', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-05 12:03:19.997', '2025-07-05 12:03:19.997', 'Gain Joseph', '', 'giventauser@gmail.com', '', NULL);
 
+
+--
+-- TOC entry 3933 (class 0 OID 188459)
+-- Dependencies: 231
+-- Data for Name: event_attendee_guest; Type: TABLE DATA; Schema: public; Owner: giventa_event_management
+--
 
 
 
 --
--- TOC entry 3994 (class 0 OID 0)
+-- TOC entry 3934 (class 0 OID 188473)
+-- Dependencies: 232
+-- Data for Name: event_calendar_entry; Type: TABLE DATA; Schema: public; Owner: giventa_event_management
+--
+
+
+
+--
+-- TOC entry 3924 (class 0 OID 188352)
+-- Dependencies: 222
+-- Data for Name: event_details; Type: TABLE DATA; Schema: public; Owner: giventa_event_management
+--
+
+INSERT INTO public.event_details VALUES (2, 'tenant_demo_001', 'Charity Run', '5K Charity Run', 'A 5K run to raise funds for charity.', '2025-09-01', '2025-09-01', '07:00 PM', '10:00 PM', 'America/New_York', 'City Park', NULL, 300, 'DONATION_BASED', true, 0, false, false, false, '2025-08-28 23:59:00', '2025-08-28 23:59:00', NULL, NULL, false, true, false, NULL, 4651, 1, '2025-06-14 23:13:02.565996', '2025-06-14 23:13:02.565996', false, false, false);
+INSERT INTO public.event_details VALUES (3, 'tenant_demo_001', 'Family Picnic', 'Community Family Picnic', 'A fun picnic for families in the community.', '2025-09-10', '2025-09-10', '11:00', '16:00', 'America/New_York', 'Lakeside Park', NULL, 150, 'FREE', true, 4, true, false, false, '2025-09-05 23:59:00', '2025-09-05 23:59:00', NULL, NULL, false, true, false, NULL, 4651, 1, '2025-06-14 23:13:02.565996', '2025-06-14 23:13:02.565996', false, false, false);
+INSERT INTO public.event_details VALUES (4, 'tenant_demo_001', 'VIP Dinner', 'Exclusive VIP Dinner', 'A dinner event for VIP guests.', '2025-09-15', '2025-09-15', '19:00', '22:00', 'America/New_York', 'Skyline Restaurant', NULL, 50, 'INVITATION_ONLY', true, 0, false, true, false, '2025-09-12 23:59:00', '2025-09-12 23:59:00', NULL, NULL, false, true, false, NULL, 4651, 1, '2025-06-14 23:13:02.565996', '2025-06-14 23:13:02.565996', false, false, false);
+INSERT INTO public.event_details VALUES (5, 'tenant_demo_001', 'Summer Fest', 'Summer Festival', 'A festival with games, food, and music.', '2025-09-20', '2025-09-20', '10:00', '20:00', 'America/New_York', 'Downtown Plaza', NULL, 400, 'TICKETED', true, 3, true, true, true, '2025-09-12 23:59:00', '2025-09-12 23:59:00', NULL, NULL, false, true, false, NULL, 4651, 1, '2025-06-14 23:13:02.565996', '2025-06-14 23:13:02.565996', false, false, false);
+INSERT INTO public.event_details VALUES (1, 'tenant_demo_001', 'Tech Conference', '2025 Tech Innovations', 'A conference on the latest in technology.', '2025-08-07', '2025-08-07', '09:00 AM', '07:00 PM', 'America/Los_Angeles', 'Convention Center', NULL, 500, 'ticketed', true, 3, true, true, false, '2025-08-12 23:59:00', '2025-08-12 23:59:00', NULL, NULL, false, true, false, NULL, 4651, 2, '2025-06-14 23:13:02.565996', '2025-07-06 23:54:36.366237', false, false, false);
+INSERT INTO public.event_details VALUES (6, 'tenant_demo_001', 'Spring Gala', 'Annual Spring Gala', 'A celebration of spring with music and food.', '2025-08-10', '2025-08-10', '18:00', '23:00', 'America/New_York', 'Grand Hall', NULL, 200, 'TICKETED', true, 2, true, false, true, '2025-08-05 23:59:00', '2025-08-05 23:59:00', NULL, NULL, false, true, false, NULL, 4651, 3, '2025-06-14 23:13:02.565996', '2025-07-07 00:22:35.874333', true, false, false);
+
+
+--
+-- TOC entry 3918 (class 0 OID 122038)
+-- Dependencies: 216
+-- Data for Name: event_discount_code; Type: TABLE DATA; Schema: public; Owner: giventa_event_management
+--
+
+INSERT INTO public.event_discount_code VALUES (1, 1);
+INSERT INTO public.event_discount_code VALUES (2, 2);
+INSERT INTO public.event_discount_code VALUES (3, 3);
+INSERT INTO public.event_discount_code VALUES (4, 4);
+INSERT INTO public.event_discount_code VALUES (5, 5);
+INSERT INTO public.event_discount_code VALUES (6, 6);
+
+
+--
+-- TOC entry 3925 (class 0 OID 188378)
+-- Dependencies: 223
+-- Data for Name: event_guest_pricing; Type: TABLE DATA; Schema: public; Owner: giventa_event_management
+--
+
+INSERT INTO public.event_guest_pricing VALUES (1, 'tenant_demo_001', 1, 'ADULT', 50.00, true, '2025-03-01', '2025-04-10', 'Adult pricing for Spring Gala', 2, 'Standard', 40.00, '2025-03-15 23:59:00', 5, 10.00, '2025-06-22 11:31:26.374558', '2025-06-22 11:31:26.374558');
+INSERT INTO public.event_guest_pricing VALUES (2, 'tenant_demo_001', 1, 'CHILD', 25.00, true, '2025-03-01', '2025-04-10', 'Child pricing for Spring Gala', 2, 'Standard', 20.00, '2025-03-15 23:59:00', 5, 10.00, '2025-06-22 11:31:26.374558', '2025-06-22 11:31:26.374558');
+INSERT INTO public.event_guest_pricing VALUES (3, 'tenant_demo_001', 2, 'ADULT', 100.00, true, '2025-04-01', '2025-05-15', 'Adult pricing for Tech Conference', 1, 'Premium', 80.00, '2025-04-20 23:59:00', 3, 15.00, '2025-06-22 11:31:26.374558', '2025-06-22 11:31:26.374558');
+INSERT INTO public.event_guest_pricing VALUES (4, 'tenant_demo_001', 2, 'TEEN', 60.00, true, '2025-04-01', '2025-05-15', 'Teen pricing for Tech Conference', 1, 'Premium', 50.00, '2025-04-20 23:59:00', 3, 15.00, '2025-06-22 11:31:26.374558', '2025-06-22 11:31:26.374558');
+INSERT INTO public.event_guest_pricing VALUES (5, 'tenant_demo_001', 3, 'ADULT', 0.00, true, '2025-05-01', '2025-06-01', 'Free for Charity Run', NULL, 'Free', NULL, NULL, NULL, NULL, '2025-06-22 11:31:26.374558', '2025-06-22 11:31:26.374558');
+INSERT INTO public.event_guest_pricing VALUES (6, 'tenant_demo_001', 4, 'ADULT', 10.00, true, '2025-07-01', '2025-07-20', 'Adult pricing for Family Picnic', 4, 'Standard', 8.00, '2025-07-10 23:59:00', 2, 5.00, '2025-06-22 11:31:26.374558', '2025-06-22 11:31:26.374558');
+
+
+--
+-- TOC entry 3926 (class 0 OID 188393)
+-- Dependencies: 224
+-- Data for Name: event_live_update; Type: TABLE DATA; Schema: public; Owner: giventa_event_management
+--
+
+INSERT INTO public.event_live_update VALUES (1, 1, 'INFO', 'Welcome to Spring Gala!', NULL, NULL, NULL, NULL, 1, true, '2025-06-22 11:31:26.727266', '2025-06-22 11:31:26.727266');
+INSERT INTO public.event_live_update VALUES (2, 2, 'ALERT', 'Tech Conference Keynote at 10am', NULL, NULL, NULL, NULL, 2, false, '2025-06-22 11:31:26.727266', '2025-06-22 11:31:26.727266');
+INSERT INTO public.event_live_update VALUES (3, 3, 'INFO', 'Charity Run starts at 7am', NULL, NULL, NULL, NULL, 3, false, '2025-06-22 11:31:26.727266', '2025-06-22 11:31:26.727266');
+INSERT INTO public.event_live_update VALUES (4, 4, 'INFO', 'Family Picnic games at noon', NULL, NULL, NULL, NULL, 4, false, '2025-06-22 11:31:26.727266', '2025-06-22 11:31:26.727266');
+INSERT INTO public.event_live_update VALUES (5, 5, 'ALERT', 'VIP Dinner seating at 7pm', NULL, NULL, NULL, NULL, 5, false, '2025-06-22 11:31:26.727266', '2025-06-22 11:31:26.727266');
+INSERT INTO public.event_live_update VALUES (6, 6, 'INFO', 'Summer Fest parade at 5pm', NULL, NULL, NULL, NULL, 6, false, '2025-06-22 11:31:26.727266', '2025-06-22 11:31:26.727266');
+
+
+--
+-- TOC entry 3927 (class 0 OID 188404)
+-- Dependencies: 225
+-- Data for Name: event_live_update_attachment; Type: TABLE DATA; Schema: public; Owner: giventa_event_management
+--
+
+INSERT INTO public.event_live_update_attachment VALUES (1, 1, 'IMAGE', 'https://example.com/image1.jpg', 1, NULL, '2025-06-22 11:31:26.770391', '2025-06-22 11:31:26.770391');
+INSERT INTO public.event_live_update_attachment VALUES (2, 2, 'VIDEO', 'https://example.com/video2.mp4', 2, NULL, '2025-06-22 11:31:26.770391', '2025-06-22 11:31:26.770391');
+INSERT INTO public.event_live_update_attachment VALUES (3, 3, 'IMAGE', 'https://example.com/image3.jpg', 3, NULL, '2025-06-22 11:31:26.770391', '2025-06-22 11:31:26.770391');
+INSERT INTO public.event_live_update_attachment VALUES (4, 4, 'IMAGE', 'https://example.com/image4.jpg', 4, NULL, '2025-06-22 11:31:26.770391', '2025-06-22 11:31:26.770391');
+INSERT INTO public.event_live_update_attachment VALUES (5, 5, 'VIDEO', 'https://example.com/video5.mp4', 5, NULL, '2025-06-22 11:31:26.770391', '2025-06-22 11:31:26.770391');
+INSERT INTO public.event_live_update_attachment VALUES (6, 6, 'IMAGE', 'https://example.com/image6.jpg', 6, NULL, '2025-06-22 11:31:26.770391', '2025-06-22 11:31:26.770391');
+
+
+--
+-- TOC entry 3935 (class 0 OID 188482)
 -- Dependencies: 233
--- Name: TABLE user_subscription; Type: ACL; Schema: public; Owner: giventa_event_management
+-- Data for Name: event_media; Type: TABLE DATA; Schema: public; Owner: giventa_event_management
 --
 
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.user_subscription TO giventa_event_management;
+INSERT INTO public.event_media VALUES (4050, 'tenant_demo_001', 'birthday_party.jfif', NULL, 'image/jpeg', 'S3', 'https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/1/birthday_party_1750026379828_bacbecdc.jfif', NULL, 'image/jpeg', NULL, 17757, true, true, false, 'https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/1/birthday_party_1750026379828_bacbecdc.jfif?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20250615T222620Z&X-Amz-SignedHeaders=host&X-Amz-Expires=3600&X-Amz-Credential=AKIATIT5HARDKCWNLQMU%2F20250615%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Signature=a8d7ab16523489684d14fdd1e5bfa063183664cb6788e5d0a54bc85142721fbc', NULL, NULL, NULL, NULL, false, NULL, false, false, false, '2025-06-15 22:26:20.4035', '2025-06-15 22:26:20.4035', 1, 1);
+INSERT INTO public.event_media VALUES (4100, 'tenant_demo_001', 'street_fair.jfif', '115941', 'image/jpeg', 'S3', 'https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/1/street_fair_1750026381257_f70e40cf.jfif', NULL, 'image/jpeg', NULL, 10551, true, true, false, 'https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/1/street_fair_1750026381257_f70e40cf.jfif?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20250615T222621Z&X-Amz-SignedHeaders=host&X-Amz-Expires=3600&X-Amz-Credential=AKIATIT5HARDKCWNLQMU%2F20250615%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Signature=7b739490bda78d4127fbeb267d77856a11cc59a83b24e90c666a76783393e15d', NULL, NULL, NULL, NULL, false, NULL, false, false, false, '2025-06-15 22:26:21.363353', '2025-06-15 22:26:21.363353', 1, 1);
+INSERT INTO public.event_media VALUES (4150, 'tenant_demo_001', 'night_party.jfif', '115942', 'image/jpeg', 'S3', 'https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/1/night_party_1750026381113_69263496.jfif', NULL, 'image/jpeg', NULL, 8851, true, true, false, 'https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/1/night_party_1750026381113_69263496.jfif?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20250615T222621Z&X-Amz-SignedHeaders=host&X-Amz-Expires=3599&X-Amz-Credential=AKIATIT5HARDKCWNLQMU%2F20250615%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Signature=976a14bab785e95765850160c250285fa2408035afc3b3eb7354e497769c5ffa', NULL, NULL, NULL, NULL, false, NULL, false, false, false, '2025-06-15 22:26:21.256044', '2025-06-15 22:26:21.256044', 1, 1);
+INSERT INTO public.event_media VALUES (4200, 'tenant_demo_001', 'music_fest.jfif', '115943', 'image/jpeg', 'S3', 'https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/1/music_fest_1750026380991_16eac442.jfif', NULL, 'image/jpeg', NULL, 13369, true, true, false, 'https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/1/music_fest_1750026380991_16eac442.jfif?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20250615T222621Z&X-Amz-SignedHeaders=host&X-Amz-Expires=3600&X-Amz-Credential=AKIATIT5HARDKCWNLQMU%2F20250615%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Signature=fe05c34013a10da60e63df0cc7bcf34a493ff96dbd9a732408bebcff759afe96', NULL, NULL, NULL, NULL, false, NULL, false, false, false, '2025-06-15 22:26:21.112602', '2025-06-15 22:26:21.112602', 1, 1);
+INSERT INTO public.event_media VALUES (4250, 'tenant_demo_001', 'mens_party.jfif', '115944', 'image/jpeg', 'S3', 'https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/1/mens_party_1750026380857_14c08f34.jfif', NULL, 'image/jpeg', NULL, 11908, true, true, false, 'https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/1/mens_party_1750026380857_14c08f34.jfif?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20250615T222620Z&X-Amz-SignedHeaders=host&X-Amz-Expires=3599&X-Amz-Credential=AKIATIT5HARDKCWNLQMU%2F20250615%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Signature=9b8f1373e82b4c9ef900736e3955434b27150e958e7816aa6e65bd9ae42e1080', NULL, NULL, NULL, NULL, false, NULL, false, false, false, '2025-06-15 22:26:20.990864', '2025-06-15 22:26:20.990864', 1, 1);
+INSERT INTO public.event_media VALUES (4300, 'tenant_demo_001', 'kanj_cine_star_nite_2025.avif', '115945', 'image/avif', 'S3', 'https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/1/kanj_cine_star_nite_2025_1750026380584_8b2bfa97.avif', NULL, 'image/avif', NULL, 76564, true, true, false, 'https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/1/kanj_cine_star_nite_2025_1750026380584_8b2bfa97.avif?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20250615T222620Z&X-Amz-SignedHeaders=host&X-Amz-Expires=3599&X-Amz-Credential=AKIATIT5HARDKCWNLQMU%2F20250615%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Signature=c73013131cf421a28789e4fa611ce521b4c6d2f7998fa2e72551c10aa70e8070', NULL, NULL, NULL, NULL, false, NULL, false, false, false, '2025-06-15 22:26:20.856032', '2025-06-15 22:26:20.856032', 1, 1);
+INSERT INTO public.event_media VALUES (4350, 'tenant_demo_001', 'glow_party.jfif', '115946', 'image/jpeg', 'S3', 'https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/1/glow_party_1750026380446_f58e53cd.jfif', NULL, 'image/jpeg', NULL, 14345, true, true, false, 'https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/1/glow_party_1750026380446_f58e53cd.jfif?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20250615T222620Z&X-Amz-SignedHeaders=host&X-Amz-Expires=3600&X-Amz-Credential=AKIATIT5HARDKCWNLQMU%2F20250615%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Signature=67f5380e4492f8716887259519c3d1e98ac6b969079e15f80396d38c6a1a4273', NULL, NULL, NULL, NULL, false, NULL, false, false, false, '2025-06-15 22:26:20.583355', '2025-06-15 22:26:20.583355', 1, 1);
+INSERT INTO public.event_media VALUES (4400, 'tenant_demo_001', 'zxz', '115947', 'image/jpeg', 'S3', 'https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/1/event-poster-music-event_1749958343913_61cef052.jpg', NULL, 'image/jpeg', NULL, 26137, true, true, false, 'https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/1/event-poster-music-event_1749958343913_61cef052.jpg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20250615T033224Z&X-Amz-SignedHeaders=host&X-Amz-Expires=3599&X-Amz-Credential=AKIATIT5HARDKCWNLQMU%2F20250615%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Signature=f4a4017dbd783d610b73d436526f49fede315bf8f99b7c11e11f765fa0bcd712', NULL, NULL, NULL, NULL, false, NULL, false, false, false, '2025-06-15 03:32:24.279795', '2025-06-15 03:32:24.279795', 1, 1);
+INSERT INTO public.event_media VALUES (4450, 'tenant_demo_001', 'xcxcxcxxcxcxc', '115948', 'image/jpeg', 'S3', 'https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/4500/glow_party_1750045122643_236bc54f.jfif', NULL, 'image/jpeg', NULL, 14345, true, true, false, 'https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/4500/glow_party_1750045122643_236bc54f.jfif?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20250616T033843Z&X-Amz-SignedHeaders=host&X-Amz-Expires=3600&X-Amz-Credential=AKIATIT5HARDKCWNLQMU%2F20250616%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Signature=f58364d96ff6d0a6127e70f1bd13fa54fe5dda93961360cfb8f3048cc208ee3f', NULL, NULL, NULL, NULL, false, NULL, false, false, false, '2025-06-16 03:38:43.045378', '2025-06-16 03:38:43.045378', 1, 1);
+INSERT INTO public.event_media VALUES (4500, 'tenant_demo_001', 'kanj_cine_star_nite_2025.avif', NULL, 'image/avif', 'S3', 'https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/4500/kanj_cine_star_nite_2025_1750045123063_470db4ac.avif', NULL, 'image/avif', NULL, 76564, true, true, false, 'https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/4500/kanj_cine_star_nite_2025_1750045123063_470db4ac.avif?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20250616T033843Z&X-Amz-SignedHeaders=host&X-Amz-Expires=3599&X-Amz-Credential=AKIATIT5HARDKCWNLQMU%2F20250616%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Signature=96f8190f8b95f7185b5d7f92423c3682577db0728032abee59b781f82e280718', NULL, NULL, NULL, NULL, false, NULL, false, false, false, '2025-06-16 03:38:43.228752', '2025-06-16 03:38:43.228752', 2, 1);
+INSERT INTO public.event_media VALUES (4550, 'tenant_demo_001', 'mens_party.jfif', NULL, 'image/jpeg', 'S3', 'https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/4500/mens_party_1750045123229_c2447fa3.jfif', NULL, 'image/jpeg', NULL, 11908, true, true, false, 'https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/4500/mens_party_1750045123229_c2447fa3.jfif?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20250616T033843Z&X-Amz-SignedHeaders=host&X-Amz-Expires=3599&X-Amz-Credential=AKIATIT5HARDKCWNLQMU%2F20250616%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Signature=74d7c46ca459bfa5e451dd145e63b4b845b87fb8979796ee8dfd77e77262864c', NULL, NULL, NULL, NULL, false, NULL, false, false, false, '2025-06-16 03:38:43.330859', '2025-06-16 03:38:43.330859', 1, 1);
+INSERT INTO public.event_media VALUES (4600, 'tenant_demo_001', 'music_fest.jfif', NULL, 'image/jpeg', 'S3', 'https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/4500/music_fest_1750045123331_4703ef82.jfif', NULL, 'image/jpeg', NULL, 13369, true, true, false, 'https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/4500/music_fest_1750045123331_4703ef82.jfif?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20250616T033843Z&X-Amz-SignedHeaders=host&X-Amz-Expires=3600&X-Amz-Credential=AKIATIT5HARDKCWNLQMU%2F20250616%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Signature=ccafab0578292825faf548600cc8c7b7b97623ed7dff502f5bc3da8d9be5dd2c', NULL, NULL, NULL, NULL, false, NULL, false, false, false, '2025-06-16 03:38:43.437199', '2025-06-16 03:38:43.437199', 1, 1);
+INSERT INTO public.event_media VALUES (4701, 'tenant_demo_001', 'kanj_cine_star_nite_2025.avif', '189075', 'image/avif', 'S3', 'https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/1/kanj_cine_star_nite_2025_1750611778776_7cd3457e.avif', NULL, 'image/avif', NULL, 76564, true, true, false, 'https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/1/kanj_cine_star_nite_2025_1750611778776_7cd3457e.avif?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20250622T170300Z&X-Amz-SignedHeaders=host&X-Amz-Expires=3600&X-Amz-Credential=AKIATIT5HARDKCWNLQMU%2F20250622%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Signature=b57df8d480ce0e14365a1fe584665d8bc32608b186c5ce0a562a8010e014b690', NULL, NULL, NULL, NULL, false, '', false, false, false, '2025-06-22 17:03:00.151361', '2025-07-07 00:30:34.802', 1, 4651);
+INSERT INTO public.event_media VALUES (4650, 'tenant_demo_001', 'night_party.jfif', '189078', 'image/jpeg', 'S3', 'https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/4500/night_party_1750045123438_59d4ca6c.jfif', NULL, 'image/jpeg', NULL, 8851, true, true, false, 'https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/4500/night_party_1750045123438_59d4ca6c.jfif?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20250616T033843Z&X-Amz-SignedHeaders=host&X-Amz-Expires=3600&X-Amz-Credential=AKIATIT5HARDKCWNLQMU%2F20250616%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Signature=89011e0a4126acad5b6e6a9c231c6813f3079fca0ad3a8bf3276fedb8b69b948', NULL, NULL, NULL, NULL, false, '', false, false, false, '2025-06-16 03:38:43.540827', '2025-07-07 04:16:38.357', 1, 1);
+INSERT INTO public.event_media VALUES (6701, 'tenant_demo_001', 'bok_Onam.jpeg', NULL, 'image/jpeg', 'S3', 'https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/2/bok_Onam_1751862317942_25ae23ae.jpeg', NULL, 'image/jpeg', NULL, 310777, true, false, true, 'https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/2/bok_Onam_1751862317942_25ae23ae.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20250707T042519Z&X-Amz-SignedHeaders=host&X-Amz-Expires=3600&X-Amz-Credential=AKIATIT5HARDKCWNLQMU%2F20250707%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Signature=be68845d91efa2f5c3bced9f33c5ced1ddba0f9321f3a8ea3245d67e55d3ec1f', NULL, NULL, NULL, NULL, NULL, NULL, false, false, false, '2025-07-07 04:25:19.112609', '2025-07-07 04:25:19.112609', 2, 4651);
 
 
 --
--- TOC entry 3995 (class 0 OID 0)
+-- TOC entry 3936 (class 0 OID 188501)
+-- Dependencies: 234
+-- Data for Name: event_organizer; Type: TABLE DATA; Schema: public; Owner: giventa_event_management
+--
+
+INSERT INTO public.event_organizer VALUES (1, 'tenant_demo_001', 'Lead Organizer', 'Manager', 'lead1@example.com', '555-3001', true, 1, 'Lead for Spring Gala', 'https://example.com/lead1.jpg', '2025-06-22 11:31:26.928238', '2025-06-22 11:31:26.928238', 1, 1);
+INSERT INTO public.event_organizer VALUES (2, 'tenant_demo_001', 'Co-Organizer', 'Assistant', 'co2@example.com', '555-3002', false, 2, 'Co-lead for Tech Conference', 'https://example.com/co2.jpg', '2025-06-22 11:31:26.928238', '2025-06-22 11:31:26.928238', 2, 2);
+INSERT INTO public.event_organizer VALUES (3, 'tenant_demo_001', 'Volunteer Lead', 'Volunteer', 'vol3@example.com', '555-3003', false, 3, 'Volunteer for Charity Run', 'https://example.com/vol3.jpg', '2025-06-22 11:31:26.928238', '2025-06-22 11:31:26.928238', 3, 3);
+INSERT INTO public.event_organizer VALUES (4, 'tenant_demo_001', 'Family Host', 'Host', 'host4@example.com', '555-3004', true, 4, 'Host for Family Picnic', 'https://example.com/host4.jpg', '2025-06-22 11:31:26.928238', '2025-06-22 11:31:26.928238', 4, 4);
+INSERT INTO public.event_organizer VALUES (5, 'tenant_demo_001', 'VIP Host', 'Manager', 'vip5@example.com', '555-3005', true, 5, 'Host for VIP Dinner', 'https://example.com/vip5.jpg', '2025-06-22 11:31:26.928238', '2025-06-22 11:31:26.928238', 5, 5);
+INSERT INTO public.event_organizer VALUES (6, 'tenant_demo_001', 'Summer Fest Lead', 'Manager', 'summer6@example.com', '555-3006', true, 6, 'Lead for Summer Fest', 'https://example.com/summer6.jpg', '2025-06-22 11:31:26.928238', '2025-06-22 11:31:26.928238', 6, 6);
+
+
+--
+-- TOC entry 3937 (class 0 OID 188512)
+-- Dependencies: 235
+-- Data for Name: event_poll; Type: TABLE DATA; Schema: public; Owner: giventa_event_management
+--
+
+INSERT INTO public.event_poll VALUES (1, 'tenant_demo_001', 'Spring Gala Feedback', 'Feedback poll for Spring Gala', true, false, false, '2025-06-22 11:31:26.972218', '2025-06-23 11:31:26.972218', 1, 'ALL', '2025-06-22 11:31:26.972218', '2025-06-22 11:31:26.972218', 1, 1);
+INSERT INTO public.event_poll VALUES (2, 'tenant_demo_001', 'Tech Conference Topics', 'Vote for topics', true, false, true, '2025-06-22 11:31:26.972218', '2025-06-24 11:31:26.972218', 2, 'ALL', '2025-06-22 11:31:26.972218', '2025-06-22 11:31:26.972218', 2, 2);
+INSERT INTO public.event_poll VALUES (3, 'tenant_demo_001', 'Charity Run Survey', 'Survey for runners', true, true, false, '2025-06-22 11:31:26.972218', '2025-06-23 11:31:26.972218', 1, 'ALL', '2025-06-22 11:31:26.972218', '2025-06-22 11:31:26.972218', 3, 3);
+INSERT INTO public.event_poll VALUES (4, 'tenant_demo_001', 'Family Picnic Games', 'Vote for games', true, false, true, '2025-06-22 11:31:26.972218', '2025-06-23 11:31:26.972218', 3, 'ALL', '2025-06-22 11:31:26.972218', '2025-06-22 11:31:26.972218', 4, 4);
+INSERT INTO public.event_poll VALUES (5, 'tenant_demo_001', 'VIP Dinner Menu', 'Choose menu items', true, false, false, '2025-06-22 11:31:26.972218', '2025-06-23 11:31:26.972218', 1, 'ALL', '2025-06-22 11:31:26.972218', '2025-06-22 11:31:26.972218', 5, 5);
+INSERT INTO public.event_poll VALUES (6, 'tenant_demo_001', 'Summer Fest Events', 'Vote for events', true, false, true, '2025-06-22 11:31:26.972218', '2025-06-23 11:31:26.972218', 2, 'ALL', '2025-06-22 11:31:26.972218', '2025-06-22 11:31:26.972218', 6, 6);
+
+
+--
+-- TOC entry 3938 (class 0 OID 188529)
 -- Dependencies: 236
--- Name: TABLE user_task; Type: ACL; Schema: public; Owner: giventa_event_management
+-- Data for Name: event_poll_option; Type: TABLE DATA; Schema: public; Owner: giventa_event_management
 --
 
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE public.user_task TO giventa_event_management;
+INSERT INTO public.event_poll_option VALUES (1, 'tenant_demo_001', 'Excellent', 1, true, '2025-06-22 11:31:27.027301', '2025-06-22 11:31:27.027301', 1);
+INSERT INTO public.event_poll_option VALUES (2, 'tenant_demo_001', 'Good', 2, true, '2025-06-22 11:31:27.027301', '2025-06-22 11:31:27.027301', 1);
+INSERT INTO public.event_poll_option VALUES (3, 'tenant_demo_001', 'Average', 3, true, '2025-06-22 11:31:27.027301', '2025-06-22 11:31:27.027301', 1);
+INSERT INTO public.event_poll_option VALUES (4, 'tenant_demo_001', 'Topic A', 1, true, '2025-06-22 11:31:27.027301', '2025-06-22 11:31:27.027301', 2);
+INSERT INTO public.event_poll_option VALUES (5, 'tenant_demo_001', 'Topic B', 2, true, '2025-06-22 11:31:27.027301', '2025-06-22 11:31:27.027301', 2);
+INSERT INTO public.event_poll_option VALUES (6, 'tenant_demo_001', 'Fun', 1, true, '2025-06-22 11:31:27.027301', '2025-06-22 11:31:27.027301', 4);
 
-
--- Completed on 2025-06-08 23:51:06
 
 --
--- PostgreSQL database dump complete
+-- TOC entry 3939 (class 0 OID 188541)
+-- Dependencies: 237
+-- Data for Name: event_poll_response; Type: TABLE DATA; Schema: public; Owner: giventa_event_management
 --
 
+INSERT INTO public.event_poll_response VALUES (1, 'tenant_demo_001', 'Great event!', 'Excellent', false, '2025-06-22 11:31:27.074568', '2025-06-22 11:31:27.074568', 1, 1, 1);
+INSERT INTO public.event_poll_response VALUES (2, 'tenant_demo_001', 'Loved it', 'Good', false, '2025-06-22 11:31:27.074568', '2025-06-22 11:31:27.074568', 1, 2, 2);
+INSERT INTO public.event_poll_response VALUES (3, 'tenant_demo_001', 'Could be better', 'Average', true, '2025-06-22 11:31:27.074568', '2025-06-22 11:31:27.074568', 1, 3, 3);
+INSERT INTO public.event_poll_response VALUES (4, 'tenant_demo_001', 'Vote for Topic A', NULL, false, '2025-06-22 11:31:27.074568', '2025-06-22 11:31:27.074568', 2, 4, 4);
+INSERT INTO public.event_poll_response VALUES (5, 'tenant_demo_001', 'Vote for Topic B', NULL, false, '2025-06-22 11:31:27.074568', '2025-06-22 11:31:27.074568', 2, 5, 5);
+INSERT INTO public.event_poll_response VALUES (6, 'tenant_demo_001', 'Fun games', 'Fun', false, '2025-06-22 11:31:27.074568', '2025-06-22 11:31:27.074568', 4, 6, 6);
+
+
+--
+-- TOC entry 3940 (class 0 OID 188550)
+-- Dependencies: 238
+-- Data for Name: event_score_card; Type: TABLE DATA; Schema: public; Owner: giventa_event_management
+--
+
+INSERT INTO public.event_score_card VALUES (1, 1, 'Team Red', 'Team Blue', 10, 8, 'Close match', '2025-06-22 11:31:27.19135', '2025-06-22 11:31:27.19135');
+INSERT INTO public.event_score_card VALUES (2, 2, 'Team Alpha', 'Team Beta', 15, 12, 'Exciting', '2025-06-22 11:31:27.19135', '2025-06-22 11:31:27.19135');
+INSERT INTO public.event_score_card VALUES (3, 3, 'Team One', 'Team Two', 7, 9, 'Well played', '2025-06-22 11:31:27.19135', '2025-06-22 11:31:27.19135');
+INSERT INTO public.event_score_card VALUES (4, 4, 'Team A', 'Team B', 5, 5, 'Draw', '2025-06-22 11:31:27.19135', '2025-06-22 11:31:27.19135');
+INSERT INTO public.event_score_card VALUES (5, 5, 'Team X', 'Team Y', 20, 18, 'High scoring', '2025-06-22 11:31:27.19135', '2025-06-22 11:31:27.19135');
+INSERT INTO public.event_score_card VALUES (6, 6, 'Team Sun', 'Team Moon', 13, 14, 'Nail-biter', '2025-06-22 11:31:27.19135', '2025-06-22 11:31:27.19135');
+
+
+--
+-- TOC entry 3941 (class 0 OID 188561)
+-- Dependencies: 239
+-- Data for Name: event_score_card_detail; Type: TABLE DATA; Schema: public; Owner: giventa_event_management
+--
+
+INSERT INTO public.event_score_card_detail VALUES (1, 1, 'Team Red', 'Alice', 5, 'Great play', '2025-06-22 11:31:27.245277', '2025-06-22 11:31:27.245277');
+INSERT INTO public.event_score_card_detail VALUES (2, 1, 'Team Blue', 'Bob', 4, 'Strong defense', '2025-06-22 11:31:27.245277', '2025-06-22 11:31:27.245277');
+INSERT INTO public.event_score_card_detail VALUES (3, 2, 'Team Alpha', 'Carol', 8, 'Top scorer', '2025-06-22 11:31:27.245277', '2025-06-22 11:31:27.245277');
+INSERT INTO public.event_score_card_detail VALUES (4, 2, 'Team Beta', 'David', 7, 'Good effort', '2025-06-22 11:31:27.245277', '2025-06-22 11:31:27.245277');
+INSERT INTO public.event_score_card_detail VALUES (5, 3, 'Team One', 'Eve', 3, 'Quick start', '2025-06-22 11:31:27.245277', '2025-06-22 11:31:27.245277');
+INSERT INTO public.event_score_card_detail VALUES (6, 3, 'Team Two', 'Frank', 6, 'Solid finish', '2025-06-22 11:31:27.245277', '2025-06-22 11:31:27.245277');
+
+
+--
+-- TOC entry 3944 (class 0 OID 188573)
+-- Dependencies: 242
+-- Data for Name: event_ticket_transaction; Type: TABLE DATA; Schema: public; Owner: giventa_event_management
+--
+
+INSERT INTO public.event_ticket_transaction VALUES (1, 'tenant_demo_001', 'TXN001', 'alice.johnson@example.com', 'Alice', 'Johnson', '555-1001', 2, 50.00, 100.00, 5.00, 2.00, 1, 10.00, 87.00, 'COMPLETED', 'CARD', 'REF001', NULL, NULL, '2025-06-22 11:31:27.363866', '2025-06-22 11:31:27.363866', 0.00, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 1, 1, '2025-06-22 11:31:27.363866', '2025-06-22 11:31:27.363866', NULL, 'NOT_CHECKED_IN', NULL, NULL);
+INSERT INTO public.event_ticket_transaction VALUES (2, 'tenant_demo_002', 'TXN002', 'bob.smith@example.com', 'Bob', 'Smith', '555-1002', 1, 200.00, 200.00, 10.00, 5.00, 2, 20.00, 185.00, 'COMPLETED', 'CARD', 'REF002', NULL, NULL, '2025-06-22 11:31:27.363866', '2025-06-22 11:31:27.363866', 0.00, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 2, 2, '2025-06-22 11:31:27.363866', '2025-06-22 11:31:27.363866', NULL, 'NOT_CHECKED_IN', NULL, NULL);
+INSERT INTO public.event_ticket_transaction VALUES (3, 'tenant_demo_003', 'TXN003', 'carol.williams@example.com', 'Carol', 'Williams', '555-1003', 3, 0.00, 0.00, 0.00, 0.00, 3, 0.00, 0.00, 'COMPLETED', 'CASH', 'REF003', NULL, NULL, '2025-06-22 11:31:27.363866', '2025-06-22 11:31:27.363866', 0.00, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 3, 3, '2025-06-22 11:31:27.363866', '2025-06-22 11:31:27.363866', NULL, 'NOT_CHECKED_IN', NULL, NULL);
+INSERT INTO public.event_ticket_transaction VALUES (4, 'tenant_demo_004', 'TXN004', 'david.brown@example.com', 'David', 'Brown', '555-1004', 4, 20.00, 80.00, 4.00, 1.00, 4, 5.00, 70.00, 'COMPLETED', 'CARD', 'REF004', NULL, NULL, '2025-06-22 11:31:27.363866', '2025-06-22 11:31:27.363866', 0.00, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 4, 4, '2025-06-22 11:31:27.363866', '2025-06-22 11:31:27.363866', NULL, 'NOT_CHECKED_IN', NULL, NULL);
+INSERT INTO public.event_ticket_transaction VALUES (5, 'tenant_demo_005', 'TXN005', 'eve.davis@example.com', 'Eve', 'Davis', '555-1005', 1, 100.00, 100.00, 5.00, 2.00, 5, 10.00, 87.00, 'COMPLETED', 'CARD', 'REF005', NULL, NULL, '2025-06-22 11:31:27.363866', '2025-06-22 11:31:27.363866', 0.00, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 5, 5, '2025-06-22 11:31:27.363866', '2025-06-22 11:31:27.363866', NULL, 'NOT_CHECKED_IN', NULL, NULL);
+INSERT INTO public.event_ticket_transaction VALUES (6751, 'tenant_demo_001', NULL, 'giventauser@gmail.com', 'Gain Joseph', '', '', 1, 10.00, 10.00, 0.00, 0.10, NULL, 0.00, 9.31, 'COMPLETED', 'card', 'pi_3RiGbpK5BrggeAHM1HhHh1kX', 'cs_test_a15jfvx9tfQSfTgKcs7gOYKXjKrvjLLdAlJmjSNryEunj5ZY3gBWqn4WjI', 'pi_3RiGbpK5BrggeAHM1HhHh1kX', '2025-07-07 15:06:10.327', NULL, NULL, NULL, NULL, NULL, 'paid', 'giventauser@gmail.com', 'usd', 0.00, 0.00, 0.59, 'https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/1/tickets/qrcode_6751_1751900783601_7611b5f5.png', 1, NULL, '2025-07-07 15:06:10.327', '2025-07-07 15:06:10.327', NULL, NULL, NULL, NULL);
+INSERT INTO public.event_ticket_transaction VALUES (6568, 'tenant_demo_001', NULL, 'giventauser@gmail.com', 'Gain Joseph', '', '', 1, 10.00, 10.00, 0.00, 0.10, NULL, 0.00, 9.90, 'REFUNDED', 'card', 'pi_3Ri3sGK5BrggeAHM1lsoDuyY', 'cs_test_a10y7sbWlZTC4m0BvC6Us0vCvIToOUqK47oHPNkPygWlngV3fJzeXAcIwW', 'pi_3Ri3sGK5BrggeAHM1lsoDuyY', '2025-07-07 01:30:01.727', NULL, 10.00, '2025-07-07 04:00:21.565', '189077', NULL, 'refunded', 'giventauser@gmail.com', 'usd', 0.00, 0.00, 0.00, 'https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/events/tenantId/tenant_demo_001/event-id/1/tickets/qrcode_6568_1751851811103_00980bd4.png', 1, NULL, '2025-07-07 01:30:01.727', '2025-07-07 04:00:21.565', NULL, NULL, NULL, NULL);
+
+
+--
+-- TOC entry 3947 (class 0 OID 188623)
+-- Dependencies: 245
+-- Data for Name: event_ticket_transaction_item; Type: TABLE DATA; Schema: public; Owner: giventa_event_management
+--
+
+INSERT INTO public.event_ticket_transaction_item VALUES (6621, 'tenant_demo_001', 6568, 4752, 1, 10.00, 10.00, '2025-07-07 01:30:01.727', '2025-07-07 01:30:01.727');
+INSERT INTO public.event_ticket_transaction_item VALUES (6801, 'tenant_demo_001', 6751, 4752, 1, 10.00, 10.00, '2025-07-07 15:06:10.327', '2025-07-07 15:06:10.327');
+
+
+--
+-- TOC entry 3945 (class 0 OID 188601)
+-- Dependencies: 243
+-- Data for Name: event_ticket_type; Type: TABLE DATA; Schema: public; Owner: giventa_event_management
+--
+
+INSERT INTO public.event_ticket_type VALUES (1, 'tenant_demo_001', 'Standard', 'Standard ticket for Spring Gala', 50.00, false, NULL, 'STD', 100, 12, true, NULL, NULL, 1, 10, false, 0, '2025-06-22 11:31:27.305395', '2025-06-22 11:31:27.363866', 6);
+INSERT INTO public.event_ticket_type VALUES (3, 'tenant_demo_001', 'Runner', 'Runner ticket for Charity Run', 0.00, false, NULL, 'RUN', 300, 103, true, NULL, NULL, 1, 10, false, 0, '2025-06-22 11:31:27.305395', '2025-06-22 11:31:27.363866', 3);
+INSERT INTO public.event_ticket_type VALUES (4, 'tenant_demo_001', 'Family', 'Family ticket for Picnic', 20.00, false, NULL, 'FAM', 30, 14, true, NULL, NULL, 1, 10, false, 0, '2025-06-22 11:31:27.305395', '2025-06-22 11:31:27.363866', 4);
+INSERT INTO public.event_ticket_type VALUES (5, 'tenant_demo_001', 'Dinner', 'Dinner ticket for VIP Dinner', 100.00, false, NULL, 'DIN', 20, 9, true, NULL, NULL, 1, 10, false, 0, '2025-06-22 11:31:27.305395', '2025-06-22 11:31:27.363866', 5);
+INSERT INTO public.event_ticket_type VALUES (6, 'tenant_demo_001', 'Festival', 'Festival ticket for Summer Fest', 30.00, false, NULL, 'FEST', 200, 52, true, NULL, NULL, 1, 10, false, 0, '2025-06-22 11:31:27.305395', '2025-06-22 11:31:27.363866', 6);
+INSERT INTO public.event_ticket_type VALUES (2, 'tenant_demo_001', 'VIP', 'VIP ticket for Tech Conference', 200.00, false, NULL, 'VIP', 48, 8, true, NULL, NULL, 1, 10, false, 0, '2025-06-22 11:31:27.305395', '2025-06-22 14:03:04.384515', 2);
+INSERT INTO public.event_ticket_type VALUES (4751, 'tenant_demo_001', 'zxzxz', 'xzxzxzxz', 20.00, false, 0.00, 'DIN', 84, 25, true, NULL, NULL, 1, 10, false, 0, '2025-06-22 17:48:59.275', '2025-07-06 21:17:40.751528', 1);
+INSERT INTO public.event_ticket_type VALUES (4752, 'tenant_demo_001', 'FAMILY5', 'xzxzxzxz', 10.00, false, 0.00, 'FAMILY5', 83, 8, true, NULL, NULL, 1, 10, false, 0, '2025-06-22 17:50:20.591', '2025-07-07 11:06:23.520233', 1);
+
+
+--
+-- TOC entry 3948 (class 0 OID 188641)
+-- Dependencies: 246
+-- Data for Name: event_type_details; Type: TABLE DATA; Schema: public; Owner: giventa_event_management
+--
+
+INSERT INTO public.event_type_details VALUES (1, 'tenant_demo_001', 'Gala', 'Formal gala event', '#3B82F6', NULL, true, 0, '2025-06-22 11:31:26.181502', '2025-06-22 11:31:26.181502');
+INSERT INTO public.event_type_details VALUES (2, 'tenant_demo_001', 'Conference', 'Tech conference', '#3B82F6', NULL, true, 0, '2025-06-22 11:31:26.181502', '2025-06-22 11:31:26.181502');
+INSERT INTO public.event_type_details VALUES (3, 'tenant_demo_001', 'Run', 'Charity run', '#3B82F6', NULL, true, 0, '2025-06-22 11:31:26.181502', '2025-06-22 11:31:26.181502');
+INSERT INTO public.event_type_details VALUES (4, 'tenant_demo_001', 'Picnic', 'Family picnic', '#3B82F6', NULL, true, 0, '2025-06-22 11:31:26.181502', '2025-06-22 11:31:26.181502');
+INSERT INTO public.event_type_details VALUES (5, 'tenant_demo_001', 'Dinner', 'VIP dinner', '#3B82F6', NULL, true, 0, '2025-06-22 11:31:26.181502', '2025-06-22 11:31:26.181502');
+INSERT INTO public.event_type_details VALUES (6, 'tenant_demo_001', 'Festival', 'Summer festival', '#3B82F6', NULL, true, 0, '2025-06-22 11:31:26.181502', '2025-06-22 11:31:26.181502');
+
+
+--
+-- TOC entry 3949 (class 0 OID 188655)
+-- Dependencies: 247
+-- Data for Name: qr_code_usage; Type: TABLE DATA; Schema: public; Owner: giventa_event_management
+--
+
+
+
+--
+-- TOC entry 3950 (class 0 OID 188668)
+-- Dependencies: 248
+-- Data for Name: rel_event_details__discount_codes; Type: TABLE DATA; Schema: public; Owner: giventa_event_management
+--
+
+INSERT INTO public.rel_event_details__discount_codes VALUES (1, 1);
+INSERT INTO public.rel_event_details__discount_codes VALUES (2, 2);
+INSERT INTO public.rel_event_details__discount_codes VALUES (3, 3);
+INSERT INTO public.rel_event_details__discount_codes VALUES (4, 4);
+INSERT INTO public.rel_event_details__discount_codes VALUES (5, 5);
+INSERT INTO public.rel_event_details__discount_codes VALUES (6, 6);
+
+
+--
+-- TOC entry 3951 (class 0 OID 188671)
+-- Dependencies: 249
+-- Data for Name: tenant_organization; Type: TABLE DATA; Schema: public; Owner: giventa_event_management
+--
+
+INSERT INTO public.tenant_organization VALUES (1, 'tenant_demo_001', 'Malayalees US', NULL, NULL, NULL, NULL, 'contact1@example.com', NULL, NULL, NULL, NULL, NULL, NULL, NULL, true, '2025-06-22 11:31:27.518852', '2025-06-22 11:31:27.518852');
+INSERT INTO public.tenant_organization VALUES (2, 'tenant_demo_002', 'Techies US', NULL, NULL, NULL, NULL, 'contact2@example.com', NULL, NULL, NULL, NULL, NULL, NULL, NULL, true, '2025-06-22 11:31:27.518852', '2025-06-22 11:31:27.518852');
+INSERT INTO public.tenant_organization VALUES (3, 'tenant_demo_003', 'Charity Org', NULL, NULL, NULL, NULL, 'contact3@example.com', NULL, NULL, NULL, NULL, NULL, NULL, NULL, true, '2025-06-22 11:31:27.518852', '2025-06-22 11:31:27.518852');
+INSERT INTO public.tenant_organization VALUES (4, 'tenant_demo_004', 'Family Org', NULL, NULL, NULL, NULL, 'contact4@example.com', NULL, NULL, NULL, NULL, NULL, NULL, NULL, true, '2025-06-22 11:31:27.518852', '2025-06-22 11:31:27.518852');
+INSERT INTO public.tenant_organization VALUES (5, 'tenant_demo_005', 'VIP Org', NULL, NULL, NULL, NULL, 'contact5@example.com', NULL, NULL, NULL, NULL, NULL, NULL, NULL, true, '2025-06-22 11:31:27.518852', '2025-06-22 11:31:27.518852');
+INSERT INTO public.tenant_organization VALUES (6, 'tenant_demo_006', 'Summer Org', NULL, NULL, NULL, NULL, 'contact6@example.com', NULL, NULL, NULL, NULL, NULL, NULL, NULL, true, '2025-06-22 11:31:27.518852', '2025-06-22 11:31:27.518852');
+
+
+--
+-- TOC entry 3952 (class 0 OID 188688)
+-- Dependencies: 250
+-- Data for Name: tenant_settings; Type: TABLE DATA; Schema: public; Owner: giventa_event_management
+--
+
+INSERT INTO public.tenant_settings VALUES (2, 'tenant_demo_002', true, true, true, false, NULL, NULL, NULL, NULL, NULL, NULL, true, 10, 200, 0.0000, '2025-06-22 11:31:27.571132', '2025-06-22 11:31:27.571132');
+INSERT INTO public.tenant_settings VALUES (3, 'tenant_demo_003', false, false, false, true, NULL, NULL, NULL, NULL, NULL, NULL, false, 3, 50, 0.0000, '2025-06-22 11:31:27.571132', '2025-06-22 11:31:27.571132');
+INSERT INTO public.tenant_settings VALUES (4, 'tenant_demo_004', true, false, true, true, NULL, NULL, NULL, NULL, NULL, NULL, true, 8, 150, 0.0000, '2025-06-22 11:31:27.571132', '2025-06-22 11:31:27.571132');
+INSERT INTO public.tenant_settings VALUES (5, 'tenant_demo_005', true, true, false, true, NULL, NULL, NULL, NULL, NULL, NULL, false, 2, 75, 0.0000, '2025-06-22 11:31:27.571132', '2025-06-22 11:31:27.571132');
+INSERT INTO public.tenant_settings VALUES (6, 'tenant_demo_006', false, true, true, false, NULL, NULL, NULL, NULL, NULL, NULL, true, 6, 120, 0.0000, '2025-06-22 11:31:27.571132', '2025-06-22 11:31:27.571132');
+INSERT INTO public.tenant_settings VALUES (1, 'tenant_demo_001', true, false, false, false, NULL, NULL, NULL, NULL, NULL, NULL, true, 5, 100, 1.0000, '2025-06-22 11:31:27.571132', '2025-07-04 11:00:36.413833');
+
+
+--
+-- TOC entry 3955 (class 0 OID 188735)
+-- Dependencies: 253
+-- Data for Name: user_payment_transaction; Type: TABLE DATA; Schema: public; Owner: giventa_event_management
+--
+
+INSERT INTO public.user_payment_transaction VALUES (1, 'tenant_demo_001', 'TICKET_SALE', 100.00, 'USD', NULL, NULL, 0.00, 0.00, 'COMPLETED', 0.00, NULL, NULL, 'CARD', NULL, NULL, 1, 1, '2025-06-22 11:31:27.614757', '2025-06-22 11:31:27.614757');
+INSERT INTO public.user_payment_transaction VALUES (2, 'tenant_demo_001', 'SUBSCRIPTION', 200.00, 'USD', NULL, NULL, 0.00, 0.00, 'COMPLETED', 0.00, NULL, NULL, 'CARD', NULL, NULL, 2, NULL, '2025-06-22 11:31:27.614757', '2025-06-22 11:31:27.614757');
+INSERT INTO public.user_payment_transaction VALUES (3, 'tenant_demo_001', 'COMMISSION', 50.00, 'USD', NULL, NULL, 0.00, 0.00, 'PENDING', 0.00, NULL, NULL, 'CASH', NULL, NULL, 3, 2, '2025-06-22 11:31:27.614757', '2025-06-22 11:31:27.614757');
+INSERT INTO public.user_payment_transaction VALUES (4, 'tenant_demo_001', 'REFUND', 75.00, 'USD', NULL, NULL, 0.00, 0.00, 'FAILED', 0.00, NULL, NULL, 'CARD', NULL, NULL, 4, 3, '2025-06-22 11:31:27.614757', '2025-06-22 11:31:27.614757');
+INSERT INTO public.user_payment_transaction VALUES (5, 'tenant_demo_001', 'TICKET_SALE', 120.00, 'USD', NULL, NULL, 0.00, 0.00, 'COMPLETED', 0.00, NULL, NULL, 'CARD', NULL, NULL, 5, 4, '2025-06-22 11:31:27.614757', '2025-06-22 11:31:27.614757');
+INSERT INTO public.user_payment_transaction VALUES (6, 'tenant_demo_001', 'SUBSCRIPTION', 60.00, 'USD', NULL, NULL, 0.00, 0.00, 'REFUNDED', 0.00, NULL, NULL, 'CASH', NULL, NULL, 6, NULL, '2025-06-22 11:31:27.614757', '2025-06-22 11:31:27.614757');
+
+
+--
+-- TOC entry 3920 (class 0 OID 188319)
+-- Dependencies: 218
+-- Data for Name: user_profile; Type: TABLE DATA; Schema: public; Owner: giventa_event_management
+--
+
+INSERT INTO public.user_profile VALUES (1, 'tenant_demo_001', 'user001', 'Alice', 'Johnson', 'alice.johnson@example.com', '555-1001', '123 Main St', NULL, 'Springfield', 'IL', '62701', 'USA', NULL, NULL, NULL, NULL, NULL, NULL, 'ACTIVE', 'MEMBER', NULL, NULL, '2025-06-22 11:31:26.252573', '2025-06-22 11:31:26.252573', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+INSERT INTO public.user_profile VALUES (2, 'tenant_demo_001', 'user002', 'Bob', 'Smith', 'bob.smith@example.com', '555-1002', '456 Oak Ave', NULL, 'Springfield', 'IL', '62702', 'USA', NULL, NULL, NULL, NULL, NULL, NULL, 'ACTIVE', 'ADMIN', NULL, NULL, '2025-06-22 11:31:26.252573', '2025-06-22 11:31:26.252573', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+INSERT INTO public.user_profile VALUES (3, 'tenant_demo_001', 'user003', 'Carol', 'Williams', 'carol.williams@example.com', '555-1003', '789 Pine Rd', NULL, 'Springfield', 'IL', '62703', 'USA', NULL, NULL, NULL, NULL, NULL, NULL, 'INACTIVE', 'VOLUNTEER', NULL, NULL, '2025-06-22 11:31:26.252573', '2025-06-22 11:31:26.252573', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+INSERT INTO public.user_profile VALUES (4, 'tenant_demo_001', 'user004', 'David', 'Brown', 'david.brown@example.com', '555-1004', '321 Maple St', NULL, 'Springfield', 'IL', '62704', 'USA', NULL, NULL, NULL, NULL, NULL, NULL, 'PENDING_APPROVAL', 'ORGANIZER', NULL, NULL, '2025-06-22 11:31:26.252573', '2025-06-22 11:31:26.252573', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+INSERT INTO public.user_profile VALUES (5, 'tenant_demo_001', 'user005', 'Eve', 'Davis', 'eve.davis@example.com', '555-1005', '654 Cedar Ave', NULL, 'Springfield', 'IL', '62705', 'USA', NULL, NULL, NULL, NULL, NULL, NULL, 'SUSPENDED', 'SUPER_ADMIN', NULL, NULL, '2025-06-22 11:31:26.252573', '2025-06-22 11:31:26.252573', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+INSERT INTO public.user_profile VALUES (6, 'tenant_demo_001', 'user006', 'Frank', 'Miller', 'frank.miller@example.com', '555-1006', '987 Birch Blvd', NULL, 'Springfield', 'IL', '62706', 'USA', NULL, NULL, NULL, NULL, NULL, NULL, 'BANNED', 'MEMBER', NULL, NULL, '2025-06-22 11:31:26.252573', '2025-06-22 11:31:26.252573', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+INSERT INTO public.user_profile VALUES (4651, 'tenant_demo_001', 'user_2vVLxhPnsIPGYf6qpfozk383Slr', 'Gain Joseph', 'Joseph', 'giventauser@gmail.com', '3123440073', '165 Hopkins Ave, APT #7', '', 'Jersey City', 'New Jersey', '07306', 'United States', 'fdfdfdfdfdf', 'fdfdfd', 'dfdfd', 'dfdfdf', '', 'https://img.clerk.com/eyJ0eXBlIjoicHJveHkiLCJzcmMiOiJodHRwczovL2ltYWdlcy5jbGVyay5kZXYvb2F1dGhfZ29vZ2xlL2ltZ18ydlZMeGVDUnFWTnpkTDBLUXMySXNWekFBVG8ifQ', 'PENDING_APPROVAL', 'MEMBER', NULL, NULL, '2025-06-22 16:44:08.782', '2025-07-07 00:17:11.309888', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+
+
+--
+-- TOC entry 3917 (class 0 OID 86604)
+-- Dependencies: 215
+-- Data for Name: user_registration_request; Type: TABLE DATA; Schema: public; Owner: nextjs_template_boot
+--
+
+
+
+--
+-- TOC entry 3956 (class 0 OID 188749)
+-- Dependencies: 254
+-- Data for Name: user_subscription; Type: TABLE DATA; Schema: public; Owner: giventa_event_management
+--
+
+INSERT INTO public.user_subscription VALUES (1, 'tenant_demo_001', 'cus_001', 'sub_001', 'price_001', '2025-07-22 11:31:27.659946', 'ACTIVE', '2025-06-29 11:31:27.659946', false, 1, '2025-06-22 11:31:27.659946', '2025-06-22 11:31:27.659946');
+INSERT INTO public.user_subscription VALUES (2, 'tenant_demo_001', 'cus_002', 'sub_002', 'price_002', '2025-07-22 11:31:27.659946', 'TRIAL', '2025-07-06 11:31:27.659946', false, 2, '2025-06-22 11:31:27.659946', '2025-06-22 11:31:27.659946');
+INSERT INTO public.user_subscription VALUES (3, 'tenant_demo_001', 'cus_003', 'sub_003', 'price_003', '2025-07-22 11:31:27.659946', 'CANCELLED', '2025-06-29 11:31:27.659946', true, 3, '2025-06-22 11:31:27.659946', '2025-06-22 11:31:27.659946');
+INSERT INTO public.user_subscription VALUES (4, 'tenant_demo_001', 'cus_004', 'sub_004', 'price_004', '2025-07-22 11:31:27.659946', 'EXPIRED', '2025-06-29 11:31:27.659946', false, 4, '2025-06-22 11:31:27.659946', '2025-06-22 11:31:27.659946');
+INSERT INTO public.user_subscription VALUES (5, 'tenant_demo_001', 'cus_005', 'sub_005', 'price_005', '2025-07-22 11:31:27.659946', 'SUSPENDED', '2025-06-29 11:31:27.659946', false, 5, '2025-06-22 11:31:27.659946', '2025-06-22 11:31:27.659946');
+INSERT INTO public.user_subscription VALUES (6, 'tenant_demo_001', 'cus_006', 'sub_006', 'price_006', '2025-07-22 11:31:27.659946', 'ACTIVE', '2025-06-29 11:31:27.659946', false, 6, '2025-06-22 11:31:27.659946', '2025-06-22 11:31:27.659946');
+
+
+--
+-- TOC entry 3957 (class 0 OID 188758)
+-- Dependencies: 255
+-- Data for Name: user_task; Type: TABLE DATA; Schema: public; Owner: giventa_event_management
+--
+
+INSERT INTO public.user_task VALUES (1, 'tenant_demo_001', 'Setup Venue', 'Setup the venue for Spring Gala', 'PENDING', 'HIGH', '2025-06-24 11:31:27.727601', false, NULL, 5.00, NULL, 0, 1, 'Alice', '555-1001', 'alice.johnson@example.com', '2025-06-22 11:31:27.727601', '2025-06-22 11:31:27.727601', 1);
+INSERT INTO public.user_task VALUES (2, 'tenant_demo_001', 'Arrange Catering', 'Arrange food for Tech Conference', 'PENDING', 'MEDIUM', '2025-06-25 11:31:27.727601', false, NULL, 3.00, NULL, 0, 2, 'Bob', '555-1002', 'bob.smith@example.com', '2025-06-22 11:31:27.727601', '2025-06-22 11:31:27.727601', 2);
+INSERT INTO public.user_task VALUES (3, 'tenant_demo_001', 'Distribute Flyers', 'Distribute flyers for Charity Run', 'COMPLETED', 'LOW', '2025-06-21 11:31:27.727601', true, '2025-06-22 11:31:27.727601', 2.00, 2.00, 100, 3, 'Carol', '555-1003', 'carol.williams@example.com', '2025-06-22 11:31:27.727601', '2025-06-22 11:31:27.727601', 3);
+INSERT INTO public.user_task VALUES (4, 'tenant_demo_001', 'Book Park', 'Book park for Family Picnic', 'PENDING', 'HIGH', '2025-06-27 11:31:27.727601', false, NULL, 1.00, NULL, 0, 4, 'David', '555-1004', 'david.brown@example.com', '2025-06-22 11:31:27.727601', '2025-06-22 11:31:27.727601', 4);
+INSERT INTO public.user_task VALUES (5, 'tenant_demo_001', 'Send Invites', 'Send invitations for VIP Dinner', 'PENDING', 'MEDIUM', '2025-06-23 11:31:27.727601', false, NULL, 1.50, NULL, 0, 5, 'Eve', '555-1005', 'eve.davis@example.com', '2025-06-22 11:31:27.727601', '2025-06-22 11:31:27.727601', 5);
+INSERT INTO public.user_task VALUES (6, 'tenant_demo_001', 'Setup Stage', 'Setup stage for Summer Fest', 'PENDING', 'HIGH', '2025-06-26 11:31:27.727601', false, NULL, 4.00, NULL, 0, 6, 'Frank', '555-1006', 'frank.miller@example.com', '2025-06-22 11:31:27.727601', '2025-06-22 11:31:27.727601', 6);

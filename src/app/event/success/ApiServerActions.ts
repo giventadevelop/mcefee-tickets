@@ -11,6 +11,7 @@ import Stripe from 'stripe';
 import { getTenantSettings } from '@/lib/tenantSettingsCache';
 import { fetchWithJwtRetry } from '@/lib/proxyHandler';
 
+
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-03-31.basil',
 });
@@ -64,7 +65,8 @@ async function findTransactionBySessionId(
   return transactions.length > 0 ? transactions[0] : null;
 }
 
-async function createTransaction(transactionData: any): Promise<any> {
+// Create a new transaction (POST)
+async function createTransaction(transactionData: Omit<EventTicketTransactionDTO, 'id'>): Promise<EventTicketTransactionDTO> {
   const response = await fetchWithJwtRetry(
     `${APP_URL}/api/proxy/event-ticket-transactions`,
     {
@@ -174,7 +176,7 @@ export async function processStripeSessionServer(
     const stripeAmountTax = (totalDetails as any).amount_tax ? (totalDetails as any).amount_tax / 100 : 0;
 
     // Build transaction DTO (flat fields, all required fields, all stripe fields)
-    let transactionData = withTenantId({
+    let transactionData: Omit<EventTicketTransactionDTO, 'id'> = withTenantId({
       email: session.customer_details?.email || session.customer_email || '',
       firstName: session.customer_details?.name || '',
       lastName: '',

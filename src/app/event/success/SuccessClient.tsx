@@ -28,20 +28,40 @@ export default function SuccessClient({ session_id }: SuccessClientProps) {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<any>(null);
 
+  // Helper to get ticket number from either camelCase or snake_case, or fallback to 'TKTN'+id
+  function getTicketNumber(transaction: any) {
+    return (
+      transaction?.transactionReference ||
+      transaction?.transaction_reference ||
+      (transaction?.id ? `TKTN${transaction.id}` : '')
+    );
+  }
+
   useEffect(() => {
     let cancelled = false;
     async function fetchData() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch("/api/event/success/process", {
+        // 1. Try to GET the transaction by session_id (idempotency)
+        const getRes = await fetch(`/api/event/success/process?session_id=${session_id}`);
+        if (getRes.ok) {
+          const data = await getRes.json();
+          if (data.transaction) {
+            if (!cancelled) setResult(data);
+            setLoading(false);
+            return;
+          }
+        }
+        // 2. If not found, POST to create it
+        const postRes = await fetch("/api/event/success/process", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ session_id }),
         });
-        if (!res.ok) throw new Error(await res.text());
-        const data = await res.json();
-        if (!cancelled) setResult(data);
+        if (!postRes.ok) throw new Error(await postRes.text());
+        const postData = await postRes.json();
+        if (!cancelled) setResult(postData);
       } catch (err: any) {
         if (!cancelled) setError(err?.message || "Unknown error");
       } finally {
@@ -198,6 +218,12 @@ export default function SuccessClient({ session_id }: SuccessClientProps) {
             Transaction Summary
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+            {getTicketNumber(transaction) && (
+              <div className="flex flex-col">
+                <label className="text-sm font-medium text-gray-500 flex items-center gap-2 mb-1"><FaTicketAlt /> Ticket #</label>
+                <p className="text-lg text-gray-800 font-medium">{getTicketNumber(transaction)}</p>
+              </div>
+            )}
             {displayName && (
               <div className="flex flex-col">
                 <label className="text-sm font-medium text-gray-500 flex items-center gap-2 mb-1"><FaUser /> Name</label>

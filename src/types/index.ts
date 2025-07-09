@@ -575,3 +575,24 @@ export interface EventTicketTransactionStatisticsDTO {
   /** Map of ticket status to total amount (e.g., { COMPLETED: 444 }) */
   amountByStatus: Record<string, number>;
 }
+
+/**
+ * DTO for sending promotion emails, matches backend OpenAPI schema.
+ * Required fields: bodyHtml, tenantId
+ */
+export interface PromotionEmailRequestDTO {
+  /** Tenant ID (required) */
+  tenantId: string;
+  /** Recipient email address */
+  to?: string;
+  /** Email subject */
+  subject?: string;
+  /** Promo code to include in the email */
+  promoCode?: string;
+  /** HTML body of the email (required) */
+  bodyHtml: string;
+  /** Path to header image (optional) */
+  headerImagePath?: string;
+  /** Path to footer image or content (optional) */
+  footerPath?: string;
+}

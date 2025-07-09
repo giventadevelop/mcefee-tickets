@@ -193,7 +193,7 @@ BEGIN
 
         SELECT up.first_name || ' ' || up.last_name INTO attendee_name
         FROM public.user_profile up
-        WHERE up.id = NEW.attendee_id;
+        WHERE up.id = NEW.user_id;
 
         -- Generate comprehensive QR code data
         qr_data := 'ATTENDEE:' || NEW.id ||
@@ -310,6 +310,7 @@ $$;
 
 
 ALTER FUNCTION public.manage_ticket_inventory() OWNER TO giventa_event_management;
+
 
 --
 -- TOC entry 255 (class 1255 OID 71143)
@@ -623,232 +624,6 @@ CREATE TABLE public.databasechangeloglock (
 ALTER TABLE public.databasechangeloglock OWNER TO giventa_event_management;
 
 
-
---
--- TOC entry 235 (class 1259 OID 82890)
--- Name: event_admin; Type: TABLE; Schema: public; Owner: giventa_event_management
---
-
-CREATE TABLE public.event_admin (
-    id bigint DEFAULT nextval('public.sequence_generator'::regclass) NOT NULL,
-    tenant_id character varying(255),
-    role character varying(255) NOT NULL,
-    permissions text[],
-    is_active boolean DEFAULT true,
-    created_at timestamp without time zone DEFAULT now() NOT NULL,
-    updated_at timestamp without time zone DEFAULT now() NOT NULL,
-    user_id bigint,
-    created_by_id bigint
-);
-
-
-ALTER TABLE public.event_admin OWNER TO giventa_event_management;
-
---
--- TOC entry 249 (class 1259 OID 83122)
--- Name: event_admin_audit_log; Type: TABLE; Schema: public; Owner: giventa_event_management
---
-
-CREATE TABLE public.event_admin_audit_log (
-    id bigint DEFAULT nextval('public.sequence_generator'::regclass) NOT NULL,
-    tenant_id character varying(255),
-    action character varying(255) NOT NULL,
-    table_name character varying(255) NOT NULL,
-    record_id character varying(255) NOT NULL,
-    changes jsonb,
-    old_values jsonb,
-    new_values jsonb,
-    ip_address inet,
-    user_agent text,
-    session_id character varying(255),
-    created_at timestamp without time zone DEFAULT now() NOT NULL,
-    admin_id bigint
-);
-
-
-ALTER TABLE public.event_admin_audit_log OWNER TO giventa_event_management;
-
---
--- TOC entry 3932 (class 0 OID 0)
--- Dependencies: 249
--- Name: TABLE event_admin_audit_log; Type: COMMENT; Schema: public; Owner: giventa_event_management
---
-
-COMMENT ON TABLE public.event_admin_audit_log IS 'Comprehensive audit logging for all admin actions';
-
---
--- TOC entry 248 (class 1259 OID 83101)
--- Name: event_attendee; Type: TABLE; Schema: public; Owner: giventa_event_management
---
-
-CREATE TABLE public.event_attendee (
-    id bigint DEFAULT nextval('public.sequence_generator'::regclass) NOT NULL,
-    tenant_id character varying(255),
-    event_id bigint NOT NULL,
-    attendee_id bigint NOT NULL,
-    registration_status character varying(20) DEFAULT 'PENDING'::character varying NOT NULL,
-    registration_date timestamp without time zone DEFAULT now() NOT NULL,
-    confirmation_date timestamp without time zone,
-    cancellation_date timestamp without time zone,
-    cancellation_reason text,
-    attendee_type character varying(50) DEFAULT 'MEMBER'::character varying,
-    special_requirements text,
-    dietary_restrictions text,
-    accessibility_needs text,
-    emergency_contact_name character varying(255),
-    emergency_contact_phone character varying(50),
-    emergency_contact_relationship character varying(100),
-    check_in_status character varying(20) DEFAULT 'NOT_CHECKED_IN'::character varying,
-    check_in_time timestamp without time zone,
-    check_out_time timestamp without time zone,
-    attendance_rating integer,
-    feedback text,
-    notes text,
-    qr_code_data character varying(1000),
-    qr_code_generated boolean DEFAULT false,
-    qr_code_generated_at timestamp without time zone,
-    registration_source character varying(100) DEFAULT 'DIRECT'::character varying,
-    waitlist_position integer,
-    priority_score integer DEFAULT 0,
-    created_at timestamp without time zone DEFAULT now() NOT NULL,
-    updated_at timestamp without time zone DEFAULT now() NOT NULL,
-    CONSTRAINT check_waitlist_position_positive CHECK (((waitlist_position IS NULL) OR (waitlist_position > 0))),
-    CONSTRAINT event_attendee_attendance_rating_check CHECK (((attendance_rating >= 1) AND (attendance_rating <= 5))),
-    first_name character varying(255),
-    last_name character varying(255),
-    email character varying(255),
-    phone character varying(255),
-    is_member boolean,
-    CONSTRAINT event_attendee_pkey PRIMARY KEY (id)
-);
-
-
-ALTER TABLE public.event_attendee OWNER TO giventa_event_management;
-
---
--- TOC entry 3934 (class 0 OID 0)
--- Dependencies: 248
--- Name: TABLE event_attendee; Type: COMMENT; Schema: public; Owner: giventa_event_management
---
-
-COMMENT ON TABLE public.event_attendee IS 'Enhanced event registration and attendance tracking with QR code support';
-
-
---
--- TOC entry 3935 (class 0 OID 0)
--- Dependencies: 248
--- Name: COLUMN event_attendee.qr_code_data; Type: COMMENT; Schema: public; Owner: giventa_event_management
---
-
-COMMENT ON COLUMN public.event_attendee.qr_code_data IS 'QR code data for check-in (auto-generated)';
-
-
---
--- TOC entry 3936 (class 0 OID 0)
--- Dependencies: 248
--- Name: COLUMN event_attendee.qr_code_generated; Type: COMMENT; Schema: public; Owner: giventa_event_management
---
-
-COMMENT ON COLUMN public.event_attendee.qr_code_generated IS 'Whether QR code has been generated for this attendee';
-
-
---
--- TOC entry 3937 (class 0 OID 0)
--- Dependencies: 248
--- Name: COLUMN event_attendee.qr_code_generated_at; Type: COMMENT; Schema: public; Owner: giventa_event_management
---
-
-COMMENT ON COLUMN public.event_attendee.qr_code_generated_at IS 'Timestamp when QR code was generated';
-
-
---
--- TOC entry 250 (class 1259 OID 83131)
--- Name: event_attendee_guest; Type: TABLE; Schema: public; Owner: giventa_event_management
---
-
-CREATE TABLE public.event_attendee_guest (
-    id bigint DEFAULT nextval('public.sequence_generator'::regclass) NOT NULL,
-    tenant_id character varying(255),
-    primary_attendee_id bigint NOT NULL,
-    age_group character varying(20) NOT NULL,
-    relationship character varying(20),
-    special_requirements text,
-    dietary_restrictions text,
-    accessibility_needs text,
-    registration_status character varying(20) DEFAULT 'PENDING'::character varying,
-    check_in_status character varying(20) DEFAULT 'NOT_CHECKED_IN'::character varying,
-    check_in_time timestamp without time zone,
-    check_out_time timestamp without time zone,
-    approval_status character varying(50) DEFAULT 'PENDING'::character varying,
-    approved_by_id bigint,
-    approved_at timestamp without time zone,
-    rejection_reason text,
-    pricing_tier character varying(100),
-    fee_amount numeric(21,2) DEFAULT 0,
-    payment_status character varying(50) DEFAULT 'PENDING'::character varying,
-    notes text,
-    created_at timestamp without time zone DEFAULT now() NOT NULL,
-    updated_at timestamp without time zone DEFAULT now() NOT NULL,
-    CONSTRAINT check_guest_fee_non_negative CHECK ((fee_amount >= (0)::numeric)),
-    first_name character varying(255),
-    last_name character varying(255),
-    email character varying(255),
-    phone character varying(255)
-);
-
-
-ALTER TABLE public.event_attendee_guest OWNER TO giventa_event_management;
-
---
--- TOC entry 3939 (class 0 OID 0)
--- Dependencies: 250
--- Name: TABLE event_attendee_guest; Type: COMMENT; Schema: public; Owner: giventa_event_management
---
-
-COMMENT ON TABLE public.event_attendee_guest IS 'Guest registrations linked to primary attendees using JDL enum types';
-
-
---
--- TOC entry 3940 (class 0 OID 0)
--- Dependencies: 250
--- Name: COLUMN event_attendee_guest.age_group; Type: COMMENT; Schema: public; Owner: giventa_event_management
---
-
-COMMENT ON COLUMN public.event_attendee_guest.age_group IS 'Guest age group: ADULT, TEEN, CHILD, INFANT';
-
-
---
--- TOC entry 3941 (class 0 OID 0)
--- Dependencies: 250
--- Name: COLUMN event_attendee_guest.relationship; Type: COMMENT; Schema: public; Owner: giventa_event_management
---
-
-COMMENT ON COLUMN public.event_attendee_guest.relationship IS 'Relationship to primary attendee';
-
-
---
--- TOC entry 247 (class 1259 OID 83088)
--- Name: event_calendar_entry; Type: TABLE; Schema: public; Owner: giventa_event_management
---
-
-CREATE TABLE public.event_calendar_entry (
-    id bigint DEFAULT nextval('public.sequence_generator'::regclass) NOT NULL,
-    tenant_id character varying(255),
-    calendar_provider character varying(255) NOT NULL,
-    external_event_id character varying(255),
-    calendar_link character varying(2048) NOT NULL,
-    sync_status character varying(50) DEFAULT 'PENDING'::character varying,
-    last_sync_at timestamp without time zone,
-    sync_error_message text,
-    created_at timestamp without time zone DEFAULT now() NOT NULL,
-    updated_at timestamp without time zone DEFAULT now() NOT NULL,
-    event_id bigint,
-    created_by_id bigint
-);
-
-
-ALTER TABLE public.event_calendar_entry OWNER TO giventa_event_management;
-
 --
 -- TOC entry 234 (class 1259 OID 82865)
 -- Name: event_details; Type: TABLE; Schema: public; Owner: giventa_event_management
@@ -864,6 +639,7 @@ CREATE TABLE public.event_details (
     end_date date NOT NULL,
     start_time character varying(100) NOT NULL,
     end_time character varying(100) NOT NULL,
+    timezone varchar(64) NOT null,
     location character varying(500),
     directions_to_venue text,
     capacity integer,
@@ -1167,6 +943,235 @@ ALTER SEQUENCE public.event_live_update_id_seq OWNER TO giventa_event_management
 
 ALTER SEQUENCE public.event_live_update_id_seq OWNED BY public.event_live_update.id;
 
+--
+-- TOC entry 235 (class 1259 OID 82890)
+-- Name: event_admin; Type: TABLE; Schema: public; Owner: giventa_event_management
+--
+
+CREATE TABLE public.event_admin (
+    id bigint DEFAULT nextval('public.sequence_generator'::regclass) NOT NULL,
+    tenant_id character varying(255),
+    role character varying(255) NOT NULL,
+    permissions text[],
+    is_active boolean DEFAULT true,
+    created_at timestamp without time zone DEFAULT now() NOT NULL,
+    updated_at timestamp without time zone DEFAULT now() NOT NULL,
+    user_id bigint,
+    created_by_id bigint
+);
+
+
+ALTER TABLE public.event_admin OWNER TO giventa_event_management;
+
+--
+-- TOC entry 249 (class 1259 OID 83122)
+-- Name: event_admin_audit_log; Type: TABLE; Schema: public; Owner: giventa_event_management
+--
+
+CREATE TABLE public.event_admin_audit_log (
+    id bigint DEFAULT nextval('public.sequence_generator'::regclass) NOT NULL,
+    tenant_id character varying(255),
+    action character varying(255) NOT NULL,
+    table_name character varying(255) NOT NULL,
+    record_id character varying(255) NOT NULL,
+    changes jsonb,
+    old_values jsonb,
+    new_values jsonb,
+    ip_address inet,
+    user_agent text,
+    session_id character varying(255),
+    created_at timestamp without time zone DEFAULT now() NOT NULL,
+    admin_id bigint
+);
+
+
+ALTER TABLE public.event_admin_audit_log OWNER TO giventa_event_management;
+
+--
+-- TOC entry 3932 (class 0 OID 0)
+-- Dependencies: 249
+-- Name: TABLE event_admin_audit_log; Type: COMMENT; Schema: public; Owner: giventa_event_management
+--
+
+COMMENT ON TABLE public.event_admin_audit_log IS 'Comprehensive audit logging for all admin actions';
+
+--
+-- TOC entry 248 (class 1259 OID 83101)
+-- Name: event_attendee; Type: TABLE; Schema: public; Owner: giventa_event_management
+--
+
+CREATE TABLE public.event_attendee (
+    id bigint DEFAULT nextval('public.sequence_generator'::regclass) NOT NULL,
+    tenant_id character varying(255),
+    event_id bigint NOT NULL,
+    user_id bigint,
+    registration_status character varying(20) DEFAULT 'PENDING'::character varying NOT NULL,
+    registration_date timestamp without time zone DEFAULT now() NOT NULL,
+    confirmation_date timestamp without time zone,
+    cancellation_date timestamp without time zone,
+    cancellation_reason text,
+    attendee_type character varying(50) DEFAULT 'MEMBER'::character varying,
+    special_requirements text,
+    dietary_restrictions text,
+    accessibility_needs text,
+    emergency_contact_name character varying(255),
+    emergency_contact_phone character varying(50),
+    emergency_contact_relationship character varying(100),
+    total_number_of_guests integer,
+    number_of_guests_checked_in integer,
+    check_in_status character varying(20) DEFAULT 'NOT_CHECKED_IN'::character varying,
+    check_in_time timestamp without time zone,
+    check_out_time timestamp without time zone,
+    attendance_rating integer,
+    feedback text,
+    notes text,
+    qr_code_data character varying(1000),
+    qr_code_generated boolean DEFAULT false,
+    qr_code_generated_at timestamp without time zone,
+    registration_source character varying(100) DEFAULT 'DIRECT'::character varying,
+    waitlist_position integer,
+    priority_score integer DEFAULT 0,
+    created_at timestamp without time zone DEFAULT now() NOT NULL,
+    updated_at timestamp without time zone DEFAULT now() NOT NULL,
+    first_name character varying(255),
+    last_name character varying(255),
+    email character varying(255),
+    phone character varying(255),
+    is_member boolean,
+    CONSTRAINT event_attendee_pkey PRIMARY KEY (id),
+    CONSTRAINT check_waitlist_position_positive CHECK (((waitlist_position IS NULL) OR (waitlist_position > 0))),
+    CONSTRAINT event_attendee_attendance_rating_check CHECK (((attendance_rating >= 1) AND (attendance_rating <= 5))),
+    CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES public.user_profile(id) ON DELETE SET null,
+    CONSTRAINT fk_event FOREIGN KEY (event_id) REFERENCES public.event_details(id) ON DELETE SET null
+);
+
+
+ALTER TABLE public.event_attendee OWNER TO giventa_event_management;
+
+--
+-- TOC entry 3934 (class 0 OID 0)
+-- Dependencies: 248
+-- Name: TABLE event_attendee; Type: COMMENT; Schema: public; Owner: giventa_event_management
+--
+
+COMMENT ON TABLE public.event_attendee IS 'Enhanced event registration and attendance tracking with QR code support';
+
+
+--
+-- TOC entry 3935 (class 0 OID 0)
+-- Dependencies: 248
+-- Name: COLUMN event_attendee.qr_code_data; Type: COMMENT; Schema: public; Owner: giventa_event_management
+--
+
+COMMENT ON COLUMN public.event_attendee.qr_code_data IS 'QR code data for check-in (auto-generated)';
+
+
+--
+-- TOC entry 3936 (class 0 OID 0)
+-- Dependencies: 248
+-- Name: COLUMN event_attendee.qr_code_generated; Type: COMMENT; Schema: public; Owner: giventa_event_management
+--
+
+COMMENT ON COLUMN public.event_attendee.qr_code_generated IS 'Whether QR code has been generated for this attendee';
+
+
+--
+-- TOC entry 3937 (class 0 OID 0)
+-- Dependencies: 248
+-- Name: COLUMN event_attendee.qr_code_generated_at; Type: COMMENT; Schema: public; Owner: giventa_event_management
+--
+
+COMMENT ON COLUMN public.event_attendee.qr_code_generated_at IS 'Timestamp when QR code was generated';
+
+
+--
+-- TOC entry 250 (class 1259 OID 83131)
+-- Name: event_attendee_guest; Type: TABLE; Schema: public; Owner: giventa_event_management
+--
+
+CREATE TABLE public.event_attendee_guest (
+    id bigint DEFAULT nextval('public.sequence_generator'::regclass) NOT NULL,
+    tenant_id character varying(255),
+    primary_attendee_id bigint NOT NULL,
+    age_group character varying(20) NOT NULL,
+    relationship character varying(20),
+    special_requirements text,
+    dietary_restrictions text,
+    accessibility_needs text,
+    registration_status character varying(20) DEFAULT 'PENDING'::character varying,
+    check_in_status character varying(20) DEFAULT 'NOT_CHECKED_IN'::character varying,
+    check_in_time timestamp without time zone,
+    check_out_time timestamp without time zone,
+    approval_status character varying(50) DEFAULT 'PENDING'::character varying,
+    approved_by_id bigint,
+    approved_at timestamp without time zone,
+    rejection_reason text,
+    pricing_tier character varying(100),
+    fee_amount numeric(21,2) DEFAULT 0,
+    payment_status character varying(50) DEFAULT 'PENDING'::character varying,
+    notes text,
+    created_at timestamp without time zone DEFAULT now() NOT NULL,
+    updated_at timestamp without time zone DEFAULT now() NOT NULL,
+    CONSTRAINT check_guest_fee_non_negative CHECK ((fee_amount >= (0)::numeric)),
+    first_name character varying(255),
+    last_name character varying(255),
+    email character varying(255),
+    phone character varying(255)
+);
+
+
+ALTER TABLE public.event_attendee_guest OWNER TO giventa_event_management;
+
+--
+-- TOC entry 3939 (class 0 OID 0)
+-- Dependencies: 250
+-- Name: TABLE event_attendee_guest; Type: COMMENT; Schema: public; Owner: giventa_event_management
+--
+
+COMMENT ON TABLE public.event_attendee_guest IS 'Guest registrations linked to primary attendees using JDL enum types';
+
+
+--
+-- TOC entry 3940 (class 0 OID 0)
+-- Dependencies: 250
+-- Name: COLUMN event_attendee_guest.age_group; Type: COMMENT; Schema: public; Owner: giventa_event_management
+--
+
+COMMENT ON COLUMN public.event_attendee_guest.age_group IS 'Guest age group: ADULT, TEEN, CHILD, INFANT';
+
+
+--
+-- TOC entry 3941 (class 0 OID 0)
+-- Dependencies: 250
+-- Name: COLUMN event_attendee_guest.relationship; Type: COMMENT; Schema: public; Owner: giventa_event_management
+--
+
+COMMENT ON COLUMN public.event_attendee_guest.relationship IS 'Relationship to primary attendee';
+
+
+--
+-- TOC entry 247 (class 1259 OID 83088)
+-- Name: event_calendar_entry; Type: TABLE; Schema: public; Owner: giventa_event_management
+--
+
+CREATE TABLE public.event_calendar_entry (
+    id bigint DEFAULT nextval('public.sequence_generator'::regclass) NOT NULL,
+    tenant_id character varying(255),
+    calendar_provider character varying(255) NOT NULL,
+    external_event_id character varying(255),
+    calendar_link character varying(2048) NOT NULL,
+    sync_status character varying(50) DEFAULT 'PENDING'::character varying,
+    last_sync_at timestamp without time zone,
+    sync_error_message text,
+    created_at timestamp without time zone DEFAULT now() NOT NULL,
+    updated_at timestamp without time zone DEFAULT now() NOT NULL,
+    event_id bigint,
+    created_by_id bigint
+);
+
+
+ALTER TABLE public.event_calendar_entry OWNER TO giventa_event_management;
+
 
 --
 -- TOC entry 246 (class 1259 OID 83070)
@@ -1458,10 +1463,15 @@ CREATE TABLE public.event_ticket_transaction (
     stripe_amount_discount numeric(21,2) NULL,
     stripe_amount_tax numeric(21,2) NULL,
     stripe_fee_amount  numeric(21,2) NULL,
+    qr_code_image_url character varying(2048),
     event_id bigint,
     user_id bigint,
     created_at timestamp DEFAULT now() NOT NULL,
     updated_at timestamp DEFAULT now() NOT NULL,
+    number_of_guests_checked_in integer,
+    check_in_status character varying(20) DEFAULT 'NOT_CHECKED_IN'::character varying,
+    check_in_time timestamp without time zone,
+    check_out_time timestamp without time zone,
 
     CONSTRAINT check_email_format_transaction CHECK (((email)::text ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'::text)),
     CONSTRAINT check_transaction_amounts CHECK (((total_amount >= (0)::numeric) AND (tax_amount >= (0)::numeric) AND (discount_amount >= (0)::numeric) AND (refund_amount >= (0)::numeric) AND (final_amount >= (0)::numeric))),
@@ -1861,6 +1871,24 @@ CREATE TABLE public.user_task (
 );
 
 
+-- 1. Create the trigger function
+CREATE OR REPLACE FUNCTION public.set_transaction_reference()
+RETURNS TRIGGER AS $$
+BEGIN
+  UPDATE public.event_ticket_transaction
+  SET transaction_reference = 'TKTN' || NEW.id
+  WHERE id = NEW.id;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+ALTER FUNCTION public.set_transaction_reference() OWNER TO giventa_event_management;
+
+-- 2. Create the trigger
+CREATE TRIGGER trg_set_transaction_reference
+AFTER INSERT ON public.event_ticket_transaction
+FOR EACH ROW
+EXECUTE FUNCTION public.set_transaction_reference();
 
 -- TOC entry 3363 (class 2604 OID 82769)
 -- Name: discount_code id; Type: DEFAULT; Schema: public; Owner: giventa_event_management
@@ -1988,8 +2016,6 @@ ALTER TABLE ONLY public.event_admin
 -- Name: event_attendee ux_event_attendee__event_attendee; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
 
-ALTER TABLE ONLY public.event_attendee
-    ADD CONSTRAINT ux_event_attendee__event_attendee UNIQUE (event_id, attendee_id);
 
 
 --
@@ -2041,9 +2067,6 @@ ALTER TABLE ONLY public.event_poll_response
 -- TOC entry 3678 (class 2606 OID 83182)
 -- Name: qr_code_usage ux_qr_code_attendee_type; Type: CONSTRAINT; Schema: public; Owner: giventa_event_management
 --
-
-ALTER TABLE ONLY public.qr_code_usage
-    ADD CONSTRAINT ux_qr_code_attendee_type UNIQUE (attendee_id, qr_code_type);
 
 
 --
@@ -2393,16 +2416,6 @@ ALTER TABLE ONLY public.event_details
 
 ALTER TABLE ONLY public.event_details
     ADD CONSTRAINT fk_event__event_type_id FOREIGN KEY (event_type_id) REFERENCES public.event_type_details(id) ON DELETE SET NULL;
-
-
---
--- TOC entry 3713 (class 2606 OID 83333)
--- Name: event_attendee fk_event_attendee__attendee_id; Type: FK CONSTRAINT; Schema: public; Owner: giventa_event_management
---
-
-ALTER TABLE ONLY public.event_attendee
-    ADD CONSTRAINT fk_event_attendee__attendee_id FOREIGN KEY (attendee_id) REFERENCES public.user_profile(id) ON DELETE CASCADE;
-
 
 --
 -- TOC entry 3714 (class 2606 OID 83328)

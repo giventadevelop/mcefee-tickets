@@ -88,3 +88,52 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: err?.message || 'Internal server error' }, { status: 500 });
   }
 }
+
+export async function GET(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const session_id = searchParams.get('session_id');
+    if (!session_id) {
+      return NextResponse.json({ error: 'Missing session_id' }, { status: 400 });
+    }
+    // Only look up, do not create
+    const result = await processStripeSessionServer(session_id);
+    const transaction = result?.transaction;
+    const userProfile = result?.userProfile;
+    if (!transaction) {
+      return NextResponse.json({ transaction: null }, { status: 200 });
+    }
+    let eventDetails = transaction.event;
+    if (!eventDetails?.id && transaction.eventId) {
+      eventDetails = await fetchEventDetailsByIdServer(transaction.eventId);
+    }
+    let qrCodeData = null;
+    if (transaction.id && eventDetails?.id) {
+      try {
+        qrCodeData = await fetchTransactionQrCode(eventDetails.id, transaction.id);
+      } catch (err) {
+        qrCodeData = null;
+      }
+    }
+    // Fetch transaction items and ticket type names
+    let transactionItems = [];
+    if (transaction.id) {
+      transactionItems = await fetchTransactionItemsByTransactionId(transaction.id as number);
+      const ticketTypeCache: Record<number, any> = {};
+      for (const item of transactionItems) {
+        if (!item.ticketTypeName && item.ticketTypeId) {
+          if (!ticketTypeCache[item.ticketTypeId as number]) {
+            const ticketType = await fetchTicketTypeById(item.ticketTypeId as number);
+            ticketTypeCache[item.ticketTypeId as number] = ticketType;
+          }
+          item.ticketTypeName = ticketTypeCache[item.ticketTypeId as number]?.name || `Ticket Type #${item.ticketTypeId}`;
+        }
+      }
+    }
+    // Fetch hero image URL
+    let heroImageUrl = eventDetails?.id ? await getHeroImageUrl(eventDetails.id as number) : null;
+    return NextResponse.json({ transaction, userProfile, eventDetails, qrCodeData, transactionItems, heroImageUrl });
+  } catch (err: any) {
+    return NextResponse.json({ error: err?.message || 'Internal server error' }, { status: 500 });
+  }
+}
