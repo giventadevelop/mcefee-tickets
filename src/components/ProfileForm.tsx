@@ -6,7 +6,8 @@ import { useAuth, useUser } from "@clerk/nextjs";
 import { UserProfileDTO } from "@/types";
 import { getTenantId } from '@/lib/env';
 
-const defaultFormData: Omit<UserProfileDTO, 'createdAt' | 'updatedAt'> = {
+type UserProfileFormData = Omit<UserProfileDTO, 'createdAt' | 'updatedAt' | 'id'> & { id?: number; emailUnsubscribed?: boolean; isEmailSubscribed?: boolean };
+const defaultFormData: UserProfileFormData = {
   userId: '',
   firstName: '',
   lastName: '',
@@ -24,6 +25,8 @@ const defaultFormData: Omit<UserProfileDTO, 'createdAt' | 'updatedAt'> = {
   district: '',
   educationalInstitution: '',
   profileImageUrl: '',
+  emailUnsubscribed: false, // default to false
+  isEmailSubscribed: true,  // default to true
 };
 
 function LoadingSkeleton() {
@@ -63,8 +66,11 @@ export default function ProfileForm() {
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [formData, setFormData] = useState<Omit<UserProfileDTO, 'createdAt' | 'updatedAt'>>(defaultFormData);
+  const [formData, setFormData] = useState<UserProfileFormData>(defaultFormData);
   const [profileId, setProfileId] = useState<number | null>(null);
+  const [resubscribeLoading, setResubscribeLoading] = useState(false);
+  const [resubscribeSuccess, setResubscribeSuccess] = useState(false);
+  const [resubscribeError, setResubscribeError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -80,7 +86,7 @@ export default function ProfileForm() {
           return;
         }
         // Try to fetch the profile by userId
-        const url = `/api/proxy/user-profiles/by-user/${userId}?tenantId.equals=${getTenantId()}`;
+        const url = `/api/proxy/user-profiles/by-user/${userId}`;
         let response = await fetch(url, { headers: { 'Content-Type': 'application/json' } });
         let userProfile = null;
         if (response.ok) {
@@ -90,7 +96,7 @@ export default function ProfileForm() {
           // Fallback: lookup by email
           const email = user?.primaryEmailAddress?.emailAddress || "";
           if (email) {
-            const emailUrl = `/api/proxy/user-profiles?email.equals=${encodeURIComponent(email)}&tenantId.equals=${getTenantId()}`;
+            const emailUrl = `/api/proxy/user-profiles?email.equals=${encodeURIComponent(email)}`;
             const emailRes = await fetch(emailUrl, { headers: { 'Content-Type': 'application/json' } });
             if (emailRes.ok) {
               const profiles = await emailRes.json();
@@ -108,8 +114,8 @@ export default function ProfileForm() {
                   updatedAt: now,
                 };
                 await fetch(`/api/proxy/user-profiles/${userProfile.id}`, {
-                  method: 'PUT',
-                  headers: { 'Content-Type': 'application/json' },
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/merge-patch+json' },
                   body: JSON.stringify(updatedProfile),
                 });
               }
@@ -122,13 +128,16 @@ export default function ProfileForm() {
             ...defaultFormData,
             ...Object.fromEntries(
               Object.entries(userProfile ?? {}).map(([k, v]) => [k, v ?? ""])
-            )
+            ),
+            // Defensive: support both possible field names
+            emailUnsubscribed: userProfile.emailUnsubscribed ?? userProfile.isEmailSubscribed === false,
+            isEmailSubscribed: userProfile.isEmailSubscribed ?? !userProfile.emailUnsubscribed,
           });
           setError(null);
         } else if (response.status === 404) {
           // Not found by userId or email, create minimal profile
           const now = new Date().toISOString();
-          const minimalProfile: UserProfileDTO = {
+          const minimalProfile: UserProfileFormData = {
             userId: userId,
             firstName: user?.firstName || "",
             lastName: user?.lastName || "",
@@ -149,13 +158,13 @@ export default function ProfileForm() {
             userRole: 'MEMBER',
             userStatus: 'PENDING_APPROVAL',
             tenantId: getTenantId(),
-            createdAt: now,
-            updatedAt: now,
+            emailUnsubscribed: false,
+            isEmailSubscribed: true,
           };
           const createRes = await fetch('/api/proxy/user-profiles', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(minimalProfile),
+            body: JSON.stringify({ ...minimalProfile, createdAt: now, updatedAt: now }),
           });
           if (createRes.ok) {
             // After creation, fetch the profile again
@@ -258,8 +267,8 @@ export default function ProfileForm() {
                 updatedAt: now,
               };
               await fetch(`/api/proxy/user-profiles/${existingProfile.id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/merge-patch+json' },
                 body: JSON.stringify(updatedProfile),
               });
             }
@@ -294,7 +303,7 @@ export default function ProfileForm() {
         updatedAt: new Date().toISOString()
       };
 
-      const method = existingProfile && existingProfile.id ? 'PUT' : 'POST';
+      const method = existingProfile && existingProfile.id ? 'PATCH' : 'POST';
       const apiUrl = existingProfile && existingProfile.id
         ? `/api/proxy/user-profiles/${existingProfile.id}`
         : `/api/proxy/user-profiles`;
@@ -304,7 +313,7 @@ export default function ProfileForm() {
       const response = await fetch(apiUrl, {
         method,
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': method === 'PATCH' ? 'application/merge-patch+json' : 'application/json',
         },
         body: JSON.stringify(profileData),
       });
@@ -328,22 +337,69 @@ export default function ProfileForm() {
     }
   };
 
+  // Handler for resubscribe
+  const handleResubscribe = async () => {
+    setResubscribeLoading(true);
+    setResubscribeError(null);
+    setResubscribeSuccess(false);
+    try {
+      const email = formData.email;
+      const tenantId = getTenantId();
+      if (!email || !tenantId) {
+        setResubscribeError('Missing email or tenant ID.');
+        setResubscribeLoading(false);
+        return;
+      }
+      const url = `/api/proxy/user-profiles/resubscribe-email?email=${encodeURIComponent(email)}&tenantId=${encodeURIComponent(tenantId)}`;
+      const res = await fetch(url, { method: 'GET' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        setResubscribeError(data?.message || 'Failed to resubscribe. Please try again.');
+      } else {
+        setResubscribeSuccess(true);
+        setResubscribeError(null);
+        setFormData((prev) => ({ ...prev, emailUnsubscribed: false, isEmailSubscribed: true }));
+      }
+    } catch (e) {
+      setResubscribeError('Network error. Please try again.');
+    } finally {
+      setResubscribeLoading(false);
+    }
+  };
+
   if (initialLoading) {
     return <LoadingSkeleton />;
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 max-w-2xl mx-auto p-4">
-      {error && (
-        <div className="bg-red-50 text-red-500 p-3 rounded-md mb-4 flex items-center">
-          <span>{error}</span>
+      {/* Top action row: Skip and Resubscribe */}
+      <div className="flex justify-between items-center mb-6">
+        <a
+          href="/dashboard"
+          className="text-sm font-medium text-blue-600 hover:text-blue-500"
+        >
+          Skip for now →
+        </a>
+        {(formData.emailUnsubscribed === true || formData.isEmailSubscribed === false) && !resubscribeSuccess && (
           <button
             type="button"
-            onClick={() => window.location.reload()}
-            className="ml-4 bg-blue-100 text-blue-700 px-3 py-1 rounded hover:bg-blue-200"
+            onClick={handleResubscribe}
+            disabled={resubscribeLoading}
+            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
           >
-            Retry
+            {resubscribeLoading ? "Resubscribing..." : "Resubscribe to Emails"}
           </button>
+        )}
+      </div>
+      {resubscribeSuccess && (
+        <div className="bg-green-50 text-green-700 p-3 rounded-md mb-4 flex items-center">
+          <span>You are now subscribed to emails.</span>
+        </div>
+      )}
+      {resubscribeError && (
+        <div className="bg-red-50 text-red-500 p-3 rounded-md mb-4 flex items-center">
+          <span>{resubscribeError}</span>
         </div>
       )}
 
@@ -583,19 +639,11 @@ export default function ProfileForm() {
         />
       </div>
 
-      <div className="flex justify-between pt-4">
-        <button
-          type="button"
-          onClick={() => router.push("/")}
-          className="bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
-        >
-          Skip
-        </button>
+      <div className="flex justify-end pt-4">
         <button
           type="submit"
           disabled={loading}
-          className={`bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${loading ? "opacity-50 cursor-not-allowed" : ""
-            }`}
+          className={`bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
         >
           {loading ? "Saving..." : "Save Profile"}
         </button>

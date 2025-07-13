@@ -585,6 +585,8 @@ export interface PromotionEmailRequestDTO {
   tenantId: string;
   /** Recipient email address */
   to?: string;
+
+  isTestEmail?: boolean;
   /** Email subject */
   subject?: string;
   /** Promo code to include in the email */

@@ -4,7 +4,7 @@ import { PromotionEmailRequestDTO } from "@/types";
 import { sendPromotionEmailServer } from "./serverActions";
 import DOMPurify from "dompurify";
 
-function cleanHtmlInput(input) {
+function cleanHtmlInput(input: string) {
   let clean = DOMPurify.sanitize(input, {
     ALLOWED_TAGS: [
       "div", "h2", "p", "span", "a", "img", "ul", "li", "strong", "em", "br"
@@ -22,7 +22,7 @@ export default function PromotionEmailPage() {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
   };
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent, isTestEmail = false) => {
     e.preventDefault();
     const cleanedHtml = cleanHtmlInput(form.bodyHtml || "");
     if (!cleanedHtml.trim()) {
@@ -30,7 +30,7 @@ export default function PromotionEmailPage() {
       return;
     }
     try {
-      await sendPromotionEmailServer({ ...form, bodyHtml: cleanedHtml });
+      await sendPromotionEmailServer({ ...form, bodyHtml: cleanedHtml, isTestEmail });
       setForm({ bodyHtml: "", tenantId: "" });
       setError(null);
     } catch (err: any) {
@@ -41,7 +41,7 @@ export default function PromotionEmailPage() {
     <div className="max-w-5xl mx-auto px-8 py-8">
       <div className="bg-white rounded-lg shadow-md p-6">
         <h1 className="text-2xl font-bold mb-4">Send Promotion Email</h1>
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={e => handleSubmit(e, false)} className="space-y-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="to">Recipient Email <span className="text-red-500">*</span></label>
             <input type="text" id="to" name="to" value={form.to || ""} onChange={handleChange} required className="mt-1 block w-full border border-gray-400 rounded-xl focus:border-blue-500 focus:ring-blue-500 px-4 py-3 text-base" />
@@ -71,7 +71,10 @@ export default function PromotionEmailPage() {
   <p style="font-size: 16px; color: #444;">Enter this code at checkout to enjoy your savings!</p>
 </div>`}</pre>
           </div>
-          <button type="submit" className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md flex items-center gap-2">Send Email</button>
+          <div className="flex gap-4">
+            <button type="submit" className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md flex items-center gap-2">Send Email</button>
+            <button type="button" onClick={e => handleSubmit(e as any, true)} className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-md flex items-center gap-2">Test Email Template</button>
+          </div>
         </form>
         {error && <div className="mt-4 text-red-600">{error}</div>}
       </div>
