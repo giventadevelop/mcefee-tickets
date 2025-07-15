@@ -71,6 +71,7 @@ export default function ProfileForm() {
   const [resubscribeLoading, setResubscribeLoading] = useState(false);
   const [resubscribeSuccess, setResubscribeSuccess] = useState(false);
   const [resubscribeError, setResubscribeError] = useState<string | null>(null);
+  const [profileUpdateSuccess, setProfileUpdateSuccess] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -224,6 +225,7 @@ export default function ProfileForm() {
 
     setLoading(true);
     setError(null);
+    setProfileUpdateSuccess(false);
 
     try {
       if (!process.env.NEXT_PUBLIC_API_BASE_URL) {
@@ -325,10 +327,10 @@ export default function ProfileForm() {
 
       console.debug('Profile saved successfully');
 
-      // Show success message before redirecting
+      // Show success message instead of redirecting
       setError(null);
-      // Use replace to prevent back navigation to the form
-      router.replace("/");
+      setProfileUpdateSuccess(true);
+      // router.replace("/"); // Remove redirect
     } catch (error) {
       console.error("Error saving profile:", error);
       setError(error instanceof Error ? error.message : "An unexpected error occurred");
@@ -392,6 +394,11 @@ export default function ProfileForm() {
           </button>
         )}
       </div>
+      {profileUpdateSuccess && (
+        <div className="bg-green-50 text-green-700 p-3 rounded-md mb-4 flex items-center">
+          <span>Your Profile is updated.</span>
+        </div>
+      )}
       {resubscribeSuccess && (
         <div className="bg-green-50 text-green-700 p-3 rounded-md mb-4 flex items-center">
           <span>You are now subscribed to emails.</span>

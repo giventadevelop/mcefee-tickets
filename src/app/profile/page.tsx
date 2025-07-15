@@ -28,14 +28,6 @@ export default function ProfilePage() {
           </div>
         </div>
         <div className="rounded-xl shadow p-8 sm:p-10" style={{ background: 'linear-gradient(135deg, #f0f4ff 0%, #e0f7fa 100%)' }}>
-          <div className="flex justify-end items-center mb-6">
-            <a
-              href="/dashboard"
-              className="text-sm font-medium text-blue-600 hover:text-blue-500"
-            >
-              Skip for now →
-            </a>
-          </div>
           <p className="mb-6 text-sm text-gray-500 font-medium">Update your contact information.</p>
           <ProfileForm />
         </div>
