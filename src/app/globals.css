@@ -2,6 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
+
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -400,4 +401,851 @@ To use a consistent, modern checkbox style with a custom tick mark, use:
   background: #f1f5f9;
   /* blue-50 */
   font-weight: 600;
+}
+
+/* --- BEGIN THEME.CSS IMPORT --- */
+/* Basic Theme CSS */
+
+/* General Styles */
+body {
+  font-family: 'Epilogue', sans-serif;
+  font-size: 18px;
+  line-height: 1.66;
+  color: #555555;
+  background-color: #ffffff;
+}
+
+a {
+  color: #FBC647;
+  text-decoration: none;
+  transition: all 0.3s ease;
+}
+
+a:hover {
+  color: #333333;
+}
+
+/* Typography */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: 'Sora', sans-serif;
+  color: #333333;
+  margin-bottom: 20px;
+}
+
+h1 {
+  font-size: 80px;
+  line-height: 0.9;
+  font-weight: 400;
+}
+
+h2 {
+  font-size: 60px;
+  line-height: 1;
+  font-weight: 400;
+}
+
+h3 {
+  font-size: 40px;
+  line-height: 1.2;
+  font-weight: 400;
+}
+
+h4 {
+  font-size: 28px;
+  line-height: 1.3;
+  font-weight: 600;
+}
+
+h5 {
+  font-size: 22px;
+  line-height: 1.5;
+  font-weight: 600;
+}
+
+h6 {
+  font-size: 18px;
+  line-height: 1.2;
+  font-weight: 600;
+}
+
+/* Buttons */
+.philantrop_button,
+.philantrop_header_button,
+.philantrop_alt_header_button {
+  display: inline-block;
+  padding: 15px 30px;
+  font-family: 'Epilogue', sans-serif;
+  font-size: 16px;
+  line-height: 27px;
+  font-weight: 500;
+  text-transform: none;
+  font-style: normal;
+  background-color: #FBC647;
+  color: #333333;
+  border-radius: 5px;
+  transition: all 0.3s ease;
+}
+
+.philantrop_button:hover,
+.philantrop_header_button:hover,
+.philantrop_alt_header_button:hover {
+  background-color: #e9b73a;
+  color: #333333;
+  text-decoration: none;
+}
+
+/* Header */
+.philantrop_header {
+  padding: 20px 0;
+  background-color: #ffffff;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.philantrop_header_content_wrapper {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.philantrop_logo {
+  display: block;
+}
+
+.philantrop_logo img {
+  width: 176px;
+  height: auto;
+}
+
+/* Remove or comment out any display property for .philantrop_main_menu outside media queries */
+/* .philantrop_main_menu {
+    display: flex;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+} */
+
+@media (min-width: 768px) {
+  .philantrop_main_menu {
+    display: flex;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+}
+
+.philantrop_main_menu li {
+  margin: 0 15px;
+}
+
+.philantrop_main_menu li a {
+  font-family: 'Epilogue', sans-serif;
+  font-size: 16px;
+  font-weight: 500;
+  color: #333333;
+  text-decoration: none;
+  transition: all 0.3s ease;
+}
+
+.philantrop_main_menu li a:hover,
+.philantrop_main_menu li.current-menu-item a {
+  color: #FBC647;
+}
+
+/* Hero Section */
+.philantrop_hero_section {
+  padding: 100px 0;
+  /* background: url('../images/hero-bg.jpg') no-repeat center; */
+  background-size: cover;
+  color: #ffffff;
+}
+
+.philantrop_hero_section h1 {
+  color: #ffffff;
+  margin-bottom: 30px;
+}
+
+.philantrop_hero_section p {
+  font-size: 20px;
+  margin-bottom: 40px;
+}
+
+/* Features Section */
+.philantrop_features_section {
+  padding: 80px 0;
+  background-color: #f9f9f9;
+}
+
+.philantrop_icon_box_item {
+  padding: 30px;
+  background-color: #ffffff;
+  border-radius: 10px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+  margin-bottom: 30px;
+  transition: all 0.3s ease;
+}
+
+.philantrop_icon_box_item:hover {
+  transform: translateY(-10px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+.philantrop_icon_container {
+  margin-bottom: 20px;
+}
+
+.philantrop_icon_box_title {
+  margin-bottom: 15px;
+}
+
+/* Projects Section */
+.philantrop_projects_section {
+  padding: 80px 0;
+}
+
+.philantrop_heading_widget {
+  text-align: center;
+  margin-bottom: 50px;
+}
+
+.philantrop_up_heading {
+  font-family: 'Epilogue', sans-serif;
+  font-size: 18px;
+  color: #FBC647;
+  margin-bottom: 10px;
+}
+
+.philantrop_projects_item_wrapper {
+  position: relative;
+  overflow: hidden;
+  border-radius: 10px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+  margin-bottom: 30px;
+}
+
+.philantrop_projects_item_wrapper img {
+  width: 100%;
+  height: auto;
+  transition: all 0.5s ease;
+}
+
+.philantrop_projects_item_wrapper:hover img {
+  transform: scale(1.05);
+}
+
+.philantrop_projects_item_subtitle {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  background-color: #FBC647;
+  color: #333333;
+  padding: 5px 15px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.philantrop_projects_item_content_container {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 20px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent);
+  color: #ffffff;
+}
+
+.philantrop_projects_item_title {
+  color: #ffffff;
+  margin-bottom: 10px;
+}
+
+.philantrop_projects_item_excerpt {
+  margin-bottom: 15px;
+  font-size: 16px;
+}
+
+.philantrop_projects_item_link {
+  color: #FBC647;
+  font-weight: 500;
+}
+
+.philantrop_projects_item_link:hover {
+  color: #ffffff;
+}
+
+/* Footer */
+.philantrop_footer {
+  background-color: #1C1C1C;
+  color: #B9B9B9;
+  padding: 80px 0 30px;
+}
+
+.philantrop_footer_widget {
+  margin-bottom: 40px;
+}
+
+.philantrop_footer_widget_title {
+  color: #ffffff;
+  margin-bottom: 20px;
+}
+
+.philantrop_footer_socials {
+  display: flex;
+}
+
+.philantrop_footer_social_item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background-color: #333333;
+  color: #ffffff;
+  border-radius: 50%;
+  margin-right: 10px;
+  transition: all 0.3s ease;
+}
+
+.philantrop_footer_social_item:hover {
+  background-color: #FBC647;
+  color: #333333;
+}
+
+.philantrop_footer_bottom {
+  border-top: 1px solid #333333;
+  padding-top: 30px;
+  margin-top: 30px;
+}
+
+.philantrop_footer_copyright {
+  text-align: center;
+}
+
+/* Responsive */
+@media (max-width: 991px) {
+  h1 {
+    font-size: 60px;
+  }
+
+  h2 {
+    font-size: 48px;
+  }
+
+  h3 {
+    font-size: 36px;
+  }
+
+  .philantrop_header_content_wrapper {
+    flex-direction: column;
+  }
+
+  .philantrop_logo_container {
+    margin-bottom: 20px;
+  }
+
+  .philantrop_menu_container {
+    margin-bottom: 20px;
+  }
+}
+
+@media (max-width: 767px) {
+  h1 {
+    font-size: 40px;
+  }
+
+  h2 {
+    font-size: 36px;
+  }
+
+  h3 {
+    font-size: 28px;
+  }
+
+  .philantrop_main_menu {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .philantrop_main_menu li {
+    margin: 10px 0;
+  }
+
+  .philantrop_hero_section {
+    padding: 60px 0;
+  }
+}
+
+/* --- END THEME.CSS IMPORT --- */
+
+/* === Custom Layout and Utility Classes for Static Site Conversion === */
+
+.main-menu {
+  display: flex;
+  gap: 2rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  align-items: center;
+}
+
+.main-menu li a {
+  font-family: 'Epilogue', sans-serif;
+  font-size: 16px;
+  font-weight: 500;
+  color: #333333;
+  text-decoration: none;
+  transition: color 0.3s;
+}
+
+.main-menu li a:hover,
+.main-menu li.current-menu-item a {
+  color: #FBC647;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem;
+  width: 100%;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0 -15px;
+}
+
+.col-12 {
+  flex: 0 0 100%;
+  max-width: 100%;
+  padding: 0 15px;
+}
+
+.col-md-6 {
+  flex: 0 0 50%;
+  max-width: 50%;
+  padding: 0 15px;
+}
+
+.col-md-8 {
+  flex: 0 0 66.6667%;
+  max-width: 66.6667%;
+  padding: 0 15px;
+}
+
+.feature-boxes {
+  display: flex;
+  gap: 2rem;
+  justify-content: center;
+  margin: 2rem 0;
+}
+
+.feature-box {
+  background: #fffbe6;
+  border-radius: 1rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  padding: 2rem 1.5rem;
+  min-width: 220px;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.link-text {
+  color: #FBC647;
+  font-weight: 600;
+  text-decoration: underline;
+  margin-top: 0.5rem;
+  display: inline-block;
+}
+
+.section-title-wrapper {
+  margin-bottom: 2rem;
+}
+
+.section-title-wrapper h3 {
+  font-family: 'Sora', sans-serif;
+  font-weight: 700;
+  color: #222;
+}
+
+.section-subtitle {
+  color: #ffce59;
+  font-weight: 600;
+  font-size: 1.25rem;
+}
+
+.team-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem;
+  justify-content: center;
+}
+
+.team-item {
+  background: #fff;
+  border-radius: 1rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  padding: 1.5rem;
+  text-align: center;
+  width: 220px;
+}
+
+.team-image {
+  position: relative;
+  width: 100%;
+  height: 220px;
+  overflow: hidden;
+  border-radius: 1rem;
+  margin-bottom: 1rem;
+}
+
+.team-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.team-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.3);
+  opacity: 0;
+  transition: opacity 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.team-image:hover .team-overlay {
+  opacity: 1;
+}
+
+.team-socials {
+  display: flex;
+  gap: 1rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.team-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.team-position {
+  color: #888;
+  font-size: 0.95rem;
+}
+
+.event-item {
+  background: #f9fafb;
+  border-radius: 1rem;
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.06);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.event-image {
+  width: 100%;
+  height: 12rem;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.event-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.event-date {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 1rem;
+  color: #ffce59;
+  font-weight: 600;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #FBC647;
+  color: #333;
+  font-weight: 600;
+  border-radius: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  text-decoration: none;
+  transition: background 0.2s;
+}
+
+.button:hover {
+  background: #e9b73a;
+  color: #222;
+}
+
+.back-to-top {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  background: #FBC647;
+  color: #222;
+  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  font-size: 1.5rem;
+  z-index: 1000;
+  transition: background 0.2s;
+}
+
+.back-to-top:hover {
+  background: #e9b73a;
+}
+
+/* === FINAL CUSTOM OVERRIDES FOR STATIC SITE CLASSES === */
+
+.main-menu {
+  display: flex !important;
+  gap: 2rem !important;
+  list-style: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  align-items: center !important;
+}
+
+.main-menu li a {
+  font-family: 'Epilogue', sans-serif !important;
+  font-size: 16px !important;
+  font-weight: 500 !important;
+  color: #333333 !important;
+  text-decoration: none !important;
+  transition: color 0.3s !important;
+}
+
+.main-menu li a:hover,
+.main-menu li.current-menu-item a {
+  color: #FBC647 !important;
+}
+
+.container {
+  max-width: 1200px !important;
+  margin: 0 auto !important;
+  padding: 0 1rem !important;
+  width: 100% !important;
+}
+
+.row {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  margin: 0 -15px !important;
+}
+
+.col-12 {
+  flex: 0 0 100% !important;
+  max-width: 100% !important;
+  padding: 0 15px !important;
+}
+
+.col-md-6 {
+  flex: 0 0 50% !important;
+  max-width: 50% !important;
+  padding: 0 15px !important;
+}
+
+.col-md-8 {
+  flex: 0 0 66.6667% !important;
+  max-width: 66.6667% !important;
+  padding: 0 15px !important;
+}
+
+.feature-boxes {
+  display: flex !important;
+  gap: 2rem !important;
+  justify-content: center !important;
+  margin: 2rem 0 !important;
+}
+
+.feature-box {
+  background: #fffbe6 !important;
+  border-radius: 1rem !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06) !important;
+  padding: 2rem 1.5rem !important;
+  min-width: 220px !important;
+  text-align: center !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.section-title-wrapper {
+  margin-bottom: 2rem !important;
+}
+
+.section-title-wrapper h3 {
+  font-family: 'Sora', sans-serif !important;
+  font-weight: 700 !important;
+  color: #222 !important;
+}
+
+.section-subtitle {
+  color: #ffce59 !important;
+  font-weight: 600 !important;
+  font-size: 1.25rem !important;
+}
+
+.team-grid {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 2rem !important;
+  justify-content: center !important;
+}
+
+.team-item {
+  background: #fff !important;
+  border-radius: 1rem !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06) !important;
+  padding: 1.5rem !important;
+  text-align: center !important;
+  width: 220px !important;
+}
+
+.team-image {
+  position: relative !important;
+  width: 100% !important;
+  height: 220px !important;
+  overflow: hidden !important;
+  border-radius: 1rem !important;
+  margin-bottom: 1rem !important;
+}
+
+.team-image img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+}
+
+.team-overlay {
+  position: absolute !important;
+  inset: 0 !important;
+  background: rgba(0, 0, 0, 0.3) !important;
+  opacity: 0 !important;
+  transition: opacity 0.3s !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.team-image:hover .team-overlay {
+  opacity: 1 !important;
+}
+
+.team-socials {
+  display: flex !important;
+  gap: 1rem !important;
+  list-style: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+.team-title {
+  font-size: 1.1rem !important;
+  font-weight: 600 !important;
+  margin-bottom: 0.25rem !important;
+}
+
+.team-position {
+  color: #888 !important;
+  font-size: 0.95rem !important;
+}
+
+.event-item {
+  background: #f9fafb !important;
+  border-radius: 1rem !important;
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.06) !important;
+  padding: 1.5rem !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  margin-bottom: 1.5rem !important;
+}
+
+.event-image {
+  width: 100% !important;
+  height: 12rem !important;
+  border-radius: 0.75rem !important;
+  overflow: hidden !important;
+  margin-bottom: 1rem !important;
+}
+
+.event-title {
+  font-size: 1.25rem !important;
+  font-weight: 600 !important;
+  margin-bottom: 0.5rem !important;
+}
+
+.event-date {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  font-size: 1rem !important;
+  color: #ffce59 !important;
+  font-weight: 600 !important;
+}
+
+.button {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
+  background: #FBC647 !important;
+  color: #333 !important;
+  font-weight: 600 !important;
+  border-radius: 0.5rem !important;
+  padding: 0.75rem 1.5rem !important;
+  text-decoration: none !important;
+  transition: background 0.2s !important;
+}
+
+.button:hover {
+  background: #e9b73a !important;
+  color: #222 !important;
+}
+
+.back-to-top {
+  position: fixed !important;
+  bottom: 2rem !important;
+  right: 2rem !important;
+  background: #FBC647 !important;
+  color: #222 !important;
+  border-radius: 50% !important;
+  width: 48px !important;
+  height: 48px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12) !important;
+  font-size: 1.5rem !important;
+  z-index: 1000 !important;
+  transition: background 0.2s !important;
+}
+
+.back-to-top:hover {
+  background: #e9b73a !important;
 }

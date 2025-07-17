@@ -33,6 +33,53 @@ This guide provides standards for creating consistent and maintainable UI compon
 
 ---
 
+## Hydration-Safe Client Component Pattern
+
+- **Rule:** When building client components that depend on browser-only state (such as scroll position, window size, or mount status), always use a `mounted` state pattern to avoid hydration mismatches.
+- **How:**
+  - Do not apply scroll-dependent or dynamic classes (e.g., `fixed`, `bg-white`, etc.) during the initial render.
+  - Render only the base class on the server.
+  - Apply dynamic classes only after the component has mounted on the client (using a `mounted` state).
+- **Async Data Fetching Rule:**
+  - **All async data fetching in client components must be done with `useEffect` and `useState`.**
+  - **Never use `await` at the top level of a client component.**
+  - This ensures React hydration safety and avoids runtime errors in Next.js app directory.
+  - Example:
+    ```tsx
+    // ✅ DO: Fetch data in useEffect
+    useEffect(() => {
+      async function fetchData() {
+        const res = await fetch('/api/data');
+        const data = await res.json();
+        setData(data);
+      }
+      fetchData();
+    }, []);
+    ```
+    ```tsx
+    // ❌ DON'T: Use await at the top level
+    // const res = await fetch('/api/data'); // Not allowed in client components
+    ```
+- **Why:**
+  - This prevents hydration errors where the server-rendered HTML does not match the client-rendered HTML.
+  - Typical issues include headers/navbars that become `fixed` or change style on scroll, or any component using browser APIs or time-based values.
+- **Action:**
+  - Review all client components for this pattern, especially headers, navbars, and any component that uses browser APIs or time-based values.
+  - This rule is part of the UI style guide and must be followed for all interactive client components.
+
+**Example:**
+```tsx
+const [mounted, setMounted] = useState(false);
+useEffect(() => { setMounted(true); }, []);
+return (
+  <header className={mounted && isScrolled ? "fixed ..." : ""}>
+    {/* ... */}
+  </header>
+);
+```
+
+---
+
 ## 2. Forms
 
 ### Input Fields

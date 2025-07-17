@@ -27,7 +27,7 @@ export default function RootLayout({
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" />
       </head>
       <body className={inter.className + " flex flex-col min-h-screen"} suppressHydrationWarning>
-        <ClerkProvider
+        {/* <ClerkProvider
           localization={{
             signUp: {
               start: {
@@ -65,13 +65,13 @@ export default function RootLayout({
           }}
         >
           <TrpcProvider>
-            <Header hideMenuItems={isAuthRoute} />
-            <div className="flex-1 flex flex-col">
-              {children}
-            </div>
-            <Footer />
+            <Header hideMenuItems={isAuthRoute} />*/}
+        <div className="flex-1 flex flex-col">
+          {children}
+        </div>
+        {/*<Footer />
           </TrpcProvider>
-        </ClerkProvider>
+        </ClerkProvider>*/}
         <Script
           id="hcaptcha-config"
           strategy="beforeInteractive"
@@ -84,6 +84,8 @@ export default function RootLayout({
             `,
           }}
         />
+        <Script src="/js/jquery-3.6.0.min.js" strategy="beforeInteractive" />
+        <Script src="/js/theme.js" strategy="afterInteractive" />
       </body>
     </html>
   );

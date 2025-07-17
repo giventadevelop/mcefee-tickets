@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { FaTags, FaCreditCard, FaCalendarAlt, FaClock, FaMapMarkerAlt, FaMapPin } from 'react-icons/fa';
 import { Modal } from '@/components/Modal';
+import { formatInTimeZone } from 'date-fns-tz';
 
 export default function TicketingPage() {
   const params = useParams();
@@ -25,6 +26,9 @@ export default function TicketingPage() {
   const [totalAmount, setTotalAmount] = useState(0);
   const [savedAmount, setSavedAmount] = useState(0);
   const [showDiscountModal, setShowDiscountModal] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => { setMounted(true); }, []);
 
   const defaultHeroImageUrl = `/images/side_images/chilanka_2025.webp?v=${Date.now()}`;
 
@@ -259,120 +263,35 @@ export default function TicketingPage() {
     return <div className="min-h-screen flex items-center justify-center text-xl text-red-600">Event not found.</div>;
   }
 
-  // --- HERO SECTION (copied/adapted from home page) ---
+  // --- HERO SECTION (prompt-compliant) ---
   return (
     <div className="min-h-screen bg-gray-100 pb-12">
-      {/* Hero Section - matches home page */}
-      <section
-        className="hero-section relative w-full h-[350px] md:h-[350px] sm:h-[220px] h-[160px] bg-transparent pb-0 mb-8"
-        style={{ height: undefined }}
-      >
-        {/* Side Image as absolute vertical border with enhanced soft shadow */}
-        <div
-          style={{
-            position: 'absolute',
-            left: 0,
-            top: 0,
-            width: '250px',
-            minWidth: '120px',
-            height: '100%',
-            zIndex: 1,
-          }}
-          className="w-[120px] md:w-[250px] min-w-[80px] h-full"
-        >
-          {/* Overlay logo at top left of side image */}
-          <Image
-            src="/images/side_images/malayalees_us_logo.avif"
-            alt="Malayalees US Logo"
-            width={80}
-            height={80}
-            style={{
-              position: 'absolute',
-              top: 8,
-              left: 8,
-              background: 'rgba(255,255,255,0.7)',
-              borderRadius: '50%',
-              boxShadow: '0 8px 64px 16px rgba(80,80,80,0.22)',
-              zIndex: 2,
-            }}
-            className="md:w-[120px] md:h-[120px] w-[80px] h-[80px]"
-            priority
-          />
-          <Image
-            src="/images/side_images/pooram_side_image_two_images_blur_1.png"
-            alt="Kerala Sea Coast"
-            fill
-            className="h-full object-cover rounded-l-lg shadow-2xl"
-            style={{
-              objectPosition: '60% center',
-              boxShadow: '0 0 96px 32px rgba(80,80,80,0.22)',
-            }}
-            priority
-          />
+      {/* HEADER */}
+      <header className={mounted ? "header-transparent" : "header-transparent"}>
+        <div className="header-inner">
+          <nav>
+            <ul className="main-menu">
+              {/* ...menu items... */}
+            </ul>
+            <button className="hamburger-menu" aria-label="Menu">
+              <span></span><span></span><span></span>
+            </button>
+          </nav>
         </div>
-        {/* Hero Image fills the rest */}
-        <div
-          className="absolute hero-image-container"
-          style={{
-            left: 265,
-            top: 8,
-            right: 8,
-            bottom: 8,
-            zIndex: 2,
-          }}
-        >
-          <div className="w-full h-full relative">
-            {/* Blurred background image for width fill */}
-            <Image
-              src={heroImageUrl || defaultHeroImageUrl}
-              alt="Hero blurred background"
-              fill
-              className="object-cover w-full h-full blur-lg scale-105"
-              style={{
-                zIndex: 0,
-                filter: 'blur(24px) brightness(1.1)',
-                objectPosition: 'center',
-              }}
-              aria-hidden="true"
-              priority
-            />
-            {/* Main hero image, fully visible */}
-            <Image
-              src={heroImageUrl || defaultHeroImageUrl}
-              alt="Event or Default"
-              fill
-              className="object-cover w-full h-full"
-              style={{
-                objectFit: 'cover',
-                objectPosition: 'center',
-                zIndex: 1,
-                background: 'linear-gradient(to bottom, #f8fafc 0%, #fff 100%)',
-              }}
-              priority
-            />
-            {/* Fade overlays for all four borders */}
-            <div className="pointer-events-none absolute left-0 top-0 w-full h-8" style={{ background: 'linear-gradient(to bottom, rgba(248,250,252,1) 0%, rgba(248,250,252,0) 100%)', zIndex: 20 }} />
-            <div className="pointer-events-none absolute left-0 bottom-0 w-full h-8" style={{ background: 'linear-gradient(to top, rgba(248,250,252,1) 0%, rgba(248,250,252,0) 100%)', zIndex: 20 }} />
-            <div className="pointer-events-none absolute left-0 top-0 h-full w-8" style={{ background: 'linear-gradient(to right, rgba(248,250,252,1) 0%, rgba(248,250,252,0) 100%)', zIndex: 20 }} />
-            <div className="pointer-events-none absolute right-0 top-0 h-full w-8" style={{ background: 'linear-gradient(to left, rgba(248,250,252,1) 0%, rgba(248,250,252,0) 100%)', zIndex: 20 }} />
-          </div>
-          {/* Buy Tickets image overlay if ticketed */}
-          {event && event.admissionType === 'ticketed' && (
-            <div
-              className="absolute bottom-6 right-6 z-10"
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-            >
-              <Image
-                src="/images/buy_tickets_click_here_red.webp"
-                alt="Buy Tickets"
-                width={160}
-                height={60}
-                style={{ opacity: 0.7, height: 'auto' }}
-                className="rounded shadow"
-                priority
-              />
-            </div>
-          )}
+      </header>
+      <div className="mobile-menu">
+        <ul className="mobile-menu-list">
+          {/* ...mobile menu items... */}
+        </ul>
+      </div>
+      <section className="hero-section">
+        <div className="hero-background" style={{ backgroundImage: `url('${heroImageUrl || defaultHeroImageUrl}')` }}></div>
+        <div className="hero-overlay"></div>
+        <div className="hero-content">
+          <img src="/images/mcefee_logo_black_border_transparent.png" className="hero-mcafee-logo" alt="MCEFEE Logo" />
+          <h1 className="hero-title">
+            {event?.title || 'Event Tickets'} <span style={{ color: 'var(--primary-color)' }}>{event?.caption}</span>
+          </h1>
         </div>
       </section>
       {/* --- END HERO SECTION --- */}
@@ -389,11 +308,11 @@ export default function TicketingPage() {
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-gray-600 mb-4">
             <div className="flex items-center gap-2">
               <FaCalendarAlt />
-              <span>{new Date(event.startDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+              <span>{formatInTimeZone(event.startDate, event.timezone || 'America/New_York', 'EEEE, MMMM d, yyyy')}</span>
             </div>
             <div className="flex items-center gap-2">
               <FaClock />
-              <span>{formatTime(event.startTime)}{event.endTime ? ` - ${formatTime(event.endTime)}` : ''}</span>
+              <span>{formatTime(event.startTime)}{event.endTime ? ` - ${formatTime(event.endTime)}` : ''} {'('}{formatInTimeZone(event.startDate, event.timezone || 'America/New_York', 'zzz')}{')'}</span>
             </div>
             {event.location && (
               <div className="flex items-center gap-2">

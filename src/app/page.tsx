@@ -1,4 +1,4 @@
-'use server';
+'use client';
 import Link from "next/link";
 import { UserRoleDisplay } from "@/components/UserRoleDisplay";
 // import { ProfileBootstrapper } from "@/components/ProfileBootstrapper"; // Remove client bootstrapper
@@ -10,6 +10,7 @@ import { getTenantId } from '@/lib/env';
 import { formatDateLocal } from '@/lib/date';
 import { auth, currentUser } from '@clerk/nextjs/server';
 import { bootstrapUserProfile } from '@/components/ProfileBootstrapperApiServerActions';
+import { PhilantropHeaderClient } from '@/components/PhilantropHeaderClient';
 
 // Add EventWithMedia type for local use
 interface EventWithMedia extends EventDetailsDTO {
@@ -84,487 +85,509 @@ async function fetchHeroImageForEvent(eventId: number): Promise<string | null> {
   return null;
 }
 
-export default async function Page() {
-  /*
-  const session = await auth();
-  const userId = session?.userId;
-  let user = null;
-  if (userId) {
-    user = await currentUser();
-    if (user) {
-      try {
-        await bootstrapUserProfile({ userId, user });
-      } catch (err) {
-        console.error('SSR profile bootstrap failed:', err);
-      }
-    }
-  }
-  */
+import { useState, useEffect } from 'react';
 
-  let events: EventWithMedia[] = [];
-  let fetchError = false;
 
-  try {
-    events = await fetchEventsWithMedia();
-  } catch (err) {
-    fetchError = true;
-  }
-
-  // Determine hero image based on upcoming events
-  const today = new Date();
-  const threeMonthsFromNow = new Date();
-  threeMonthsFromNow.setMonth(today.getMonth() + 3);
-
-  let heroImageUrl = "/images/side_images/chilanka_2025.webp"; // default image
-  // Add cache-busting query string to default image so it is never cached
+export default function Page() {
+  const [mounted, setMounted] = useState(false);
+  const [events, setEvents] = useState<EventWithMedia[]>([]);
+  const [heroImageUrl, setHeroImageUrl] = useState('/images/side_images/chilanka_2025.webp');
   const defaultHeroImageUrl = `/images/side_images/chilanka_2025.webp?v=${Date.now()}`;
 
-  let nextEvent: EventWithMedia | null = null;
-  let mediaFetchError = false;
-
-  if (!fetchError && events && events.length > 0) {
-    // Find the next event with startDate >= today
-    const upcomingEvents = events
-      .filter(event => event.startDate && new Date(event.startDate) >= today)
-      .sort((a, b) => {
-        const aDate = a.startDate ? new Date(a.startDate).getTime() : Infinity;
-        const bDate = b.startDate ? new Date(b.startDate).getTime() : Infinity;
-        return aDate - bDate;
-      });
-
-    if (upcomingEvents.length > 0) {
-      const event = upcomingEvents[0];
-      const eventDate = event.startDate ? new Date(event.startDate) : null;
-      if (eventDate && eventDate <= threeMonthsFromNow && event.thumbnailUrl) {
-        heroImageUrl = event.thumbnailUrl;
-        nextEvent = event;
-      }
-    }
-  }
-
-  // Fallback: If heroImageUrl is still default, try to fetch a hero image from event media
-  if (!heroImageUrl || heroImageUrl === "/images/side_images/chilanka_2025.webp") {
-    // Find an event in the next 3 months
-    const candidateEvent = events.find(event => {
-      const eventDate = event.startDate ? new Date(event.startDate) : null;
-      return eventDate && eventDate >= today && eventDate <= threeMonthsFromNow;
-    });
-    if (candidateEvent) {
+  useEffect(() => {
+    setMounted(true);
+    async function fetchEventsWithMedia() {
       try {
-        const heroUrl = await fetchHeroImageForEvent(candidateEvent.id!);
-        if (heroUrl) {
-          heroImageUrl = heroUrl;
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+        let eventsResponse = await fetch(
+          `${baseUrl}/api/proxy/event-details?sort=startDate,asc`,
+          { cache: 'no-store' }
+        );
+        let eventsData: EventWithMedia[] = [];
+        if (eventsResponse.ok) {
+          eventsData = await eventsResponse.json();
         }
-      } catch {
-        mediaFetchError = true;
+        if (!eventsData || eventsData.length === 0) {
+          eventsResponse = await fetch(
+            `${baseUrl}/api/proxy/event-details?sort=startDate,desc`,
+            { cache: 'no-store' }
+          );
+          if (eventsResponse.ok) {
+            eventsData = await eventsResponse.json();
+          }
+        }
+        setEvents(eventsData);
+        // Determine hero image based on upcoming events
+        const today = new Date();
+        const threeMonthsFromNow = new Date();
+        threeMonthsFromNow.setMonth(today.getMonth() + 3);
+        let heroImage = '/images/side_images/chilanka_2025.webp';
+        let nextEvent = null;
+        if (eventsData && eventsData.length > 0) {
+          const upcomingEvents = eventsData
+            .filter((event: EventWithMedia) => event.startDate && new Date(event.startDate) >= today)
+            .sort((a: EventWithMedia, b: EventWithMedia) => {
+              const aDate = a.startDate ? new Date(a.startDate).getTime() : Infinity;
+              const bDate = b.startDate ? new Date(b.startDate).getTime() : Infinity;
+              return aDate - bDate;
+            });
+          if (upcomingEvents.length > 0) {
+            const event = upcomingEvents[0];
+            const eventDate = event.startDate ? new Date(event.startDate) : null;
+            if (eventDate && eventDate <= threeMonthsFromNow && event.thumbnailUrl) {
+              heroImage = event.thumbnailUrl;
+              nextEvent = event;
+            }
+          }
+        }
+        // Fallback: If heroImage is still default, use cache-busting version
+        if (!heroImage || heroImage === '/images/side_images/chilanka_2025.webp') {
+          heroImage = defaultHeroImageUrl;
+        }
+        setHeroImageUrl(heroImage);
+      } catch (err) {
+        setHeroImageUrl(defaultHeroImageUrl);
       }
     }
-    // If still default, use cache-busting version
-    if (!heroImageUrl || heroImageUrl === "/images/side_images/chilanka_2025.webp") {
-      heroImageUrl = defaultHeroImageUrl;
-    }
-  }
+    fetchEventsWithMedia();
+  }, []);
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-b from-blue-100 via-white to-blue-200">
-      <main>
-        {/* Hero Section */}
-        <section
-          className="hero-section relative w-full h-[350px] md:h-[350px] sm:h-[220px] h-[160px] bg-transparent pb-0"
-          style={{ height: undefined }}
-        >
-          {/* Side Image as absolute vertical border with enhanced soft shadow, now extends further into navbar for stronger blending */}
-          <div
-            style={{
-              position: 'absolute',
-              left: 0,
-              top: 0,
-              width: '250px',
-              minWidth: '120px',
-              height: '100%',
-              zIndex: 1,
-            }}
-            className="w-[120px] md:w-[250px] min-w-[80px] h-full"
-          >
-            {/* Overlay logo at top left of side image */}
-            <Image
-              src="/images/side_images/malayalees_us_logo.avif"
-              alt="Malayalees US Logo"
-              width={80}
-              height={80}
-              style={{
-                position: 'absolute',
-                top: 8,
-                left: 8,
-                background: 'rgba(255,255,255,0.7)',
-                borderRadius: '50%',
-                boxShadow: '0 8px 64px 16px rgba(80,80,80,0.22)',
-                zIndex: 2,
-              }}
-              className="md:w-[120px] md:h-[120px] w-[80px] h-[80px]"
-              priority
-            />
-            <Image
-              src="/images/side_images/pooram_side_image_two_images_blur_1.png"
-              alt="Kerala Sea Coast"
-              width={250}
-              height={400}
-              className="h-full object-cover rounded-l-lg shadow-2xl"
-              style={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-                objectPosition: '60% center',
-                display: 'block',
-                boxShadow: '0 0 96px 32px rgba(80,80,80,0.22)',
-              }}
-              priority
-            />
+    <>
+      <PhilantropHeaderClient />
+      <section className="hero-section">
+        <div className="hero-content" style={{
+          position: 'relative',
+          zIndex: 3,
+          padding: '0 20px',
+          maxWidth: 1200,
+          margin: '0 auto',
+          display: 'flex',
+          flexDirection: 'row',
+          alignItems: 'center',
+          height: '25vh',
+          minHeight: 180,
+        }}>
+          <img src="/images/mcefee_logo_black_border_transparent.png" className="hero-mcafee-logo" alt="MCEFEE Logo" style={{ width: 220, height: 'auto', opacity: 0.6 }} />
+          <h1 className="hero-title" style={{ fontSize: 22, lineHeight: 1.4, color: 'white', maxWidth: 600, fontFamily: 'Sora, sans-serif', marginLeft: 24 }}>
+            Connecting Cultures, Empowering Generations – <span style={{ color: '#ffce59', fontSize: 22 }}>Celebrating Malayali Roots in the USA</span>
+          </h1>
+        </div>
+        <div className="hero-background" style={{
+          position: 'absolute',
+          top: '40%',
+          right: 0,
+          left: 'auto',
+          width: '18%',
+          height: '50%',
+          backgroundImage: "url('/images/kathakali_with_back_light_hero_ai.png')",
+          backgroundSize: 'cover',
+          backgroundPosition: 'right bottom',
+          opacity: 0.7,
+          WebkitMaskImage: 'radial-gradient(circle at 100% 80%, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 60%, rgba(0,0,0,0) 100%)',
+          maskImage: 'radial-gradient(circle at 100% 80%, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 60%, rgba(0,0,0,0) 100%)',
+          zIndex: 2,
+          pointerEvents: 'none',
+        }}></div>
+        <div className="hero-overlay" style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'linear-gradient(90deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.5) 50%, rgba(0,0,0,0.3) 100%)',
+          zIndex: 1
+        }}></div>
+        <style jsx>{`
+          .hero-section {
+            height: 20vh;
+            min-height: 144px;
+            position: relative;
+            overflow: visible;
+            background-color: #000;
+            padding-top: 30px;
+          }
+          @media (max-width: 1200px) {
+            .hero-content {
+              max-width: 1000px;
+            }
+            .hero-background {
+              width: 25% !important;
+            }
+          }
+          @media (max-width: 991px) {
+            .logo img {
+              width: 90px !important;
+            }
+            .hero-background {
+              width: 30% !important;
+            }
+          }
+          @media (max-width: 768px) {
+            .hero-section {
+              padding-top: 80px;
+              height: 18vh;
+            }
+            .hero-content {
+              flex-direction: column;
+              align-items: flex-start;
+              height: auto;
+              padding-top: 40px;
+            }
+            .hero-title {
+              font-size: 16px !important;
+              margin-left: 0 !important;
+            }
+            .hero-mcafee-logo {
+              width: 80px !important;
+            }
+            .hero-background {
+              width: 40% !important;
+              height: 40% !important;
+              top: 60% !important;
+            }
+          }
+          @media (max-width: 480px) {
+            .hero-section {
+              padding-top: 60px;
+              height: 14vh;
+            }
+            .hero-content {
+              padding-top: 20px;
+            }
+            .hero-title {
+              font-size: 13px !important;
+            }
+            .hero-mcafee-logo {
+              width: 60px !important;
+            }
+            .hero-background {
+              width: 50% !important;
+              height: 30% !important;
+              top: 70% !important;
+            }
+          }
+        `}</style>
+      </section>
+      {/* FEATURE BOXES - directly under hero, two columns on desktop, stacked on mobile */}
+      <section className="bg-white w-full">
+        <div className="max-w-7xl mx-auto px-4 py-8 grid grid-cols-1 md:grid-cols-2 gap-0 md:gap-0">
+          <div className="flex flex-col justify-center bg-black bg-opacity-90 p-8 md:p-12 min-h-[220px]">
+            <h3 className="text-white text-xl md:text-2xl font-semibold mb-2">Story behind the foundation</h3>
+            <a href="#vision-section" className="text-yellow-400 text-lg font-semibold underline mb-2">Mission and Vision</a>
           </div>
-
-          {/* Hero Image fills the rest */}
-          <div
-            className="absolute hero-image-container"
-            style={{
-              left: 265,
-              top: 8,
-              right: 8,
-              bottom: 8,
-              zIndex: 2,
-            }}
-          >
-            <div className="w-full h-full relative">
-              {/* Blurred background image for width fill */}
-              <Image
-                src={heroImageUrl}
-                alt="Hero blurred background"
-                fill
-                className="object-cover w-full h-full blur-lg scale-105"
-                style={{
-                  zIndex: 0,
-                  filter: 'blur(24px) brightness(1.1)',
-                  objectPosition: 'center',
-                }}
-                aria-hidden="true"
-                priority
-              />
-              {/* Main hero image, fully visible */}
-              <Image
-                src={heroImageUrl}
-                alt="Event or Default"
-                fill
-                className="object-cover w-full h-full"
-                style={{
-                  objectFit: 'cover',
-                  objectPosition: 'center',
-                  zIndex: 1,
-                  background: 'linear-gradient(to bottom, #f8fafc 0%, #fff 100%)',
-                }}
-                priority
-              />
-              {/* Fade overlays for all four borders */}
-              <div className="pointer-events-none absolute left-0 top-0 w-full h-8" style={{ background: 'linear-gradient(to bottom, rgba(248,250,252,1) 0%, rgba(248,250,252,0) 100%)', zIndex: 20 }} />
-              <div className="pointer-events-none absolute left-0 bottom-0 w-full h-8" style={{ background: 'linear-gradient(to top, rgba(248,250,252,1) 0%, rgba(248,250,252,0) 100%)', zIndex: 20 }} />
-              <div className="pointer-events-none absolute left-0 top-0 h-full w-8" style={{ background: 'linear-gradient(to right, rgba(248,250,252,1) 0%, rgba(248,250,252,0) 100%)', zIndex: 20 }} />
-              <div className="pointer-events-none absolute right-0 top-0 h-full w-8" style={{ background: 'linear-gradient(to left, rgba(248,250,252,1) 0%, rgba(248,250,252,0) 100%)', zIndex: 20 }} />
-            </div>
-            {nextEvent && nextEvent.admissionType === 'ticketed' && (
-              <Link
-                href={`/events/${nextEvent.id}/tickets`}
-                className="absolute bottom-6 right-6 z-10"
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-              >
-                <Image
-                  src="/images/buy_tickets_click_here_red.webp"
-                  alt="Buy Tickets"
-                  width={160}
-                  height={60}
-                  style={{ opacity: 0.7, width: '160px', height: 'auto' }}
-                  className="rounded shadow"
-                  priority
-                />
-              </Link>
-            )}
-            {/* If not ticketed but registration required, show Register button as before */}
-            {nextEvent && nextEvent.admissionType !== 'ticketed' && nextEvent.isRegistrationRequired && (
-              <Link
-                href={`/events/${nextEvent.id}/register`}
-                className="absolute bottom-6 right-6 z-10 bg-blue-600 text-white px-6 py-3 rounded-lg shadow-lg hover:bg-blue-700 transition"
-              >
-                Register for this event
-              </Link>
-            )}
+          <div className="flex flex-col justify-center bg-gradient-to-br from-gray-700 via-gray-600 to-gray-400 p-8 md:p-12 min-h-[220px]">
+            <h3 className="text-white text-xl md:text-2xl font-semibold mb-2">cultural events, educational programs, and community gatherings</h3>
+            <a href="/events.html" className="text-yellow-400 text-lg font-semibold underline mb-2">Upcoming events</a>
+            <img src="/images/deepam_chirad.jpeg" alt="Events" className="w-24 h-24 object-cover rounded-lg mt-4 hidden md:block" />
           </div>
-        </section>
-
-        {/* Feature Boxes Section */}
-        <section className="feature-boxes flex flex-col md:flex-row w-full mt-12">
-          <div className="feature-box flex-1 w-full min-h-[180px] mb-4 md:mb-0" style={{ backgroundImage: "url('/images/unite_india_logo.avif')", backgroundSize: '45%', backgroundRepeat: 'no-repeat', backgroundPosition: 'center', backgroundColor: '#1a1a1a', padding: '40px' }}>
-            {/* <div>
-                      <h4>Story behind the foundation</h4>
-                      <a href="#vision-section" className="link-text">Mission and Vision</a>
-                    </div> */}
+        </div>
+      </section>
+      {/* WHAT WE DO SECTION - two columns on desktop, stacked on mobile */}
+      <section className="what-we-do bg-white py-12">
+        <div className="container mx-auto px-4">
+          <div className="section-title-wrapper flex items-center gap-4 mb-4">
+            <span className="section-subtitle text-yellow-400 font-semibold text-lg border-b-2 border-yellow-400 pb-1">WHAT WE DO</span>
           </div>
-          <div className="feature-box flex-1 w-full min-h-[180px]" style={
-            nextEvent
-              ? { background: '#fff', padding: '40px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }
-              : { backgroundImage: "url('/images/lady_dance.jpeg')", backgroundSize: '55%', backgroundRepeat: 'no-repeat', backgroundPosition: 'center', padding: '40px' }
-          }>
-            {nextEvent ? (
-              <div className="flex flex-col md:flex-row items-center gap-4">
-                <Image src={nextEvent.thumbnailUrl || '/images/kalari_jump.jpeg'} alt={nextEvent.title || 'Event'} className="w-24 h-24 object-cover rounded shadow-md mb-2 md:mb-0" width={96} height={96} style={{ minWidth: 72, minHeight: 72 }} />
-                <div className="flex-1">
-                  <h4 className="text-xl font-bold mb-1 text-gray-900">{nextEvent.title}</h4>
-                  <div className="text-sm text-gray-600 mb-1">
-                    {formatDateLocal(nextEvent.startDate)}
-                    {nextEvent.admissionType === 'ticketed' && nextEvent.startTime && (
-                      <span className="ml-2">| Start: {nextEvent.startTime}</span>
-                    )}
-                  </div>
-                  {nextEvent.description && (
-                    <div className="text-gray-700 text-sm mb-2 line-clamp-3">{nextEvent.description}</div>
-                  )}
-                  {nextEvent.admissionType === 'ticketed' && (
-                    <a
-                      href={`/events/${nextEvent.id}/tickets`}
-                      className="button bg-yellow-400 text-gray-900 px-4 py-2 rounded font-semibold text-sm shadow hover:bg-yellow-300 transition mt-2 inline-block"
-                    >
-                      Buy Tickets
-                    </a>
-                  )}
-                </div>
+          <h2 className="text-3xl md:text-4xl font-semibold mb-10">Cultural Workshops and Educational Events</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-x-16 md:gap-y-12">
+            {/* Traditional Dance & Music */}
+            <div className="flex items-start gap-6">
+              <div className="flex-shrink-0">
+                <svg width="40" height="40" fill="none" viewBox="0 0 40 40"><path d="M28 5v17.58A6.5 6.5 0 1 0 31 28V13h6V5h-9zM22 33a4 4 0 1 1-8 0 4 4 0 0 1 8 0z" fill="#22c55e" /></svg>
               </div>
-            ) : (
               <div>
-                <h4>cultural events, educational programs, and community gatherings</h4>
-                <a href="/events" className="link-text">Upcoming events</a>
+                <h4 className="text-xl font-semibold mb-1">Traditional Dance & Music</h4>
+                <p className="text-gray-500 text-lg">Experience the rich heritage of Kerala through dance and music workshops.</p>
               </div>
-            )}
-          </div>
-        </section>
-
-        {/* Events Section */}
-        <section id="events" className="events-section py-20 bg-white">
-          <div className="container mx-auto px-4">
-            <div className="section-title-wrapper mb-10 text-center">
-              <h3 className="text-4xl md:text-5xl font-bold mb-4 text-gray-900">Upcoming Events</h3>
-              <div className="section-subtitle text-lg text-yellow-500 font-semibold mb-2">Join Our Celebrations</div>
             </div>
-            {mediaFetchError && (
-              <div className="text-center text-red-600 font-bold py-8">
-                Event media fetch failed.
+            {/* Art & Craft Workshops */}
+            <div className="flex items-start gap-6">
+              <div className="flex-shrink-0">
+                <svg width="40" height="40" fill="none" viewBox="0 0 40 40"><circle cx="20" cy="20" r="18" fill="#fbbf24" /><circle cx="13" cy="17" r="2" fill="#fff" /><circle cx="20" cy="13" r="2" fill="#fff" /><circle cx="27" cy="17" r="2" fill="#fff" /><circle cx="20" cy="27" r="2" fill="#fff" /></svg>
               </div>
-            )}
-            {fetchError ? (
-              <div className="text-center text-red-600 font-bold py-8">
-                Sorry, we couldn't load events at this time. Please try again later.
+              <div>
+                <h4 className="text-xl font-semibold mb-1">Art & Craft Workshops</h4>
+                <p className="text-gray-500 text-lg">Learn traditional Kerala art forms and crafts through hands-on workshops.</p>
               </div>
-            ) : (() => {
-              // Find upcoming and past events
-              const today = new Date();
-              const upcomingEvents = events.filter(event => event.startDate && new Date(event.startDate) >= today);
-              if (upcomingEvents.length > 0) {
-                return (
-                  <div className="flex flex-wrap justify-center gap-8 max-w-6xl mx-auto">
-                    {upcomingEvents.slice(0, 6).map((event) => (
-                      <div
-                        key={event.id}
-                        className="flex justify-center"
-                        style={{ width: 350, minWidth: 350, maxWidth: 350, height: 500, minHeight: 500, maxHeight: 500 }}
-                      >
-                        <EventCard event={event} placeholderText={event.placeholderText} />
-                      </div>
-                    ))}
+            </div>
+            {/* Kerala Folklore and Tribal Traditions */}
+            <div className="flex items-start gap-6">
+              <div className="flex-shrink-0">
+                <svg width="40" height="40" fill="none" viewBox="0 0 40 40"><rect x="8" y="8" width="24" height="24" rx="4" fill="#3b82f6" /><rect x="14" y="14" width="12" height="2" rx="1" fill="#fff" /><rect x="14" y="20" width="12" height="2" rx="1" fill="#fff" /></svg>
+              </div>
+              <div>
+                <h4 className="text-xl font-semibold mb-1">Kerala Folklore and Tribal Traditions</h4>
+                <p className="text-gray-500 text-lg">Introduce lesser-known folk dances like Theyyam, Padayani, and Poothan Thira.</p>
+              </div>
+            </div>
+            {/* Kerala Cuisine Classes */}
+            <div className="flex items-start gap-6">
+              <div className="flex-shrink-0">
+                <svg width="40" height="40" fill="none" viewBox="0 0 40 40"><g><rect x="10" y="10" width="6" height="20" rx="3" fill="#fbbf24" /><rect x="24" y="10" width="6" height="20" rx="3" fill="#fbbf24" /><rect x="13" y="13" width="2" height="14" rx="1" fill="#fff" /><rect x="27" y="13" width="2" height="14" rx="1" fill="#fff" /></g></svg>
+              </div>
+              <div>
+                <h4 className="text-xl font-semibold mb-1">Kerala Cuisine Classes</h4>
+                <p className="text-gray-500 text-lg">Master the art of traditional Kerala cooking with expert chefs.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+      {/* TICKER/BANNER SECTION */}
+      <section className="ticker-section">
+        <div className="ticker">
+          <div className="ticker-item">Culture is the thread to thrive and ties generations to their roots !</div>
+          <div className="ticker-item">Culture is the thread to thrive and ties generations to their roots !</div>
+          <div className="ticker-item">Culture is the thread to thrive and ties generations to their roots !</div>
+        </div>
+      </section>
+      {/* ABOUT, VISION, STORY SECTIONS - styled as cards with image left, text right */}
+      <section className="bg-[#f9f9f9] py-12">
+        <div className="max-w-4xl mx-auto flex flex-col gap-10">
+          {/* About Foundation */}
+          <div className="bg-white rounded-xl shadow-md overflow-hidden flex flex-col md:flex-row">
+            <div className="md:w-1/3 flex-shrink-0">
+              <img src="/images/kathakali_with_back_light_hero.jpg" alt="About Foundation" className="w-full h-64 md:h-full object-cover" />
+            </div>
+            <div className="md:w-2/3 p-6 md:p-10 flex flex-col justify-center">
+              <span className="text-yellow-400 font-semibold uppercase tracking-wide text-sm mb-2">About Foundation</span>
+              <h3 className="text-2xl md:text-3xl font-bold mb-4">The Malayali Cultural Exchange Foundation</h3>
+              <p className="text-gray-700 text-base md:text-lg mb-2">The Malayali Cultural Exchange Foundation for Education and Events is a vibrant, community-driven organization based in New Jersey, USA, dedicated to reviving real Malayali culture, empowering the next generation through education, and offering a nostalgic sense of home to our community. Our mission is to preserve and promote the rich cultural heritage of Kerala while fostering a deeper connection among Malayalis in the USA, creating a sense of belonging and unity.</p>
+              <p className="text-gray-700 text-base md:text-lg mb-2">We focus on providing quality events that go beyond face-value interactions, offering genuine cultural experiences and values. Through educational programs, cultural events, and community-building activities, we aim to engage and inspire the new generation. Whether it's learning the Malayalam language, participating in Kerala's traditional festivals, or understanding the deeper meanings of our customs, we ensure that our initiatives go beyond surface-level celebrations.</p>
+              <p className="text-gray-700 text-base md:text-lg">At the heart of our foundation is the belief in the power of cultural exchange. We strive to create opportunities for our community to reconnect with their roots while also sharing the beauty of Kerala with others. Our events are specifically designed to attract and engage young people, helping them build a deeper appreciation for their heritage, while also offering a sense of nostalgia and connection to those already established in the USA.</p>
+              <p className="text-gray-700 text-base md:text-lg mt-2">The Malayali Cultural Exchange Foundation for Education and Events serves as a home away from home, offering a place to celebrate, educate, and embrace the vibrant spirit of Kerala. Join us in our mission to nurture the next generation of Malayalis and continue the traditions that define our culture, fostering a stronger, more connected community in the USA.</p>
+            </div>
+          </div>
+          {/* Vision Statement */}
+          <div className="bg-white rounded-xl shadow-md overflow-hidden flex flex-col md:flex-row">
+            <div className="md:w-1/3 flex-shrink-0">
+              <img src="/images/vision_to_future.jpeg" alt="Vision" className="w-full h-64 md:h-full object-cover" />
+            </div>
+            <div className="md:w-2/3 p-6 md:p-10 flex flex-col justify-center">
+              <span className="text-yellow-400 font-semibold uppercase tracking-wide text-sm mb-2">Vision Statement</span>
+              <h3 className="text-2xl md:text-3xl font-bold mb-4">Our Vision</h3>
+              <p className="text-gray-700 text-base md:text-lg">Our vision is to create a thriving community where Malayali culture is celebrated, preserved, and passed on to future generations. We envision a foundation that acts as a hub for cultural exchange, education, and unity, fostering pride in our heritage while adapting it for the modern world. By building lasting connections, both within the Malayali community and with others, we strive to contribute to a greater understanding and appreciation of Kerala's traditions and values in the USA. We aim to be a beacon of empowerment, nostalgia, and cultural pride for generations to come.</p>
+            </div>
+          </div>
+          {/* Story Section */}
+          <div className="bg-white rounded-xl shadow-md overflow-hidden flex flex-col md:flex-row">
+            <div className="md:w-1/3 flex-shrink-0">
+              <img src="/images/story_foundation.jpeg" alt="Story" className="w-full h-64 md:h-full object-cover" />
+            </div>
+            <div className="md:w-2/3 p-6 md:p-10 flex flex-col justify-center">
+              <span className="text-yellow-400 font-semibold uppercase tracking-wide text-sm mb-2">Our Story</span>
+              <h3 className="text-2xl md:text-3xl font-bold mb-4">Story Behind the Foundation</h3>
+              <p className="text-gray-700 text-base md:text-lg mb-2">The Malayali Cultural Exchange Foundation for Education and Events was born out of a deep passion for preserving and sharing the rich cultural heritage of Kerala with the Malayali community in the USA. The idea emerged when a group of passionate individuals, united by their love for their roots, began to realize the power of genuine, quality cultural experiences in fostering connection and belonging.</p>
+              <p className="text-gray-700 text-base md:text-lg mb-2">In observing the growing need for meaningful cultural events within our community, we were inspired by the realization that even though many of our events might not attract large crowds, they held immense value in creating lasting memories and deepening connections. We recognized that the true strength of our culture lies not in large numbers or grandeur, but in the authentic exchange of traditions, stories, and experiences that resonate deeply with individuals.</p>
+              <p className="text-gray-700 text-base md:text-lg">Through intimate gatherings, educational programs, and cultural celebrations, we witnessed firsthand the positive impact of quality events—ones that went beyond surface-level interactions to truly engage participants, invoking nostalgia, pride, and a sense of home. These moments of connection made it clear that there was a growing desire for a space where people could celebrate the richness of Malayali culture while empowering the next generation to continue these traditions.</p>
+              <p className="text-gray-700 text-base md:text-lg mt-2">This understanding fueled the creation of our foundation: a platform that focuses on quality over quantity, where every event is designed to foster deeper cultural understanding and create lasting bonds within the community. Our goal has always been to offer something more than just a celebration—we aim to provide experiences that honor the values of Kerala while adapting them to the modern context, ensuring they remain relevant and meaningful for future generations.</p>
+              <p className="text-gray-700 text-base md:text-lg mt-2">The foundation is not just about holding events; it's about creating a legacy. It's about offering a nostalgic sense of home to those who have moved far from Kerala and empowering younger generations to carry forward the cultural torch. We are driven by the belief that every interaction, no matter how small the crowd, is a step toward preserving and passing on the vibrant traditions of Kerala for years to come.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+      {/* TEAM SECTION */}
+      <section className="philantrop_team_section team-section" id="team-section">
+        <div className="container">
+          <div className="row">
+            <div className="col-12 col-md-6">
+              <div className="section-title-wrapper">
+                <span className="section-subtitle">Team</span>
+                <h3 className="philantrop_team_title">Meet our the best volunteers team</h3>
+              </div>
+            </div>
+          </div>
+          <div className="philantrop_team_grid team-grid">
+            {/* Head Team Member */}
+            <div className="philantrop_team_item team-item">
+              <div className="philantrop_team_image team-image">
+                <img src="/images/team_members/shaji_varghese.jpeg" alt="Shaji Varghese" />
+                <div className="philantrop_team_overlay team-overlay">
+                  <ul className="philantrop_team_socials team-socials">
+                    <li><a href="#"><i className="fab fa-facebook-f"></i></a></li>
+                  </ul>
+                </div>
+              </div>
+              <div className="philantrop_team_content team-content">
+                <h5 className="philantrop_team_title team-title">Shaji Varghese</h5>
+                <div className="philantrop_team_position team-position">Head Volunteer</div>
+              </div>
+            </div>
+            {/* Team Member 1 */}
+            <div className="philantrop_team_item team-item">
+              <div className="philantrop_team_image team-image">
+                <img src="/images/team_members/sujith_karakkadan.jpeg" alt="Team Member" />
+                <div className="philantrop_team_overlay team-overlay">
+                  <ul className="philantrop_team_socials team-socials">
+                    <li><a href="https://www.facebook.com/sujith.thottan" target="_blank"><i className="fab fa-facebook-f"></i></a></li>
+                  </ul>
+                </div>
+              </div>
+              <div className="philantrop_team_content team-content">
+                <h5 className="philantrop_team_title team-title">Sujith Karakkadan</h5>
+                <div className="philantrop_team_position team-position">Volunteer</div>
+              </div>
+            </div>
+            {/* Team Member 2 */}
+            <div className="philantrop_team_item team-item">
+              <div className="philantrop_team_image team-image">
+                <img src="/images/team_members/arun_sadasivan.jpeg" alt="Team Member" />
+                <div className="philantrop_team_overlay team-overlay">
+                  <ul className="philantrop_team_socials team-socials">
+                    <li><a href="https://www.facebook.com/arun.sadasivan.3" target="_blank"><i className="fab fa-facebook-f"></i></a></li>
+                  </ul>
+                </div>
+              </div>
+              <div className="philantrop_team_content team-content">
+                <h5 className="philantrop_team_title team-title">Arun Sadasivan</h5>
+                <div className="philantrop_team_position team-position">Volunteer</div>
+              </div>
+            </div>
+            {/* Team Member 3 */}
+            <div className="philantrop_team_item team-item">
+              <div className="philantrop_team_image team-image">
+                <img src="/images/team_members/latha_krishnan.jpeg" alt="Team Member" style={{ objectPosition: 'center 20%' }} />
+                <div className="philantrop_team_overlay team-overlay">
+                  <ul className="philantrop_team_socials team-socials">
+                    <li><a href="#"><i className="fab fa-facebook-f"></i></a></li>
+                  </ul>
+                </div>
+              </div>
+              <div className="philantrop_team_content team-content">
+                <h5 className="philantrop_team_title team-title">Latha Krishnan</h5>
+                <div className="philantrop_team_position team-position"> Volunteer</div>
+              </div>
+            </div>
+            {/* Team Member 4 */}
+            <div className="philantrop_team_item team-item">
+              <div className="philantrop_team_image team-image">
+                <img src="/images/team_members/varun_lal.jpeg" alt="Team Member" />
+                <div className="philantrop_team_overlay team-overlay">
+                  <ul className="philantrop_team_socials team-socials">
+                    <li><a href="https://www.facebook.com/lalvarun" target="_blank"><i className="fab fa-facebook-f"></i></a></li>
+                  </ul>
+                </div>
+              </div>
+              <div className="philantrop_team_content team-content">
+                <h5 className="philantrop_team_title team-title">Varun Lal</h5>
+                <div className="philantrop_team_position team-position">Volunteer</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+      {/* CONTACT SECTION - centered, four columns */}
+      <section className="bg-[#f9f9f9] py-12">
+        <div className="max-w-5xl mx-auto px-4">
+          <span className="text-yellow-400 font-semibold uppercase tracking-wide text-sm mb-2 block">Contact</span>
+          <h2 className="text-2xl md:text-3xl font-bold mb-2">Get in touch</h2>
+          <p className="text-gray-600 text-base md:text-lg mb-8 max-w-2xl mx-auto text-center">Connect with us to learn more about our community initiatives and how you can get involved in preserving and promoting Malayali culture across the United States. Join us in fostering cultural exchange and building stronger connections within our diverse communities.</p>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 text-center md:text-left">
+            <div>
+              <h6 className="font-semibold mb-1">Location</h6>
+              <p className="text-gray-700 text-sm">MCEFEE<br />Malayali Cultural Exchange Foundation<br />for Education and Events<br />New Jersey, USA</p>
+            </div>
+            <div>
+              <h6 className="font-semibold mb-1">Phone</h6>
+              <p className="text-gray-700 text-sm">(908) 516-8781</p>
+            </div>
+            <div>
+              <h6 className="font-semibold mb-1">Social</h6>
+              <a href="https://www.facebook.com/profile.php?id=61573944338286" className="inline-block text-gray-700 hover:text-yellow-500 text-2xl" target="_blank" rel="noopener noreferrer">
+                <i className="fab fa-facebook-f"></i>
+              </a>
+            </div>
+            <div>
+              <h6 className="font-semibold mb-1">Email</h6>
+              <p className="text-gray-700 text-sm"><a href="mailto:Contactus@mcefee.org">Contactus@mcefee.org</a></p>
+            </div>
+          </div>
+        </div>
+      </section>
+      {/* EVENTS SECTION - two columns, event cards and main event */}
+      <section className="bg-white py-12">
+        <div className="max-w-6xl mx-auto px-4">
+          <span className="text-yellow-400 font-semibold uppercase tracking-wide text-sm mb-2 block">Events</span>
+          <h2 className="text-2xl md:text-3xl font-bold mb-8">Exciting events & announcements</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {/* Event cards */}
+            <div className="md:col-span-2 flex flex-col gap-6">
+              {/* Event 1 */}
+              <div className="flex bg-[#f9f9f9] rounded-xl shadow-sm overflow-hidden">
+                <img src="/images/spark_kerala_event_2025.jpeg" alt="SPARK OF KERALA" className="w-32 h-44 object-cover rounded-l-xl" />
+                <div className="flex flex-col justify-between p-4 flex-1">
+                  <div>
+                    <h5 className="font-semibold text-lg mb-1">SPARK OF KERALA</h5>
+                    <div className="text-gray-600 text-sm mb-2">Celebrates the vibrant culture, art, and heritage of Kerala across the USA</div>
                   </div>
-                );
-              }
-              // If no upcoming, check for past events
-              const pastEvents = events
-                .filter(event => event.startDate && new Date(event.startDate) < today)
-                .sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
-              if (pastEvents.length > 0) {
-                return (
-                  <>
-                    <div className="text-center text-blue-700 font-bold text-2xl mb-6">Past Events</div>
-                    <div className="flex flex-wrap justify-center gap-8 max-w-6xl mx-auto">
-                      {pastEvents.slice(0, 6).map((event) => (
-                        <div
-                          key={event.id}
-                          className="flex justify-center"
-                          style={{ width: 350, minWidth: 350, maxWidth: 350, height: 500, minHeight: 500, maxHeight: 500 }}
-                        >
-                          <EventCard event={event} placeholderText={event.placeholderText} />
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                );
-              }
-              // No events at all
-              return (
-                <div className="text-center text-gray-500 py-8">
-                  No events found.
+                  <div className="flex items-end justify-between mt-2">
+                    <div className="text-yellow-500 font-bold text-lg">2025<br /><span className="text-xs font-normal text-gray-700">AUG-SEP</span></div>
+                  </div>
                 </div>
-              );
-            })()}
-            <div className="text-center mt-8">
-              <Link href="/events" className="inline-block bg-yellow-400 text-gray-900 px-8 py-3 rounded-lg font-semibold text-lg shadow hover:bg-yellow-300 transition">
-                View All Events
-              </Link>
+              </div>
+              {/* Event 2 */}
+              <div className="flex bg-[#f9f9f9] rounded-xl shadow-sm overflow-hidden">
+                <img src="/images/Karnatic_Music_Festival.jpeg" alt="Karnatic Music Festival" className="w-32 h-44 object-cover rounded-l-xl" />
+                <div className="flex flex-col justify-between p-4 flex-1">
+                  <div>
+                    <h5 className="font-semibold text-lg mb-1">Karnatic Music Festival</h5>
+                    <div className="text-gray-600 text-sm mb-2">A Tribute to Kerala's Classical Melodies Across the USA</div>
+                  </div>
+                  <div className="flex items-end justify-between mt-2">
+                    <div className="text-yellow-500 font-bold text-lg">2025<br /><span className="text-xs font-normal text-gray-700">OCT-NOV</span></div>
+                  </div>
+                </div>
+              </div>
+              <a href="/events.html" className="inline-block mt-4 px-6 py-2 border border-yellow-400 text-yellow-500 rounded-full font-semibold hover:bg-yellow-50 transition">See all events</a>
+            </div>
+            {/* Main event highlight */}
+            <div className="bg-yellow-300 rounded-xl shadow-md p-8 flex flex-col justify-center">
+              <span className="text-gray-700 font-semibold text-sm mb-2">Main event</span>
+              <h4 className="font-bold text-xl mb-2">SPARK OF KERALA</h4>
+              <p className="text-gray-700 text-base mb-2">We are excited to announce SPARK OF KERALA – a grand celebration of Kerala's most iconic festival, Onam, set to take place in the USA in 2025. This event promises to be an unforgettable experience, capturing the true essence of Onam through a power-packed performance that showcases the vibrant culture, traditions, and spirit of Kerala. Explore more</p>
             </div>
           </div>
-        </section>
-
-        {/* About Section */}
-        <section id="about" className="about-us-section py-20 bg-gray-50">
-          <div className="container mx-auto px-4">
-            <div className="section-title-wrapper mb-10">
-              <h3 className="text-4xl md:text-5xl font-bold mb-4 text-gray-900">About Us</h3>
-              <div className="section-subtitle text-lg text-yellow-500 font-semibold mb-2">Who We Are</div>
+        </div>
+      </section>
+      {/* FOOTER - three columns, aligned */}
+      <footer className="bg-[#23272f] text-white py-12 mt-12">
+        <div className="max-w-6xl mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
+          {/* Logo & Social */}
+          <div className="flex flex-col items-center md:items-start gap-4">
+            <div className="mb-2">
+              <img src="/images/mcefee_logo_black_border_transparent.png" alt="Footer Logo" className="w-24 h-auto" />
             </div>
-            <div className="about-us-content bg-white rounded-lg shadow p-8 md:p-12 flex flex-col md:flex-row gap-8 items-center">
-              <img src="/images/about_us_malyalee_us.jpg" alt="About Us" className="rounded-lg w-full md:w-1/2 max-w-md shadow-lg" />
-              <div className="about-us-text text-lg text-gray-700 md:w-1/2">
-                <p>
-                  Formed  with the purpose of bringing together Indians of Kerala origin living in New Jersey/US to maintain the rich heritage and to provide their children an opportunity to get a glimpse of our culture.
-
-
-
-                  Malayalees.us, is one of the largest  Indian Associations in America.  It continues to grow , while spreading the culture of the beautiful state of Kerala through popular events and activities.
-
-                  The community stands for the integrity and unity of malayalees in the USA. It seeks to promote the culture of Kerala, the southernmost state of India. It preserves Kerala traditions in American soil for future generations to discover, share, and follow.
-                </p>
-                <ul className="list-disc pl-6 mt-4 text-base text-gray-600">
-                  <li>Organizing cultural festivals and events</li>
-                  <li>Supporting students and professionals</li>
-                  <li>Promoting Malayalam language and arts</li>
-                  <li>Community outreach and social support</li>
-                </ul>
-              </div>
-            </div>
+            <div className="font-semibold mb-1">Follow us</div>
+            <a href="https://www.facebook.com/profile.php?id=61573944338286" className="inline-block text-white hover:text-yellow-400 text-2xl" target="_blank" rel="noopener noreferrer">
+              <i className="fab fa-facebook-f"></i>
+            </a>
           </div>
-        </section>
-
-        {/* What We Do Section */}
-        <section className="what-we-do py-20 bg-white">
-          <div className="container mx-auto px-4">
-            <div className="section-title-wrapper mb-10">
-              <span className="section-subtitle text-yellow-500 font-semibold mb-2 block">What we do</span>
-              <h3 className="text-3xl md:text-4xl font-bold mb-6 ml-0 md:ml-12">Cultural Workshops and Educational Events</h3>
-            </div>
-            <div className="grid md:grid-cols-2 gap-8">
-              {/* Traditional Dance & Music */}
-              <div className="service-item flex gap-6 items-start">
-                <div className="service-icon w-16 h-16 flex items-center justify-center bg-yellow-100 rounded-full">
-                  {/* Music Icon */}
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-8 h-8 text-green-500"><path fill="currentColor" d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6zm-2 16c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z" /></svg>
-                </div>
-                <div className="service-content">
-                  <h4 className="text-xl font-semibold mb-2">Traditional Dance & Music</h4>
-                  <p>Experience the rich heritage of Kerala through dance and music workshops.</p>
-                </div>
-              </div>
-              {/* Art & Craft */}
-              <div className="service-item flex gap-6 items-start">
-                <div className="service-icon w-16 h-16 flex items-center justify-center bg-yellow-100 rounded-full">
-                  {/* Art Icon */}
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-8 h-8 text-orange-500"><path fill="currentColor" d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.38-.61-.38-.99 0-.83.67-1.5 1.5-1.5H16c2.76 0 5-2.24 5-5 0-4.42-4.03-8-9-8zm-5.5 9c-.83 0-1.5-.67-1.5-1.5S5.67 9 6.5 9 8 9.67 8 10.5 7.33 12 6.5 12zm3-4C8.67 8 8 7.33 8 6.5S8.67 5 9.5 5s1.5.67 1.5 1.5S10.33 8 9.5 8zm5 0c-.83 0-1.5-.67-1.5-1.5S13.67 5 14.5 5s1.5.67 1.5 1.5S15.33 8 14.5 8zm3 4c-.83 0-1.5-.67-1.5-1.5S16.67 9 17.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z" /></svg>
-                </div>
-                <div className="service-content">
-                  <h4 className="text-xl font-semibold mb-2">Art & Craft Workshops</h4>
-                  <p>Learn traditional Kerala art forms and crafts through hands-on workshops.</p>
-                </div>
-              </div>
-              {/* Kerala Folklore and Tribal Traditions */}
-              <div className="service-item flex gap-6 items-start">
-                <div className="service-icon w-16 h-16 flex items-center justify-center bg-yellow-100 rounded-full">
-                  {/* Book Icon */}
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-8 h-8 text-blue-500"><path fill="currentColor" d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z" /></svg>
-                </div>
-                <div className="service-content">
-                  <h4 className="text-xl font-semibold mb-2">Kerala Folklore and Tribal Traditions</h4>
-                  <p>Introduce lesser-known folk dances like Theyyam, Padayani, and Poothan Thira.</p>
-                </div>
-              </div>
-              {/* Kerala Cuisine */}
-              <div className="service-item flex gap-6 items-start">
-                <div className="service-icon w-16 h-16 flex items-center justify-center bg-yellow-100 rounded-full">
-                  {/* Cuisine Icon */}
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-8 h-8 text-yellow-500"><path fill="currentColor" d="M8.1 13.34l2.83-2.83L3.91 3.5c-1.56 1.56-1.56 4.09 0 5.66l4.19 4.18zm6.78-1.81c1.53.71 3.68.21 5.27-1.38 1.91-1.91 2.28-4.65.81-6.12-1.46-1.46-4.2-1.1-6.12.81-1.59 1.59-2.09 3.74-1.38 5.27L3.7 19.87l1.41 1.41L12 14.41l6.88 6.88 1.41-1.41L13.41 13l1.47-1.47z" /></svg>
-                </div>
-                <div className="service-content">
-                  <h4 className="text-xl font-semibold mb-2">Kerala Cuisine Classes</h4>
-                  <p>Master the art of traditional Kerala cooking with expert chefs.</p>
-                </div>
-              </div>
-            </div>
+          {/* Main menu */}
+          <div className="flex flex-col items-center md:items-start gap-2">
+            <div className="font-semibold mb-1">Main menu</div>
+            <a href="/" className="hover:text-yellow-400">Home</a>
+            <a href="/#about-us" className="hover:text-yellow-400">About</a>
+            <a href="/events.html" className="hover:text-yellow-400">Events</a>
+            <a href="/#team-section" className="hover:text-yellow-400">Team</a>
+            <a href="/#contact" className="hover:text-yellow-400">Contact</a>
           </div>
-        </section>
-
-        {/* Ticker/Banner Section */}
-        <section className="ticker-section bg-yellow-400 text-white py-2 overflow-hidden">
-          <div className="ticker flex animate-marquee whitespace-nowrap">
-            <div className="ticker-item px-8">Culture is the thread to thrive and ties generations to their roots !</div>
-            <div className="ticker-item px-8">Culture is the thread to thrive and ties generations to their roots !</div>
-            <div className="ticker-item px-8">Culture is the thread to thrive and ties generations to their roots !</div>
+          {/* Contacts */}
+          <div className="flex flex-col items-center md:items-start gap-2">
+            <div className="font-semibold mb-1">Contacts</div>
+            <div className="text-sm">MCEFEE<br />Malayali Cultural Exchange Foundation<br />for Education and Events<br />New Jersey, USA</div>
+            <div className="text-sm">(908) 516-8781</div>
+            <div className="text-sm"><a href="mailto:Contactus@mcefee.org" className="hover:text-yellow-400">Contactus@mcefee.org</a></div>
           </div>
-        </section>
-
-        {/* Team Section */}
-        <section className="team-section py-20 bg-white" id="team-section">
-          <div className="container mx-auto px-4">
-            <div className="section-title-wrapper mb-10 text-center">
-              <span className="section-subtitle text-yellow-500 font-semibold mb-2 block">Team</span>
-              <h3 className="text-3xl md:text-4xl font-bold mb-6">Meet our best volunteers team</h3>
-            </div>
-            <div className="flex justify-center">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-12 max-w-4xl">
-                {/* Team members - use images from public/images/team_members/ */}
-                <div className="team-item flex flex-col items-center">
-                  <TeamImage src="/images/team_members/Manoj_Kizhakkoot.png" name="Manoj Kizhakkoot" />
-                </div>
-                <div className="team-item flex flex-col items-center">
-                  <TeamImage src="/images/team_members/srk.png" name="SRK" />
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Contact Section */}
-        <section className="contact-section py-20 bg-gray-50" id="contact">
-          <div className="container mx-auto px-4">
-            <div className="section-title-wrapper mb-10">
-              <span className="section-subtitle text-yellow-500 font-semibold mb-2 block">Contact</span>
-              <h3 className="text-3xl md:text-4xl font-bold mb-6">Get in touch</h3>
-            </div>
-            <p className="contact-description text-center max-w-2xl mx-auto mb-10 text-gray-600">Connect with us to learn more about our community initiatives and how you can get involved in preserving and promoting Malayali culture across the United States. Join us in fostering cultural exchange and building stronger connections within our diverse communities.</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8">
-              <div className="contact-item">
-                <h6 className="text-lg font-semibold mb-2">Location</h6>
-                <p>Unite India
-                  <br />New Jersey, USA</p>
-              </div>
-              <div className="contact-item">
-                <h6 className="text-lg font-semibold mb-2">Phone</h6>
-                <p><a href="tel:+16317088442" className="text-blue-600 hover:underline">+1 (631) 708-8442</a></p>
-              </div>
-              <div className="contact-item">
-                <h6 className="text-lg font-semibold mb-2">Social</h6>
-                <div className="flex gap-3">
-                  <a href="https://www.facebook.com/profile.php?id=61573944338286" className="social-icon bg-gray-800 text-white rounded-full w-10 h-10 flex items-center justify-center hover:bg-yellow-400" target="_blank" rel="noopener noreferrer">
-                    <i className="fab fa-facebook-f"></i>
-                  </a>
-                </div>
-              </div>
-              <div className="contact-item">
-                <h6 className="text-lg font-semibold mb-2">Email</h6>
-                <p><a href="mailto:Contactus@malyalees.org" className="text-blue-600 hover:underline">Contactus@malyalees.org</a></p>
-              </div>
-            </div>
-          </div>
-        </section>
-      </main>
-    </div >
+        </div>
+        <div className="text-center text-gray-400 text-xs mt-8">
+          © {new Date().getFullYear()} MCEFEE<br />Malayali Cultural Exchange Foundation<br />for Education and Events
+        </div>
+      </footer>
+      {/* BACK TO TOP BUTTON */}
+      <a href="#" className="back-to-top">
+        <i className="fas fa-arrow-up"></i>
+      </a>
+    </>
   );
 }
