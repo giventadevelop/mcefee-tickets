@@ -7,6 +7,9 @@ import {
   FaMoneyBillWave, FaInfoCircle, FaReceipt, FaMapPin, FaClock
 } from "react-icons/fa";
 import { formatInTimeZone } from "date-fns-tz";
+import { PhilantropHeaderClient } from '@/components/PhilantropHeaderClient';
+import { Footer } from '@/components/Footer';
+import { useRouter } from 'next/navigation';
 
 interface SuccessClientProps {
   session_id: string;
@@ -27,6 +30,39 @@ export default function SuccessClient({ session_id }: SuccessClientProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<any>(null);
+  const [heroImageUrl, setHeroImageUrl] = useState<string>("/images/side_images/chilanka_2025.webp");
+  const router = useRouter();
+
+  // Prevent page reload and back button navigation
+  useEffect(() => {
+    console.log('Setting up navigation prevention...');
+
+    // Check if we're on a Stripe URL and redirect
+    if (window.location.href.includes('checkout.stripe.com')) {
+      console.log('Detected Stripe URL - redirecting to home');
+      window.location.replace('/');
+      return;
+    }
+
+    // Simple back button prevention
+    const handlePopState = (e: PopStateEvent) => {
+      console.log('PopState triggered - redirecting to home');
+      window.location.replace('/');
+    };
+
+    // Add minimal event listeners
+    window.addEventListener('popstate', handlePopState);
+
+    // Simple history manipulation
+    window.history.pushState(null, '', window.location.href);
+
+    console.log('Navigation prevention setup complete');
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
 
   // Helper to get ticket number from either camelCase or snake_case, or fallback to 'TKTN'+id
   function getTicketNumber(transaction: any) {
@@ -48,7 +84,12 @@ export default function SuccessClient({ session_id }: SuccessClientProps) {
         if (getRes.ok) {
           const data = await getRes.json();
           if (data.transaction) {
-            if (!cancelled) setResult(data);
+            if (!cancelled) {
+              setResult(data);
+              if (data.heroImageUrl) {
+                setHeroImageUrl(data.heroImageUrl);
+              }
+            }
             setLoading(false);
             return;
           }
@@ -61,7 +102,12 @@ export default function SuccessClient({ session_id }: SuccessClientProps) {
         });
         if (!postRes.ok) throw new Error(await postRes.text());
         const postData = await postRes.json();
-        if (!cancelled) setResult(postData);
+        if (!cancelled) {
+          setResult(postData);
+          if (postData.heroImageUrl) {
+            setHeroImageUrl(postData.heroImageUrl);
+          }
+        }
       } catch (err: any) {
         if (!cancelled) setError(err?.message || "Unknown error");
       } finally {
@@ -72,7 +118,7 @@ export default function SuccessClient({ session_id }: SuccessClientProps) {
     return () => { cancelled = true; };
   }, [session_id]);
 
-  if (loading) return <LoadingTicket />;
+  if (loading) return <LoadingTicket heroImageUrl={heroImageUrl} sessionId={session_id} />;
   if (error) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 text-center p-4">
@@ -82,7 +128,15 @@ export default function SuccessClient({ session_id }: SuccessClientProps) {
       </div>
     );
   }
-  const { transaction, userProfile, eventDetails, qrCodeData, transactionItems, heroImageUrl } = result || {};
+  const { transaction, userProfile, eventDetails, qrCodeData, transactionItems, heroImageUrl: fetchedHeroImageUrl } = result || {};
+
+  // Update hero image URL if fetched and clear localStorage
+  if (fetchedHeroImageUrl && fetchedHeroImageUrl !== heroImageUrl) {
+    setHeroImageUrl(fetchedHeroImageUrl);
+    // Clear localStorage since we have the actual data now
+    localStorage.removeItem('eventHeroImageUrl');
+    localStorage.removeItem('eventId');
+  }
   if (!transaction) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 text-center p-4">
@@ -107,86 +161,86 @@ export default function SuccessClient({ session_id }: SuccessClientProps) {
   if (qrCodeData && qrCodeData.error) qrError = qrCodeData.error;
 
   return (
-    <div className="min-h-screen bg-gray-100 pb-12">
-      {/* Hero Section - matches ticketing page */}
-      <section className="hero-section relative w-full h-[350px] md:h-[350px] sm:h-[220px] h-[160px] bg-transparent pb-0 mb-8">
-        <div className="absolute hero-image-container left-0 top-0 right-0 bottom-0 z-0">
-          <div className="w-full h-full relative">
-            {/* Blurred background image for width fill */}
-            <Image
-              src={heroImageUrl || "/images/side_images/chilanka_2025.webp"}
-              alt={eventDetails.title || 'Event Image'}
-              fill
-              className="object-cover w-full h-full blur-lg scale-105"
-              style={{ zIndex: 0, filter: 'blur(24px) brightness(1.1)', objectPosition: 'center' }}
-              aria-hidden="true"
-              priority
-            />
-            {/* Main hero image, fully visible */}
-            <Image
-              src={heroImageUrl || "/images/side_images/chilanka_2025.webp"}
-              alt={eventDetails.title || 'Event Image'}
-              fill
-              className="object-cover w-full h-full"
-              style={{ objectFit: 'cover', objectPosition: 'center', zIndex: 1, background: 'linear-gradient(to bottom, #f8fafc 0%, #fff 100%)' }}
-              priority
-            />
-            {/* Fade overlays for all four borders */}
-            <div className="pointer-events-none absolute left-0 top-0 w-full h-8" style={{ background: 'linear-gradient(to bottom, rgba(248,250,252,1) 0%, rgba(248,250,252,0) 100%)', zIndex: 20 }} />
-            <div className="pointer-events-none absolute left-0 bottom-0 w-full h-8" style={{ background: 'linear-gradient(to top, rgba(248,250,252,1) 0%, rgba(248,250,252,0) 100%)', zIndex: 20 }} />
-            <div className="pointer-events-none absolute left-0 top-0 h-full w-8" style={{ background: 'linear-gradient(to right, rgba(248,250,252,1) 0%, rgba(248,250,252,0) 100%)', zIndex: 20 }} />
-            <div className="pointer-events-none absolute right-0 top-0 h-full w-8" style={{ background: 'linear-gradient(to left, rgba(248,250,252,1) 0%, rgba(248,250,252,0) 100%)', zIndex: 20 }} />
-          </div>
-        </div>
-        {/* Event Details Card */}
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="bg-teal-50 rounded-xl shadow-lg p-6 md:p-8 mb-8 mt-16" style={{ position: 'relative', top: '60px' }}>
-            <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2">
-              {eventDetails.title}
-            </h2>
-            {eventDetails.caption && (
-              <div className="text-lg text-teal-700 font-semibold mb-2">{eventDetails.caption}</div>
-            )}
-            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-gray-600 mb-4">
-              <div className="flex items-center gap-2">
-                <FaCalendarAlt />
-                <span>{formatInTimeZone(eventDetails.startDate, eventDetails.timezone, 'EEEE, MMMM d, yyyy')}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <FaClock />
-                <span>
-                  {formatTime(eventDetails.startTime)}{eventDetails.endTime ? ` - ${formatTime(eventDetails.endTime)}` : ''}
-                  {' '}
-                  ({formatInTimeZone(eventDetails.startDate, eventDetails.timezone, 'zzz')})
-                </span>
-              </div>
-              {eventDetails.location && (
-                <div className="flex items-center gap-2">
-                  <FaMapPin />
-                  <span>{eventDetails.location}</span>
-                </div>
-              )}
-            </div>
-            {eventDetails.description && <p className="text-gray-700 text-base">{eventDetails.description}</p>}
-          </div>
-        </div>
+    <div className="min-h-screen bg-gray-100">
+      {/* HEADER */}
+      <PhilantropHeaderClient />
+      {/* Responsive logo in top left if not home page */}
+      <div className="absolute top-20 left-4 z-50">
+        <img src="/images/mcefee_logo_black_border_transparent.png" alt="MCEFEE Logo" style={{ width: '140px', height: 'auto', maxWidth: '30vw' }} className="block md:hidden" />
+        <img src="/images/mcefee_logo_black_border_transparent.png" alt="MCEFEE Logo" style={{ width: '180px', height: 'auto', maxWidth: '15vw' }} className="hidden md:block" />
+      </div>
+
+      {/* HERO SECTION - matches ticketing page styling */}
+      <section className="hero-section" style={{ minHeight: '240px', height: '377px', position: 'relative', marginTop: '0px' }}>
+        <div className="hero-background" style={{ backgroundImage: `url('${heroImageUrl}')`, backgroundRepeat: 'no-repeat', backgroundSize: 'cover', backgroundPosition: 'top center', width: '100%', height: '100%', position: 'absolute', top: '40px', left: 0 }}></div>
+        <div className="hero-overlay" style={{ opacity: 0.1 }}></div>
       </section>
-      {/* --- END HERO SECTION --- */}
-      <div className="max-w-4xl w-full mx-auto">
-        {/* Payment Success Card */}
-        <div className="bg-white p-6 sm:p-8 rounded-b-2xl shadow-2xl border-t-4 border-teal-500 text-center relative z-10 mx-4 sm:mx-8" style={{ marginTop: '-40px' }}>
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100 ring-4 ring-white -mt-16 mb-4">
-            <FaCheckCircle className="h-10 w-10 text-green-500" />
+
+      {/* Main content container - ui_style_guide.mdc compliant */}
+      <div className="max-w-5xl mx-auto px-8 py-8" style={{ marginTop: '80px' }}>
+        {/* Warning Message */}
+        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <FaInfoCircle className="h-5 w-5 text-yellow-400" />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-yellow-700">
+                <strong>Important:</strong> Please do not refresh this page or use the back button.
+                Your payment has been processed successfully. If you need to return to the home page,
+                use the navigation menu above.
+              </p>
+            </div>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-bold text-gray-800">Payment Successful!</h1>
-          <p className="mt-2 text-gray-600">
-            Thank you for your purchase. Your tickets for <strong>{eventDetails.title}</strong> are confirmed.<br />
-            A confirmation is sent to your email: <strong>{transaction.email}</strong>
-          </p>
+        </div>
+
+        {/* Payment Success Card */}
+        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+          <div className="text-center">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100 ring-4 ring-white -mt-16 mb-4">
+              <FaCheckCircle className="h-10 w-10 text-green-500" />
+            </div>
+            <h1 className="text-3xl sm:text-4xl font-bold text-gray-800">Payment Successful!</h1>
+            <p className="mt-2 text-gray-600">
+              Thank you for your purchase. Your tickets for <strong>{eventDetails.title}</strong> are confirmed.<br />
+              A confirmation is sent to your email: <strong>{transaction.email}</strong>
+            </p>
+          </div>
+        </div>
+
+        {/* Event Details Card */}
+        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+          <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mb-4">
+            {eventDetails.title}
+          </h2>
+          {eventDetails.caption && (
+            <div className="text-lg text-teal-700 font-semibold mb-4">{eventDetails.caption}</div>
+          )}
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-gray-600 mb-4">
+            <div className="flex items-center gap-2">
+              <FaCalendarAlt />
+              <span>{formatInTimeZone(eventDetails.startDate, eventDetails.timezone, 'EEEE, MMMM d, yyyy')}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <FaClock />
+              <span>
+                {formatTime(eventDetails.startTime)}{eventDetails.endTime ? ` - ${formatTime(eventDetails.endTime)}` : ''}
+                {' '}
+                ({formatInTimeZone(eventDetails.startDate, eventDetails.timezone, 'zzz')})
+              </span>
+            </div>
+            {eventDetails.location && (
+              <div className="flex items-center gap-2">
+                <FaMapPin />
+                <span>{eventDetails.location}</span>
+              </div>
+            )}
+          </div>
+          {eventDetails.description && <p className="text-gray-700 text-base">{eventDetails.description}</p>}
         </div>
 
         {/* QR Code Section */}
-        <div className="w-full bg-white p-6 sm:p-8 rounded-2xl shadow-lg border border-gray-200 mt-8 text-center">
+        <div className="bg-white rounded-lg shadow-md p-6 mb-8 text-center">
           {!qrCodeData && !qrError && (
             <div className="text-lg text-teal-700 font-semibold flex items-center justify-center gap-2">
               <FaTicketAlt className="animate-bounce" />
@@ -212,7 +266,8 @@ export default function SuccessClient({ session_id }: SuccessClientProps) {
           )}
         </div>
 
-        <div className="w-full bg-white p-6 sm:p-8 rounded-2xl shadow-lg border border-gray-200 mt-8">
+        {/* Transaction Summary */}
+        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
           <h2 className="text-2xl font-semibold text-gray-800 flex items-center gap-3 mb-6">
             <FaReceipt className="text-teal-500" />
             Transaction Summary
@@ -247,7 +302,7 @@ export default function SuccessClient({ session_id }: SuccessClientProps) {
 
         {/* Transaction Item Breakdown */}
         {transactionItems && transactionItems.length > 0 && (
-          <div className="w-full bg-white p-6 sm:p-8 rounded-2xl shadow-lg border border-gray-200 mt-8">
+          <div className="bg-white rounded-lg shadow-md p-6">
             <h2 className="text-2xl font-semibold text-gray-800 flex items-center gap-3 mb-6">
               <FaTicketAlt className="text-teal-500" />
               Ticket Breakdown
@@ -277,6 +332,9 @@ export default function SuccessClient({ session_id }: SuccessClientProps) {
           </div>
         )}
       </div>
+
+      {/* FOOTER - full-bleed, edge-to-edge */}
+      <Footer />
     </div>
   );
 }

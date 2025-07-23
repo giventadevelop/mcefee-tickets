@@ -6,6 +6,8 @@ import { useParams } from 'next/navigation';
 import { FaTags, FaCreditCard, FaCalendarAlt, FaClock, FaMapMarkerAlt, FaMapPin } from 'react-icons/fa';
 import { Modal } from '@/components/Modal';
 import { formatInTimeZone } from 'date-fns-tz';
+import { PhilantropHeaderClient } from '@/components/PhilantropHeaderClient';
+import { Footer } from '@/components/Footer';
 
 export default function TicketingPage() {
   const params = useParams();
@@ -84,6 +86,12 @@ export default function TicketingPage() {
           imageUrl = defaultHeroImageUrl;
         }
         setHeroImageUrl(imageUrl);
+
+        // Store hero image URL in localStorage for loading page
+        if (imageUrl) {
+          localStorage.setItem('eventHeroImageUrl', imageUrl);
+          localStorage.setItem('eventId', eventId as string);
+        }
       } catch (e) {
         setEvent(null);
         setTicketTypes([]);
@@ -265,38 +273,19 @@ export default function TicketingPage() {
 
   // --- HERO SECTION (prompt-compliant) ---
   return (
-    <div className="min-h-screen bg-gray-100 pb-12">
+    <div className="min-h-screen bg-gray-100 flex flex-col">
       {/* HEADER */}
-      <header className={mounted ? "header-transparent" : "header-transparent"}>
-        <div className="header-inner">
-          <nav>
-            <ul className="main-menu">
-              {/* ...menu items... */}
-            </ul>
-            <button className="hamburger-menu" aria-label="Menu">
-              <span></span><span></span><span></span>
-            </button>
-          </nav>
-        </div>
-      </header>
-      <div className="mobile-menu">
-        <ul className="mobile-menu-list">
-          {/* ...mobile menu items... */}
-        </ul>
+      <PhilantropHeaderClient />
+      {/* Responsive logo in top left if not home page */}
+      <div className="absolute top-20 left-4 z-50">
+        <img src="/images/mcefee_logo_black_border_transparent.png" alt="MCEFEE Logo" style={{ width: '140px', height: 'auto', maxWidth: '30vw' }} className="block md:hidden" />
+        <img src="/images/mcefee_logo_black_border_transparent.png" alt="MCEFEE Logo" style={{ width: '180px', height: 'auto', maxWidth: '15vw' }} className="hidden md:block" />
       </div>
-      <section className="hero-section">
-        <div className="hero-background" style={{ backgroundImage: `url('${heroImageUrl || defaultHeroImageUrl}')` }}></div>
-        <div className="hero-overlay"></div>
-        <div className="hero-content">
-          <img src="/images/mcefee_logo_black_border_transparent.png" className="hero-mcafee-logo" alt="MCEFEE Logo" />
-          <h1 className="hero-title">
-            {event?.title || 'Event Tickets'} <span style={{ color: 'var(--primary-color)' }}>{event?.caption}</span>
-          </h1>
-        </div>
+      <section className="hero-section" style={{ minHeight: '240px', height: '377px', position: 'relative', marginTop: '0px' }}>
+        <div className="hero-background" style={{ backgroundImage: `url('${heroImageUrl || defaultHeroImageUrl}')`, backgroundRepeat: 'no-repeat', backgroundSize: 'cover', backgroundPosition: 'top center', width: '100%', height: '100%', position: 'absolute', top: '40px', left: 0 }}></div>
+        <div className="hero-overlay" style={{ opacity: 0.1 }}></div>
       </section>
-      {/* --- END HERO SECTION --- */}
-
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="flex-grow max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Event Details Card */}
         <div className="bg-teal-50 rounded-xl shadow-lg p-6 md:p-8 mb-8">
           <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2">
@@ -440,6 +429,8 @@ export default function TicketingPage() {
           </div>
         </div>
       </div>
+      {/* FOOTER - bleeds to edges */}
+      <Footer />
       <Modal open={showDiscountModal} onClose={() => setShowDiscountModal(false)} title="Discount Code Error">
         <div className="text-center">
           <p className="text-lg">

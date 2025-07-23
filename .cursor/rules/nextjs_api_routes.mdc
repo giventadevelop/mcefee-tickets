@@ -339,6 +339,55 @@ alwaysApply: true
     ```
   - See also: ProfileBootstrapper, ProfileForm, ManageUsagePage for correct patterns.
 
+- **Client Components Must Not Make Direct API Calls**
+  - Client components (marked with 'use client') must NEVER make direct fetch calls to API endpoints.
+  - This includes both proxy endpoints (/api/proxy/...) and direct backend calls.
+  - Client components should only:
+    - Receive data as props from server components
+    - Call server actions for mutations
+    - Handle UI state and user interactions
+  - **Rationale:** Client components run in the browser where:
+    - Environment variables may not be available
+    - JWT tokens and session data are not accessible
+    - Direct API calls will fail with authentication errors
+  - **Correct Pattern:**
+    ```typescript
+    // ✅ DO: Server component fetches data
+    // src/app/profile/page.tsx (server component)
+    export default async function ProfilePage() {
+      const profile = await fetchProfileServer(userId);
+      return <ProfileForm profile={profile} />;
+    }
+
+    // ✅ DO: Client component receives props
+    // src/components/ProfileForm.tsx (client component)
+    'use client';
+    export function ProfileForm({ profile }: { profile: UserProfileDTO }) {
+      // Handle form state and UI interactions only
+    }
+
+    // ✅ DO: Client component calls server action
+    // src/components/ProfileForm.tsx
+    import { updateProfileServer } from './actions';
+    const handleSubmit = async (data: any) => {
+      await updateProfileServer(data);
+    };
+    ```
+  - **Anti-patterns:**
+    ```typescript
+    // ❌ DON'T: Client component making direct API calls
+    'use client';
+    export function ProfileForm() {
+      useEffect(() => {
+        fetch('/api/proxy/user-profiles/by-user/' + userId);
+      }, [userId]);
+    }
+    ```
+  - **References:**
+    - See `src/components/ProfileForm.tsx` for problematic implementation
+    - See `src/components/DashboardContent.tsx` for problematic implementation
+    - See `src/app/admin/manage-usage/ManageUsageClient.tsx` for correct pattern
+
 - **Standard: Place all server-side API calls in ApiServerActions.ts**
   - If your module makes authenticated or protected API calls, create a file named `ApiServerActions.ts` in that folder.
   - Place all server-side API calls (fetch, patch, post, etc.) in this file as exported async functions.
@@ -453,6 +502,67 @@ alwaysApply: true
 - **References:**
   - See `src/pages/api/proxy/event-ticket-transactions/[...slug].ts` for a working example.
   - See `src/pages/api/proxy/discount-codes/[...slug].ts` for the required fix.
+
+- **Port-Agnostic App URL Configuration**
+  - Use `getAppUrl()` from `@/lib/env` instead of hardcoded URLs for server-side API calls.
+  - This ensures the application works on any port (3000, 3001, etc.) without hardcoding.
+  - **DO:**
+    ```typescript
+    import { getAppUrl } from '@/lib/env';
+    const baseUrl = getAppUrl();
+    const response = await fetch(`${baseUrl}/api/proxy/event-details`);
+    ```
+  - **DON'T:**
+    ```typescript
+    // ❌ DON'T: Hardcode port numbers
+    const baseUrl = 'http://localhost:3000';
+    // ❌ DON'T: Use environment variable with hardcoded fallback
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    ```
+  - **Rationale:**
+    - Makes the application truly port-agnostic
+    - Supports development on any port (3000, 3001, 3002, etc.)
+    - Maintains compatibility with production environment variables
+  - **References:**
+    - See `src/app/page.tsx` for correct usage
+    - See `src/lib/env.ts` for the `getAppUrl()` implementation
+
+- **Graceful API Failure Handling**
+  - Always handle API fetch failures gracefully in server components to prevent page crashes.
+  - Use try-catch blocks around all API calls and provide fallback data.
+  - Log errors for debugging but don't let them break the user experience.
+  - **DO:**
+    ```typescript
+    async function fetchData() {
+      try {
+        const response = await fetch('/api/proxy/some-endpoint');
+        if (response.ok) {
+          return await response.json();
+        }
+      } catch (error) {
+        console.error('API fetch failed:', error);
+      }
+      return []; // Return empty array or default data
+    }
+    ```
+  - **DON'T:**
+    ```typescript
+    // ❌ DON'T: Let API failures crash the page
+    const data = await fetch('/api/proxy/some-endpoint');
+    return data.json(); // This will throw if fetch fails
+    ```
+  - **Common Causes of Fetch Failures:**
+    - Backend API not running
+    - Missing environment variables (API credentials, tenant ID)
+    - Network connectivity issues
+    - Authentication failures
+  - **Debugging Steps:**
+    1. Check if backend API is running
+    2. Verify environment variables are set
+    3. Check network connectivity
+    4. Review proxy route logs
+  - **References:**
+    - See `src/app/page.tsx` for graceful error handling example
 
 
 

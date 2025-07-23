@@ -5,7 +5,7 @@ export function Footer() {
     <footer className="bg-gray-900 text-white py-8 px-4 mt-auto">
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center md:items-start justify-between gap-8">
         <div className="flex flex-col items-center md:items-start mb-6 md:mb-0">
-          <img src="/images/side_images/malayalees_us-logo_text_us_star_logo_header.png" alt="Malayalees US Logo" className="w-32 mb-4" />
+          <img src="/images/mcefee_logo_black_border_transparent.png" alt="MCEFEE Logo" className="w-40 mb-4" />
           <span className="font-semibold text-lg">Follow us</span>
           <a href="#" className="mt-2 text-gray-400 hover:text-white">
             <span className="sr-only">Facebook</span>

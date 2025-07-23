@@ -838,24 +838,7 @@ h6 {
   padding: 0 15px;
 }
 
-.feature-boxes {
-  display: flex;
-  gap: 2rem;
-  justify-content: center;
-  margin: 2rem 0;
-}
 
-.feature-box {
-  background: #fffbe6;
-  border-radius: 1rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  padding: 2rem 1.5rem;
-  min-width: 220px;
-  text-align: center;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
 
 .link-text {
   color: #FBC647;
@@ -1077,175 +1060,220 @@ h6 {
 }
 
 .feature-boxes {
-  display: flex !important;
-  gap: 2rem !important;
-  justify-content: center !important;
-  margin: 2rem 0 !important;
+  display: flex;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  gap: 0;
 }
 
 .feature-box {
-  background: #fffbe6 !important;
-  border-radius: 1rem !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06) !important;
-  padding: 2rem 1.5rem !important;
-  min-width: 220px !important;
-  text-align: center !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
+  flex: 1;
+  width: 50%;
+  box-sizing: border-box;
+  background: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  min-width: 0;
+  min-height: 0;
 }
 
-.section-title-wrapper {
-  margin-bottom: 2rem !important;
+.left-box {
+  height: 200px;
+  background-image: url('/images/buy_tickets_click_here_red.webp');
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: center;
 }
 
-.section-title-wrapper h3 {
-  font-family: 'Sora', sans-serif !important;
-  font-weight: 700 !important;
-  color: #222 !important;
+.right-box {
+  height: 1060px;
+  background-image: url('/images/spark_kerala_event_2025.jpeg');
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: top center;
+  padding-top: 20px;
 }
 
-.section-subtitle {
-  color: #ffce59 !important;
-  font-weight: 600 !important;
-  font-size: 1.25rem !important;
+@media (max-width: 768px) {
+  .feature-boxes {
+    flex-direction: column;
+  }
+
+  .feature-box {
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  .left-box {
+    height: 220px;
+  }
+
+  .right-box {
+    height: 320px;
+    padding-top: 10px;
+  }
 }
 
-.team-grid {
-  display: flex !important;
-  flex-wrap: wrap !important;
-  gap: 2rem !important;
-  justify-content: center !important;
+.feature-box h4,
+.feature-box a {
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
 }
 
-.team-item {
-  background: #fff !important;
-  border-radius: 1rem !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06) !important;
-  padding: 1.5rem !important;
-  text-align: center !important;
-  width: 220px !important;
+/* Feature Boxes Responsive Styles */
+@media (max-width: 768px) {
+  .feature-boxes {
+    flex-direction: column;
+  }
+
+  .feature-box {
+    min-height: 120px;
+  }
+
+  .feature-box h4 {
+    font-size: 14px !important;
+  }
+
+  .link-text {
+    font-size: 12px !important;
+  }
 }
 
-.team-image {
-  position: relative !important;
-  width: 100% !important;
-  height: 220px !important;
-  overflow: hidden !important;
-  border-radius: 1rem !important;
-  margin-bottom: 1rem !important;
+@media (max-width: 991px) {
+  .feature-box {
+    min-height: 110px;
+  }
 }
 
-.team-image img {
-  width: 100% !important;
-  height: 100% !important;
-  object-fit: cover !important;
+@media (max-width: 767px) {
+  .feature-boxes {
+    flex-direction: column;
+  }
+
+  .feature-box {
+    min-height: 100px;
+  }
 }
 
-.team-overlay {
-  position: absolute !important;
-  inset: 0 !important;
-  background: rgba(0, 0, 0, 0.3) !important;
-  opacity: 0 !important;
-  transition: opacity 0.3s !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
+/* Hover Effects */
+.feature-box:hover {
+  transform: scale(1.02);
+  transition: transform 0.3s ease;
 }
 
-.team-image:hover .team-overlay {
-  opacity: 1 !important;
+.feature-box:hover .gradient-overlay {
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.8)) !important;
+  transition: background 0.3s ease;
 }
 
-.team-socials {
-  display: flex !important;
-  gap: 1rem !important;
-  list-style: none !important;
-  padding: 0 !important;
-  margin: 0 !important;
+.link-text:hover {
+  color: #ffd700 !important;
+  text-decoration: underline !important;
+  transition: color 0.3s ease;
 }
 
-.team-title {
-  font-size: 1.1rem !important;
-  font-weight: 600 !important;
-  margin-bottom: 0.25rem !important;
+
+
+/* Link Underline Effect */
+.feature-box .link-text::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background-color: #ffce59;
+  transform: scaleX(1);
+  transform-origin: left;
+  transition: transform 0.3s ease;
+  opacity: 1;
 }
 
-.team-position {
-  color: #888 !important;
-  font-size: 0.95rem !important;
+/* Responsive Breakpoints */
+/* Desktop (≥768px) */
+@media (min-width: 768px) {
+  .feature-box:nth-child(1) {
+    background-size: 35%;
+    min-height: 100px;
+  }
+
+  .feature-box:nth-child(2) {
+    min-height: 300px;
+  }
 }
 
-.event-item {
-  background: #f9fafb !important;
-  border-radius: 1rem !important;
-  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.06) !important;
-  padding: 1.5rem !important;
-  display: flex !important;
-  flex-direction: column !important;
-  align-items: center !important;
-  margin-bottom: 1.5rem !important;
+/* Tablet (≤991px) */
+@media (max-width: 991px) {
+  .feature-box {
+    padding: 15px;
+    min-height: 120px;
+  }
+
+  .feature-box:nth-child(2) {
+    min-height: 250px;
+  }
+
+  .feature-box h4 {
+    font-size: 14px;
+    max-width: 100%;
+  }
 }
 
-.event-image {
-  width: 100% !important;
-  height: 12rem !important;
-  border-radius: 0.75rem !important;
-  overflow: hidden !important;
-  margin-bottom: 1rem !important;
+/* Mobile (≤767px) */
+@media (max-width: 767px) {
+  .feature-boxes {
+    flex-direction: column;
+  }
+
+  .feature-box {
+    min-height: 120px;
+    padding: 10px;
+  }
+
+  .feature-box:nth-child(2) {
+    min-height: 200px;
+  }
+
+  .feature-box h4 {
+    font-size: 14px;
+  }
 }
 
-.event-title {
-  font-size: 1.25rem !important;
-  font-weight: 600 !important;
-  margin-bottom: 0.5rem !important;
+/* Interactive States */
+/* Hover Effects */
+.feature-box .link-text:hover {
+  color: #ffce59;
+  opacity: 0.9;
 }
 
-.event-date {
-  display: flex !important;
-  flex-direction: column !important;
-  align-items: center !important;
-  font-size: 1rem !important;
-  color: #ffce59 !important;
-  font-weight: 600 !important;
+.feature-box .link-text:hover::after {
+  transform: scaleX(0);
+  transform-origin: right;
 }
 
-.button {
-  display: inline-flex !important;
-  align-items: center !important;
-  gap: 0.5rem !important;
-  background: #FBC647 !important;
-  color: #333 !important;
-  font-weight: 600 !important;
-  border-radius: 0.5rem !important;
-  padding: 0.75rem 1.5rem !important;
-  text-decoration: none !important;
-  transition: background 0.2s !important;
+/* Remove popup effect - embedded image is always visible */
+.feature-box:nth-child(2)::after {
+  display: none;
 }
 
-.button:hover {
-  background: #e9b73a !important;
-  color: #222 !important;
+.feature-box:nth-child(2):hover::after {
+  display: none;
 }
 
-.back-to-top {
-  position: fixed !important;
-  bottom: 2rem !important;
-  right: 2rem !important;
-  background: #FBC647 !important;
-  color: #222 !important;
-  border-radius: 50% !important;
-  width: 48px !important;
-  height: 48px !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12) !important;
-  font-size: 1.5rem !important;
-  z-index: 1000 !important;
-  transition: background 0.2s !important;
+/* Active States */
+.feature-box:nth-child(2).active::after {
+  display: none;
 }
 
-.back-to-top:hover {
-  background: #e9b73a !important;
+.feature-box:nth-child(2).active::before {
+  opacity: 1;
+}
+
+/* CSS Variables */
+:root {
+  --primary-color: #ffce59;
+  --secondary-color: #333333;
+  --text-color: #555555;
 }
