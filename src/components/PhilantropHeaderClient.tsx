@@ -25,7 +25,7 @@ export function PhilantropHeaderClient() {
             <ul className="main-menu" style={{ display: 'flex', listStyle: 'none', justifyContent: 'flex-end', margin: 0, padding: 0 }}>
               <li style={{ margin: '0 20px' }}><a href="/" style={{ fontSize: 15, color: '#fff9c4', fontWeight: 'bold', padding: '10px 0', textDecoration: 'none' }}>Home</a></li>
               <li style={{ margin: '0 20px' }}><a href="/#about-us" style={{ fontSize: 15, color: '#fff9c4', fontWeight: 'bold', padding: '10px 0', textDecoration: 'none' }}>About</a></li>
-              <li style={{ margin: '0 20px' }}><a href="/events.html" style={{ fontSize: 15, color: '#fff9c4', fontWeight: 'bold', padding: '10px 0', textDecoration: 'none' }}>Events</a></li>
+              <li style={{ margin: '0 20px' }}><a href="/events" style={{ fontSize: 15, color: '#fff9c4', fontWeight: 'bold', padding: '10px 0', textDecoration: 'none' }}>Events</a></li>
               <li style={{ margin: '0 20px' }}><a href="/#team-section" style={{ fontSize: 15, color: '#fff9c4', fontWeight: 'bold', padding: '10px 0', textDecoration: 'none' }}>Team</a></li>
               <li style={{ margin: '0 20px' }}><a href="/#contact" style={{ fontSize: 15, color: '#fff9c4', fontWeight: 'bold', padding: '10px 0', textDecoration: 'none' }}>Contact</a></li>
             </ul>
@@ -47,7 +47,7 @@ export function PhilantropHeaderClient() {
         <ul className="mobile-menu-list" style={{ listStyle: 'none', textAlign: 'center', padding: 0, margin: 0 }}>
           <li><a href="/" style={{ color: '#fff9c4', fontWeight: 'bold', fontSize: 24, padding: 15, display: 'block', textDecoration: 'none' }} onClick={() => setMobileMenuOpen(false)}>Home</a></li>
           <li><a href="/#about-us" style={{ color: '#fff9c4', fontWeight: 'bold', fontSize: 24, padding: 15, display: 'block', textDecoration: 'none' }} onClick={() => setMobileMenuOpen(false)}>About</a></li>
-          <li><a href="/events.html" style={{ color: '#fff9c4', fontWeight: 'bold', fontSize: 24, padding: 15, display: 'block', textDecoration: 'none' }} onClick={() => setMobileMenuOpen(false)}>Events</a></li>
+          <li><a href="/events" style={{ color: '#fff9c4', fontWeight: 'bold', fontSize: 24, padding: 15, display: 'block', textDecoration: 'none' }} onClick={() => setMobileMenuOpen(false)}>Events</a></li>
           <li><a href="/#team-section" style={{ color: '#fff9c4', fontWeight: 'bold', fontSize: 24, padding: 15, display: 'block', textDecoration: 'none' }} onClick={() => setMobileMenuOpen(false)}>Team</a></li>
           <li><a href="/#contact" style={{ color: '#fff9c4', fontWeight: 'bold', fontSize: 24, padding: 15, display: 'block', textDecoration: 'none' }} onClick={() => setMobileMenuOpen(false)}>Contact</a></li>
         </ul>

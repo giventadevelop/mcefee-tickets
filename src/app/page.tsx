@@ -177,23 +177,30 @@ export default async function Page() {
       <div className="w-screen overflow-x-hidden" style={{ margin: 0, padding: 0 }}>
         <div className="flex flex-col md:flex-row w-full gap-0" style={{ margin: 0, padding: 0 }}>
           {/* Left Feature Box */}
-          <div className="relative overflow-hidden w-full md:w-[calc(50%-90px)] h-[300px] md:h-[600px] flex flex-col" style={{ margin: 0, padding: 0 }}>
-            <div className="flex flex-col w-full h-full" style={{ gap: '4px' }}>
+          <div className="relative overflow-hidden w-full md:w-[calc(50%-90px)] h-[300px] md:h-[1410px] flex flex-col" style={{ margin: 0, padding: 0 }}>
+            <div className="flex flex-col w-full h-full" style={{ gap: '20px', padding: '20px 7px' }}>
               <img
                 src="/images/buy_tickets_click_here_red.webp"
                 alt="Buy Tickets"
-                style={{ width: '100%', height: '33%', objectFit: 'contain', objectPosition: 'center', margin: 0, padding: 0 }}
+                style={{ width: '100%', height: '20%', objectFit: 'contain', objectPosition: 'center', margin: 0, padding: 0 }}
               />
-              <Link href="/events/1/tickets" style={{ width: '100%', height: '33%', display: 'block' }}>
+              <Link href="/events/1/tickets" style={{ width: '100%', height: '25%', display: 'block' }}>
                 <img
-                  src="/images/buy_tickets_sep_2_houston.png"
+                  src="/images/side_img_event_1.png"
                   alt="Buy Tickets Sep 2 Houston"
                   style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'center', margin: 0, paddingTop: '7px', cursor: 'pointer' }}
                 />
               </Link>
-              <Link href="/events/2/tickets" style={{ width: '100%', height: '33%', display: 'block' }}>
+              <Link href="/events/2/tickets" style={{ width: '100%', height: '25%', display: 'block' }}>
                 <img
-                  src="/images/buy_tickets_sep_15_houston.png"
+                  src="/images/side_img_event_2.png"
+                  alt="Buy Tickets Sep 15 Houston"
+                  style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'center', margin: 0, paddingTop: '7px', cursor: 'pointer' }}
+                />
+              </Link>
+              <Link href="/events/3/tickets" style={{ width: '100%', height: '30%', display: 'block' }}>
+                <img
+                  src="/images/side_img_event_3.png"
                   alt="Buy Tickets Sep 15 Houston"
                   style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'center', margin: 0, paddingTop: '7px', cursor: 'pointer' }}
                 />
@@ -201,7 +208,7 @@ export default async function Page() {
             </div>
           </div>
           {/* Right Feature Box - image only */}
-          <div className="relative overflow-hidden w-full md:w-[calc(50%+60px)] h-[1040px] md:h-[1210px]" style={{ margin: 0, padding: 0 }}>
+          <div className="relative overflow-hidden w-full md:w-[calc(50%+60px)] h-[1040px] md:h-[1410px]" style={{ margin: 0, padding: 0 }}>
             <img
               src="/images/spark_kerala_event_2025.jpeg"
               alt="Spark Kerala Event"
@@ -242,7 +249,7 @@ export default async function Page() {
                 </div>
               </div>
               {/* Kerala Folklore and Tribal Traditions */}
-              <div className="flex items-start gap-6">
+              <div id="about-us" className="flex items-start gap-6" style={{ scrollMarginTop: '100px' }}>
                 <div className="flex-shrink-0">
                   <svg width="40" height="40" fill="none" viewBox="0 0 40 40"><rect x="8" y="8" width="24" height="24" rx="4" fill="#3b82f6" /><rect x="14" y="14" width="12" height="2" rx="1" fill="#fff" /><rect x="14" y="20" width="12" height="2" rx="1" fill="#fff" /></svg>
                 </div>
@@ -318,7 +325,7 @@ export default async function Page() {
           </div>
         </section>
         {/* TEAM SECTION */}
-        <section className="philantrop_team_section team-section" id="team-section">
+        <section className="philantrop_team_section team-section" id="team-section" style={{ scrollMarginTop: '100px' }}>
           <div className="container">
             <div className="row">
               <div className="col-12 col-md-6">
@@ -408,7 +415,7 @@ export default async function Page() {
           </div>
         </section>
         {/* CONTACT SECTION - centered, four columns */}
-        <section className="bg-[#f9f9f9] py-12">
+        <section id="contact" className="bg-[#f9f9f9] py-12">
           <div className="max-w-5xl mx-auto px-4">
             <span className="text-yellow-400 font-semibold uppercase tracking-wide text-sm mb-2 block">Contact</span>
             <h2 className="text-2xl md:text-3xl font-bold mb-2">Get in touch</h2>

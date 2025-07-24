@@ -15,6 +15,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "fix:nextjs": "node scripts/fix-nextjs-error.js",
     "task": "node .task-master/dev.mjs",
     "task:list": "node .task-master/dev.mjs list",
     "task:generate": "node .task-master/dev.mjs generate",

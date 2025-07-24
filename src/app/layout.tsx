@@ -26,7 +26,7 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css?family=Epilogue:300,400,500,600,700|Sora:400,500,600,700&display=swap" rel="stylesheet" />
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" />
       </head>
-      <body className={inter.className + " flex flex-col min-h-screen"} suppressHydrationWarning>
+      <body className={inter.className} suppressHydrationWarning>
         {/* <ClerkProvider
           localization={{
             signUp: {
@@ -66,9 +66,7 @@ export default function RootLayout({
         >
           <TrpcProvider>
             <Header hideMenuItems={isAuthRoute} />*/}
-        <div className="flex-1 flex flex-col">
-          {children}
-        </div>
+        {children}
         {/*<Footer />
           </TrpcProvider>
         </ClerkProvider>*/}

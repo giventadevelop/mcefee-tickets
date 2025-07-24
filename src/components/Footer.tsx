@@ -1,38 +1,95 @@
-import React from 'react';
+"use client";
+import { useEffect } from 'react';
 
 export function Footer() {
+  useEffect(() => {
+    const yearSpan = document.getElementById('currentYear');
+    if (yearSpan) yearSpan.textContent = new Date().getFullYear().toString();
+  }, []);
+
   return (
-    <footer className="bg-gray-900 text-white py-8 px-4 mt-auto">
-      <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center md:items-start justify-between gap-8">
-        <div className="flex flex-col items-center md:items-start mb-6 md:mb-0">
-          <img src="/images/mcefee_logo_black_border_transparent.png" alt="MCEFEE Logo" className="w-40 mb-4" />
-          <span className="font-semibold text-lg">Follow us</span>
-          <a href="#" className="mt-2 text-gray-400 hover:text-white">
-            <span className="sr-only">Facebook</span>
-            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M22.675 0h-21.35C.6 0 0 .6 0 1.326v21.348C0 23.4.6 24 1.326 24H12.82v-9.294H9.692v-3.622h3.128V8.413c0-3.1 1.893-4.788 4.659-4.788 1.325 0 2.463.099 2.797.143v3.24l-1.918.001c-1.504 0-1.797.715-1.797 1.763v2.313h3.587l-.467 3.622h-3.12V24h6.116C23.4 24 24 23.4 24 22.674V1.326C24 .6 23.4 0 22.675 0" />
-            </svg>
-          </a>
-        </div>
-        <div className="flex flex-col items-center md:items-start mb-6 md:mb-0">
-          <span className="font-semibold text-lg mb-2">Main menu</span>
-          <ul className="space-y-1">
-            <li><a href="#" className="hover:underline">Home</a></li>
-            <li><a href="#" className="hover:underline">About</a></li>
-            <li><a href="#" className="hover:underline">Events</a></li>
-            <li><a href="#" className="hover:underline">Team</a></li>
-            <li><a href="#" className="hover:underline">Contact</a></li>
-          </ul>
-        </div>
-        <div className="flex flex-col items-center md:items-start">
-          <span className="font-semibold text-lg mb-2">Contacts</span>
-          <span>Unite India</span>
-          <span>New Jersey, USA</span>
-          <a href="tel:+16317088442" className="text-blue-400 hover:underline">+1 (631) 708-8442</a>
+    <footer className="bg-gray-900 text-white w-screen" style={{ margin: 0, padding: 0, width: '100vw' }}>
+      {/* Prefooter Section */}
+      <div className="py-16 bg-gray-900 w-screen" style={{ margin: 0, padding: 0, width: '100vw' }}>
+        <div className="w-full px-4 sm:px-6 lg:px-8" style={{ maxWidth: 'none' }}>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {/* Column 1: Logo & Social */}
+            <div className="text-center">
+              <div className="mb-5">
+                <img
+                  src="/images/mcefee_logo_black_border_transparent.png"
+                  alt="Footer Logo"
+                  className="w-40 mx-auto"
+                />
+              </div>
+              <h6 className="text-lg font-semibold text-yellow-300 mb-5 uppercase tracking-wide">
+                Follow us
+              </h6>
+              <ul className="flex justify-center space-x-4">
+                <li>
+                  <a
+                    href="https://www.facebook.com/profile.php?id=61573944338286"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-block w-10 h-10 bg-yellow-300 text-gray-900 rounded-full text-center leading-10 hover:bg-white hover:transform hover:-translate-y-1 transition-all duration-300"
+                  >
+                    <i className="fab fa-facebook-f"></i>
+                  </a>
+                </li>
+              </ul>
+            </div>
+
+            {/* Column 2: Main Menu */}
+            <div className="text-center">
+              <h6 className="text-lg font-semibold text-yellow-300 mb-5 uppercase tracking-wide">
+                Main menu
+              </h6>
+              <ul className="space-y-3">
+                <li><a href="/" className="text-white hover:text-yellow-300 transition-colors duration-300 opacity-90 hover:opacity-100">Home</a></li>
+                <li><a href="/#about-us" className="text-white hover:text-yellow-300 transition-colors duration-300 opacity-90 hover:opacity-100">About</a></li>
+                <li><a href="/events" className="text-white hover:text-yellow-300 transition-colors duration-300 opacity-90 hover:opacity-100">Events</a></li>
+                <li><a href="/#team-section" className="text-white hover:text-yellow-300 transition-colors duration-300 opacity-90 hover:opacity-100">Team</a></li>
+                <li><a href="/#contact" className="text-white hover:text-yellow-300 transition-colors duration-300 opacity-90 hover:opacity-100">Contact</a></li>
+              </ul>
+            </div>
+
+            {/* Column 3: Contacts */}
+            <div className="text-center">
+              <h6 className="text-lg font-semibold text-yellow-300 mb-5 uppercase tracking-wide">
+                Contacts
+              </h6>
+              <div className="space-y-4">
+                <p className="text-white opacity-90 leading-relaxed">
+                  MCEFEE<br />
+                  Malayali Cultural Exchange Foundation<br />
+                  for Education and Events<br />
+                  New Jersey, USA
+                </p>
+                <p className="text-white opacity-90">
+                  <a href="tel:+19085168781" className="hover:text-yellow-300 transition-colors duration-300">
+                    (908) 516-8781
+                  </a>
+                </p>
+                <p className="text-white opacity-90">
+                  <a href="mailto:Contactus@mcefee.org" className="hover:text-yellow-300 transition-colors duration-300">
+                    Contactus@mcefee.org
+                  </a>
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-      <div className="text-center text-gray-400 mt-8">
-        © 2025 United Team India. All rights reserved.
+
+      {/* Footer Copyright */}
+      <div className="py-5 bg-gray-800 border-t border-gray-700 w-screen" style={{ margin: 0, padding: 0, width: '100vw' }}>
+        <div className="w-full px-4 sm:px-6 lg:px-8" style={{ maxWidth: 'none' }}>
+          <div className="text-center">
+            <div className="text-gray-300 text-sm opacity-80">
+              © <span id="currentYear">2025</span> MCEFEE. All rights reserved.
+            </div>
+          </div>
+        </div>
       </div>
     </footer>
   );

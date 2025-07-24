@@ -1,308 +1,140 @@
-"use client";
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import Image from "next/image";
 import Link from "next/link";
-import type { EventWithMedia, EventDetailsDTO } from "@/types";
+import { PhilantropHeaderClient } from '@/components/PhilantropHeaderClient';
+import { Footer } from '@/components/Footer';
 
-const EVENTS_PAGE_SIZE = 10;
 
-export default function EventsPage() {
-  const router = useRouter();
-  const [events, setEvents] = useState<EventWithMedia[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
-  const [heroImageUrl, setHeroImageUrl] = useState<string>("/images/side_images/chilanka_2025.webp");
-  const [fetchError, setFetchError] = useState(false);
 
-  useEffect(() => {
-    async function fetchEvents() {
-      setLoading(true);
-      setFetchError(false);
-      try {
-        // Fetch paginated events
-        const eventsRes = await fetch(`/api/proxy/event-details?sort=startDate,asc&page=${page}&size=${EVENTS_PAGE_SIZE}`);
-        if (!eventsRes.ok) throw new Error('Failed to fetch events');
-        const events: EventDetailsDTO[] = await eventsRes.json();
-        let eventList = Array.isArray(events) ? events : [events];
-        // For each event, fetch its flyer
-        const eventsWithMedia = await Promise.all(
-          eventList.map(async (event: EventDetailsDTO) => {
-            try {
-              const mediaRes = await fetch(`/api/proxy/event-medias?eventId.equals=${event.id}&eventFlyer.equals=true`);
-              const mediaData = await mediaRes.json();
-              if (mediaData && mediaData.length > 0) {
-                return { ...event, thumbnailUrl: mediaData[0].fileUrl };
-              }
-              return { ...event, thumbnailUrl: undefined };
-            } catch {
-              return { ...event, thumbnailUrl: undefined };
-            }
-          })
-        );
-        setEvents(eventsWithMedia);
-        // Remove totalPages logic, since not present in array response
-        setTotalPages(1);
-
-        // Hero image logic: earliest upcoming event within 3 months
-        const today = new Date();
-        const threeMonthsFromNow = new Date();
-        threeMonthsFromNow.setMonth(today.getMonth() + 3);
-        const upcoming = eventsWithMedia
-          .filter(e => e.startDate && new Date(e.startDate) >= today && e.thumbnailUrl)
-          .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
-        if (upcoming.length > 0) {
-          const nextEvent = upcoming[0];
-          const eventDate = nextEvent.startDate ? new Date(nextEvent.startDate) : null;
-          if (eventDate && eventDate <= threeMonthsFromNow && nextEvent.thumbnailUrl) {
-            setHeroImageUrl(nextEvent.thumbnailUrl);
-            return;
-          }
-        }
-        setHeroImageUrl("/images/side_images/chilanka_2025.webp");
-      } catch (err) {
-        setFetchError(true);
-        setEvents([]);
-        setHeroImageUrl("/images/side_images/chilanka_2025.webp");
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchEvents();
-  }, [page]);
-
-  // Helper to generate Google Calendar URL
-  function toGoogleCalendarDate(date: string, time: string) {
-    if (!date || !time) return '';
-    const [year, month, day] = date.split('-');
-    let [hour, minute] = time.split(':');
-    let ampm = '';
-    if (minute && minute.includes(' ')) {
-      [minute, ampm] = minute.split(' ');
-    }
-    let h = parseInt(hour, 10);
-    if (ampm && ampm.toUpperCase() === 'PM' && h !== 12) h += 12;
-    if (ampm && ampm.toUpperCase() === 'AM' && h === 12) h = 0;
-    return `${year}${month}${day}T${String(h).padStart(2, '0')}${minute}00`;
-  }
+export default async function EventsPage() {
 
   return (
-    <div>
-      {/* Hero Section (copied from home page) */}
-      <section className="hero-section relative w-full bg-transparent pb-0" style={{ height: '180px' }}>
-        {/* Side Image */}
-        <div
-          style={{
-            position: 'absolute',
-            left: 0,
-            top: 0,
-            width: '250px',
-            minWidth: '120px',
-            height: '100%',
-            zIndex: 1,
-          }}
-          className="w-[120px] md:w-[250px] min-w-[80px] h-full"
-        >
-          {/* Overlay logo at top left of side image */}
-          <Image
-            src="/images/side_images/malayalees_us_logo.avif"
-            alt="Malayalees US Logo"
-            width={80}
-            height={80}
+    <div className="min-h-screen bg-gray-100 flex flex-col">
+      <PhilantropHeaderClient />
+
+      {/* Hero Section */}
+      <section className="relative overflow-hidden bg-black md:h-1/3 h-screen pt-32 md:pt-12" style={{
+        marginTop: 0
+      }}>
+        <div className="absolute top-20 md:top-20 right-0 w-full md:w-1/3 h-1/2 md:h-3/4 bg-cover bg-center opacity-60 md:opacity-70" style={{
+          backgroundImage: "url('/images/kathakali_with_back_light_hero_ai.png')"
+        }}></div>
+        <div className="absolute -top-5 left-0 right-0 bottom-0 z-10 pt-5" style={{
+          background: 'linear-gradient(90deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.5) 50%, rgba(0,0,0,0.3) 100%)'
+        }}></div>
+        <div className="relative z-30 px-5 max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-start h-full text-left gap-4 md:gap-8 pt-24 md:pt-0">
+          <img
+            src="/images/mcefee_logo_black_border_transparent.png"
+            className="w-32 md:w-44 h-auto ml-0 opacity-60 transition-opacity duration-300"
+            alt="MCEFEE Logo"
             style={{
-              position: 'absolute',
-              top: 8,
-              left: 8,
-              background: 'rgba(255,255,255,0.7)',
-              borderRadius: '50%',
-              boxShadow: '0 8px 64px 16px rgba(80,80,80,0.22)',
-              zIndex: 2,
+              filter: 'brightness(1.1) contrast(0.9)',
+              mixBlendMode: 'screen'
             }}
-            className="md:w-[120px] md:h-[120px] w-[80px] h-[80px]"
-            priority
           />
-          <Image
-            src="/images/side_images/pooram_side_image_two_images_blur_1.png"
-            alt="Kerala Sea Coast"
-            width={250}
-            height={400}
-            className="h-full object-cover rounded-l-lg shadow-2xl"
-            style={{
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-              objectPosition: '60% center',
-              display: 'block',
-              boxShadow: '0 0 96px 32px rgba(80,80,80,0.22)',
-            }}
-            priority
-          />
+          <h1 className="text-xl md:text-2xl leading-relaxed m-0 text-white text-left max-w-2xl flex-grow" style={{
+            textShadow: '2px 2px 4px rgba(0,0,0,0.5)'
+          }}>
+            Discover Our <span style={{ color: '#ffce59' }}>Cultural Events</span> and Celebrations
+          </h1>
         </div>
-        {/* Hero Image fills the rest */}
-        <div
-          className="absolute hero-image-container"
-          style={{
-            left: 265,
-            top: 4,
-            right: 4,
-            bottom: 4,
-            zIndex: 2,
-          }}
-        >
-          <div className="w-full h-full relative">
-            {/* Blurred background image for width fill */}
-            <Image
-              src={heroImageUrl}
-              alt="Hero blurred background"
-              fill
-              className="object-cover w-full h-full blur-lg scale-105"
-              style={{
-                zIndex: 0,
-                filter: 'blur(24px) brightness(1.1)',
-                objectPosition: 'center',
-              }}
-              aria-hidden="true"
-              priority
-            />
-            {/* Main hero image, fully visible */}
-            <Image
-              src={heroImageUrl}
-              alt="Event Hero"
-              fill
-              className="object-cover w-full h-full"
-              style={{
-                objectFit: 'cover',
-                objectPosition: 'center',
-                zIndex: 1,
-                background: 'linear-gradient(to bottom, #f8fafc 0%, #fff 100%)',
-              }}
-              priority
-            />
-            {/* Fade overlays for all four borders */}
-            <div className="pointer-events-none absolute left-0 top-0 w-full h-8" style={{ background: 'linear-gradient(to bottom, rgba(248,250,252,1) 0%, rgba(248,250,252,0) 100%)', zIndex: 20 }} />
-            <div className="pointer-events-none absolute left-0 bottom-0 w-full h-8" style={{ background: 'linear-gradient(to top, rgba(248,250,252,1) 0%, rgba(248,250,252,0) 100%)', zIndex: 20 }} />
-            <div className="pointer-events-none absolute left-0 top-0 h-full w-8" style={{ background: 'linear-gradient(to right, rgba(248,250,252,1) 0%, rgba(248,250,252,0) 100%)', zIndex: 20 }} />
-            <div className="pointer-events-none absolute right-0 top-0 h-full w-8" style={{ background: 'linear-gradient(to left, rgba(248,250,252,1) 0%, rgba(248,250,252,0) 100%)', zIndex: 20 }} />
-          </div>
-        </div>
-        <style jsx global>{`
-          @media (max-width: 768px) {
-            .hero-section .hero-image-container {
-              left: 120px !important;
-            }
-          }
-        `}</style>
       </section>
 
-      {/* Event List */}
-      <div className="max-w-5xl mx-auto p-6">
-        <h1 className="text-3xl font-bold mb-6 text-center">All Events</h1>
-        {loading ? (
-          <div className="flex justify-center items-center min-h-[200px]">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-400"></div>
-          </div>
-        ) : fetchError ? (
-          <div className="text-center text-red-600 font-bold py-8">
-            Sorry, we couldn't load events at this time. Please try again later.
-          </div>
-        ) : events.length === 0 ? (
-          <div className="text-center text-gray-500 py-8">
-            No events found.
-          </div>
-        ) : (
-          <>
-            <div className="w-full overflow-x-auto">
-              <table className="w-full border text-sm bg-white rounded shadow-md">
-                <thead>
-                  <tr className="bg-blue-100 font-bold border-b-2 border-blue-300">
-                    <th className="p-2 border w-40">Flyer</th>
-                    <th className="p-2 border">Event Details</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {events.map((event) => (
-                    <tr
-                      key={event.id}
-                      className="border-b border-gray-300 hover:bg-yellow-50 transition cursor-pointer"
-                      onClick={() => router.push(`/events/${event.id}`)}
-                    >
-                      <td className="p-2 border align-top w-40">
-                        {event.thumbnailUrl ? (
-                          <Image
-                            src={event.thumbnailUrl}
-                            alt={event.title}
-                            width={160}
-                            height={120}
-                            className="rounded shadow object-cover w-40 h-28 bg-white"
-                          />
-                        ) : (
-                          <div className="w-40 h-28 bg-gray-200 flex items-center justify-center rounded">
-                            <span className="text-gray-400">No image</span>
-                          </div>
-                        )}
-                      </td>
-                      <td className="p-2 border align-top">
-                        <h2 className="text-xl font-semibold mb-1">
-                          <span className="text-blue-700 hover:underline">
-                            {event.title}
-                          </span>
-                        </h2>
-                        <div className="text-gray-600 mb-1">{event.caption}</div>
-                        <div className="mb-1">
-                          <span className="font-semibold">Date:</span> {event.startDate} <span className="ml-4 font-semibold">Time:</span> {event.startTime} - {event.endTime}
-                        </div>
-                        <div className="mb-1">
-                          <span className="font-semibold">Location:</span> {event.location}
-                        </div>
-                        <div className="mb-1 text-sm text-gray-700">{event.description}</div>
-                        {(() => {
-                          const today = new Date();
-                          const eventDate = event.startDate ? new Date(event.startDate) : null;
-                          const isUpcoming = eventDate && eventDate >= today;
-                          if (!isUpcoming) return null;
-                          const start = toGoogleCalendarDate(event.startDate, event.startTime);
-                          const end = toGoogleCalendarDate(event.endDate, event.endTime);
-                          const text = encodeURIComponent(event.title);
-                          const details = encodeURIComponent(event.description || '');
-                          const location = encodeURIComponent(event.location || '');
-                          const calendarLink = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${start}/${end}&details=${details}&location=${location}`;
-                          return (
-                            <div className="flex flex-col items-center mt-3">
-                              <a href={calendarLink} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center group">
-                                <img src="/images/icons8-calendar.gif" alt="Calendar" className="w-7 h-7 rounded shadow mx-auto" />
-                                <span className="text-xs text-blue-700 font-semibold mt-1">Add to Calendar</span>
-                              </a>
-                            </div>
-                          );
-                        })()}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+      <div className="flex-grow max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Events Section */}
+        <section className="pt-8 pb-16 w-full">
+          <div className="max-w-6xl mx-auto px-4">
+            <div className="mb-8">
+              <span className="text-sm text-yellow-400 mb-1 inline-block uppercase relative pl-12" style={{
+                color: '#ffce59'
+              }}>
+                <span className="absolute left-0 top-1/2 w-10 h-px" style={{
+                  backgroundColor: '#ffce59'
+                }}></span>
+                Events
+              </span>
+              <h3 className="text-3xl leading-tight mb-6">Upcoming Events & Celebrations</h3>
             </div>
-            {/* Pagination controls */}
-            <div className="flex justify-between items-center mt-6">
-              <button
-                onClick={() => setPage((p) => Math.max(0, p - 1))}
-                disabled={page === 0}
-                className="px-4 py-2 rounded bg-gray-200 text-gray-700 font-semibold disabled:opacity-50"
-              >
-                Previous
-              </button>
-              <span className="font-bold">Page {page + 1} of {totalPages}</span>
-              <button
-                onClick={() => setPage((p) => (p + 1 < totalPages ? p + 1 : p))}
-                disabled={page + 1 >= totalPages}
-                className="px-4 py-2 rounded bg-gray-200 text-gray-700 font-semibold disabled:opacity-50"
-              >
-                Next
-              </button>
+
+            {/* Main Event Highlight */}
+            <div className="bg-yellow-300 rounded-lg p-8 mb-8 relative overflow-hidden" style={{
+              backgroundColor: '#ffce59'
+            }}>
+              <span className="block text-base font-medium mb-3 text-gray-800 opacity-90">Featured Event</span>
+              <h4 className="text-2xl font-semibold mb-4 text-gray-800">SPARK OF KERALA 2025</h4>
+              <p className="text-base leading-relaxed mb-0 text-gray-800 opacity-90">
+                We are excited to announce SPARK OF KERALA – a grand celebration of Kerala's most iconic festival, Onam,
+                set to take place in the USA in 2025. This event promises to be an unforgettable experience, capturing the
+                true essence of Onam through a power-packed performance that showcases the vibrant culture, traditions, and
+                spirit of Kerala.
+              </p>
             </div>
-          </>
-        )}
+
+            {/* Event Cards */}
+            <div>
+              <h4 className="text-2xl mb-5 text-gray-800">More Events</h4>
+              <div className="space-y-6">
+                {/* Static Event Cards */}
+                <div className="flex flex-col md:flex-row bg-white rounded-lg shadow-md overflow-hidden w-full" style={{ minHeight: '350px' }}>
+                  <div className="w-full md:w-48 h-[350px] md:h-[278px] flex-shrink-0 overflow-hidden rounded-t-lg md:rounded-t-none">
+                    <img
+                      src="/images/spark_kerala_event_2025.jpeg"
+                      alt="SPARK OF KERALA"
+                      className="w-full h-full object-cover object-center"
+                    />
+                  </div>
+                  <div className="flex-grow p-6 min-w-0">
+                    <h5 className="m-0 mb-3 text-2xl md:text-xl whitespace-normal overflow-hidden text-ellipsis">
+                      SPARK OF KERALA
+                    </h5>
+                    <p className="text-lg md:text-base text-gray-600 whitespace-normal mb-4 md:mb-0">
+                      Celebrates the vibrant culture, art, and heritage of Kerala across the USA
+                    </p>
+                  </div>
+                  <div className="w-full md:w-32 min-w-32 flex-shrink-0 flex flex-row md:flex-col justify-center items-center bg-gray-50 p-6 border-t md:border-t-0">
+                    <div className="text-center">
+                      <div className="text-xl md:text-lg font-bold text-yellow-500">
+                        AUG-SEP
+                      </div>
+                      <div className="text-base md:text-sm text-gray-600">
+                        2025
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col md:flex-row bg-white rounded-lg shadow-md overflow-hidden w-full" style={{ minHeight: '350px' }}>
+                  <div className="w-full md:w-48 h-[350px] md:h-[278px] flex-shrink-0 overflow-hidden rounded-t-lg md:rounded-t-none">
+                    <img
+                      src="/images/Karnatic_Music_Festival.jpeg"
+                      alt="Karnatic Music Festival"
+                      className="w-full h-full object-cover object-center"
+                    />
+                  </div>
+                  <div className="flex-grow p-6 min-w-0">
+                    <h5 className="m-0 mb-3 text-2xl md:text-xl whitespace-normal overflow-hidden text-ellipsis">
+                      Karnatic Music Festival
+                    </h5>
+                    <p className="text-lg md:text-base text-gray-600 whitespace-normal mb-4 md:mb-0">
+                      A Tribute to Kerala's Classical Melodies Across the USA
+                    </p>
+                  </div>
+                  <div className="w-full md:w-32 min-w-32 flex-shrink-0 flex flex-row md:flex-col justify-center items-center bg-gray-50 p-6 border-t md:border-t-0">
+                    <div className="text-center">
+                      <div className="text-xl md:text-lg font-bold text-yellow-500">
+                        OCT-NOV
+                      </div>
+                      <div className="text-base md:text-sm text-gray-600">
+                        2025
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
       </div>
+      {/* FOOTER - bleeds to edges */}
+      <Footer />
     </div>
   );
 }
