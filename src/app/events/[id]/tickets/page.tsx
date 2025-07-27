@@ -274,6 +274,24 @@ export default function TicketingPage() {
   // --- HERO SECTION (prompt-compliant) ---
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
+      {/* Responsive Hero Image CSS */}
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          .hero-image {
+            width: 100%;
+            height: 600px; /* Desktop - adjusted for 1920×600px image */
+            object-fit: contain;
+            object-position: center;
+          }
+
+          @media (max-width: 768px) {
+            .hero-image {
+              height: 250px; /* Mobile */
+            }
+          }
+        `
+      }} />
+
       {/* HEADER */}
       <PhilantropHeaderClient />
       {/* Responsive logo in top left if not home page */}
@@ -281,8 +299,14 @@ export default function TicketingPage() {
         <img src="/images/mcefee_logo_black_border_transparent.png" alt="MCEFEE Logo" style={{ width: '140px', height: 'auto', maxWidth: '30vw' }} className="block md:hidden" />
         <img src="/images/mcefee_logo_black_border_transparent.png" alt="MCEFEE Logo" style={{ width: '180px', height: 'auto', maxWidth: '15vw' }} className="hidden md:block" />
       </div>
-      <section className="hero-section" style={{ minHeight: '240px', height: '377px', position: 'relative', marginTop: '0px' }}>
-        <div className="hero-background" style={{ backgroundImage: `url('${heroImageUrl || defaultHeroImageUrl}')`, backgroundRepeat: 'no-repeat', backgroundSize: 'cover', backgroundPosition: 'top center', width: '100%', height: '100%', position: 'absolute', top: '40px', left: 0 }}></div>
+
+      {/* HERO SECTION - Responsive Image Implementation */}
+      <section className="hero-section" style={{ position: 'relative', marginTop: '-1px' }}>
+        <img
+          src={heroImageUrl || defaultHeroImageUrl}
+          alt="Event Hero"
+          className="hero-image"
+        />
         <div className="hero-overlay" style={{ opacity: 0.1 }}></div>
       </section>
       <div className="flex-grow max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

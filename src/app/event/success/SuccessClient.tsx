@@ -9,7 +9,7 @@ import {
 import { formatInTimeZone } from "date-fns-tz";
 import { PhilantropHeaderClient } from '@/components/PhilantropHeaderClient';
 import { Footer } from '@/components/Footer';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 interface SuccessClientProps {
   session_id: string;
@@ -32,10 +32,20 @@ export default function SuccessClient({ session_id }: SuccessClientProps) {
   const [result, setResult] = useState<any>(null);
   const [heroImageUrl, setHeroImageUrl] = useState<string>("/images/side_images/chilanka_2025.webp");
   const router = useRouter();
+  const searchParams = useSearchParams();
 
-  // Prevent page reload and back button navigation
+  // Check if we were redirected due to already processed payment
   useEffect(() => {
-    console.log('Setting up navigation prevention...');
+    const paymentStatus = searchParams?.get('payment');
+    if (paymentStatus === 'already-processed') {
+      console.log('User was redirected due to already processed payment');
+      // You could show a toast or notification here if needed
+    }
+  }, [searchParams]);
+
+  // Enhanced back button prevention
+  useEffect(() => {
+    console.log('Setting up enhanced navigation prevention...');
 
     // Check if we're on a Stripe URL and redirect
     if (window.location.href.includes('checkout.stripe.com')) {
@@ -44,23 +54,47 @@ export default function SuccessClient({ session_id }: SuccessClientProps) {
       return;
     }
 
-    // Simple back button prevention
+    // Enhanced back button prevention
     const handlePopState = (e: PopStateEvent) => {
-      console.log('PopState triggered - redirecting to home');
+      console.log('Back button detected - preventing navigation and redirecting to home');
+      e.preventDefault();
       window.location.replace('/');
     };
 
-    // Add minimal event listeners
-    window.addEventListener('popstate', handlePopState);
+    // Enhanced beforeunload prevention
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      console.log('Page unload detected - preventing refresh');
+      e.preventDefault();
+      e.returnValue = 'Your payment has been processed. Please do not refresh this page.';
+      return e.returnValue;
+    };
 
-    // Simple history manipulation
+    // Enhanced keydown prevention for F5 and Ctrl+R
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'F5' || (e.ctrlKey && e.key === 'r')) {
+        console.log('Refresh attempt detected - preventing');
+        e.preventDefault();
+        window.location.replace('/');
+        return false;
+      }
+    };
+
+    // Add event listeners
+    window.addEventListener('popstate', handlePopState);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('keydown', handleKeyDown);
+
+    // Push current state to prevent back navigation
+    window.history.pushState(null, '', window.location.href);
     window.history.pushState(null, '', window.location.href);
 
-    console.log('Navigation prevention setup complete');
+    console.log('Enhanced navigation prevention setup complete');
 
     // Cleanup
     return () => {
       window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('keydown', handleKeyDown);
     };
   }, []);
 
@@ -178,7 +212,7 @@ export default function SuccessClient({ session_id }: SuccessClientProps) {
 
       {/* Main content container - ui_style_guide.mdc compliant */}
       <div className="max-w-5xl mx-auto px-8 py-8" style={{ marginTop: '80px' }}>
-        {/* Warning Message */}
+        {/* Enhanced Warning Message */}
         <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
           <div className="flex">
             <div className="flex-shrink-0">
@@ -186,9 +220,9 @@ export default function SuccessClient({ session_id }: SuccessClientProps) {
             </div>
             <div className="ml-3">
               <p className="text-sm text-yellow-700">
-                <strong>Important:</strong> Please do not refresh this page or use the back button.
+                <strong>Important:</strong> Please do not refresh this page, use the back button, or press F5.
                 Your payment has been processed successfully. If you need to return to the home page,
-                use the navigation menu above.
+                use the navigation menu above. Any attempt to refresh or go back will redirect you to the homepage.
               </p>
             </div>
           </div>

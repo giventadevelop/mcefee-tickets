@@ -5,13 +5,52 @@ import {
   FaCheckCircle, FaTicketAlt, FaCalendarAlt, FaUser, FaEnvelope,
   FaMoneyBillWave, FaInfoCircle, FaReceipt, FaMapMarkerAlt, FaClock, FaMapPin
 } from 'react-icons/fa';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { auth } from '@clerk/nextjs/server';
 import Image from 'next/image';
 import { formatInTimeZone } from 'date-fns-tz';
 import { Suspense } from 'react';
 import LoadingTicketFallback from './LoadingTicketFallback';
 import SuccessClient from './SuccessClient';
+import { getTenantId } from '@/lib/env';
+import { fetchWithJwtRetry } from '@/lib/proxyHandler';
+
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+
+// Function to check if transaction already exists on server side
+async function checkTransactionExistsServer(sessionId: string): Promise<{ exists: boolean; transaction?: any }> {
+  try {
+    const tenantId = getTenantId();
+    const params = new URLSearchParams({
+      'stripeCheckoutSessionId.equals': sessionId,
+      'tenantId.equals': tenantId,
+    });
+
+    const response = await fetchWithJwtRetry(
+      `${APP_URL}/api/proxy/event-ticket-transactions?${params.toString()}`,
+      { cache: 'no-store' }
+    );
+
+    if (!response.ok) {
+      console.error(`Failed to check transaction existence for session ${sessionId}:`, await response.text());
+      return { exists: false };
+    }
+
+    const transactions = await response.json();
+    const exists = Array.isArray(transactions) && transactions.length > 0;
+    const transaction = exists ? transactions[0] : null;
+
+    console.log(`Server-side transaction check for session ${sessionId}: ${exists ? 'EXISTS' : 'NOT FOUND'}`);
+    if (exists && transaction) {
+      console.log(`Transaction details - ID: ${transaction.id}, Status: ${transaction.status}, Created: ${transaction.createdAt}`);
+    }
+
+    return { exists, transaction };
+  } catch (error) {
+    console.error('Error checking transaction existence on server:', error);
+    return { exists: false };
+  }
+}
 
 async function getHeroImageUrl(eventId: number): Promise<string> {
   const defaultHeroImageUrl = `/images/side_images/chilanka_2025.webp?v=${Date.now()}`;
@@ -66,7 +105,7 @@ function formatTime(time: string): string {
   return `${hour.toString().padStart(2, '0')}:${minute} ${ampm}`;
 }
 
-export default function SuccessPage({ searchParams }: { searchParams: { session_id?: string } }) {
+export default async function SuccessPage({ searchParams }: { searchParams: { session_id?: string } }) {
   const session_id = searchParams.session_id;
   if (!session_id) {
     return (
@@ -76,5 +115,18 @@ export default function SuccessPage({ searchParams }: { searchParams: { session_
       </div>
     );
   }
+
+  // Check if transaction already exists on server side
+  const { exists: transactionExists, transaction } = await checkTransactionExistsServer(session_id);
+
+  if (transactionExists) {
+    console.log(`Transaction already exists for session ${session_id}, redirecting to homepage`);
+    console.log(`This could be due to: page refresh, back button, or duplicate access`);
+    console.log(`Transaction ID: ${transaction?.id}, Status: ${transaction?.status}`);
+
+    // Redirect to homepage with a query parameter to indicate why
+    redirect('/?payment=already-processed');
+  }
+
   return <SuccessClient session_id={session_id} />;
 }

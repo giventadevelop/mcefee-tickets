@@ -119,17 +119,36 @@ export default async function Page() {
   return (
     <>
       <PhilantropHeaderClient />
-      <section className="hero-section" style={{
-        height: 'calc(20vh + 62px)',
-        minHeight: '206px',
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          @media (min-width: 768px) {
+            .mobile-layout { display: none !important; }
+            .desktop-layout { display: flex !important; }
+          }
+          @media (max-width: 767px) {
+            .mobile-layout { display: flex !important; }
+            .desktop-layout { display: none !important; }
+          }
+
+          /* Override hero-overlay for home page to match events page brightness */
+          .hero-overlay {
+            background: linear-gradient(90deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.1) 100%) !important;
+          }
+        `
+      }} />
+      <section className="hero-section events-hero-section" style={{
+        height: 'calc(30vh + 62px)',
+        minHeight: '300px',
         position: 'relative',
         overflow: 'visible',
         backgroundColor: '#000',
         marginBottom: 0,
         paddingBottom: 0,
-        paddingTop: '21px'
+        paddingTop: '0px',
+        marginTop: 0
       }}>
-        <div className="hero-content" style={{
+        {/* Desktop Layout */}
+        <div className="desktop-layout hero-content" style={{
           position: 'relative',
           zIndex: 3,
           padding: '0 20px',
@@ -138,96 +157,306 @@ export default async function Page() {
           display: 'flex',
           flexDirection: 'row',
           alignItems: 'center',
-          height: '25vh',
+          height: '100%',
           minHeight: 180,
+          gap: '40px',
+          paddingTop: '60px',
+          paddingBottom: '40px'
         }}>
-          <img src="/images/mcefee_logo_black_border_transparent.png" className="hero-mcafee-logo" alt="MCEFEE Logo" style={{ width: 220, height: 'auto', opacity: 0.6 }} />
-          <h1 className="hero-title" style={{ fontSize: 22, lineHeight: 1.4, color: 'white', maxWidth: 600, fontFamily: 'Sora, sans-serif', marginLeft: 24 }}>
-            Connecting Cultures, Empowering Generations – <span style={{ color: '#ffce59', fontSize: 22 }}>Celebrating Malayali Roots in the USA</span>
+          <img src="/images/mcefee_logo_black_border_transparent.png" className="hero-mcafee-logo" alt="MCEFEE Logo" style={{ width: 220, height: 'auto', opacity: 0.6, marginLeft: -350 }} />
+          <h1 className="hero-title" style={{
+            fontSize: 26,
+            lineHeight: 1.6,
+            color: 'white',
+            maxWidth: 450,
+            fontFamily: 'Sora, sans-serif',
+            marginLeft: -36,
+            marginRight: 60,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px'
+          }}>
+            <span>Connecting Cultures,</span>
+            <span>Empowering Generations –</span>
+            <span style={{ color: '#ffce59', fontSize: 26 }}>Celebrating Malayali Roots in the USA</span>
           </h1>
         </div>
-        <div className="hero-background" style={{
+        {/* Mobile Layout */}
+        <div className="mobile-layout" style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          padding: '2px',
+          gap: '8px',
+          minHeight: '120px'
+        }}>
+          <img src="/images/mcefee_logo_black_border_transparent.png" alt="MCEFEE Logo" style={{
+            width: '160px',
+            height: 'auto',
+            opacity: 0.9,
+            display: 'block',
+            margin: '0 auto'
+          }} />
+          <h1 style={{
+            fontSize: '18px',
+            lineHeight: 1.3,
+            color: 'white',
+            maxWidth: '90%',
+            fontFamily: 'Sora, sans-serif',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '4px',
+            textAlign: 'center',
+            margin: '0 auto'
+          }}>
+            <span>Connecting Cultures,</span>
+            <span>Empowering Generations –</span>
+            <span style={{ color: '#ffce59', fontSize: '18px' }}>Celebrating Malayali Roots in the USA</span>
+          </h1>
+          {/* Mobile Background - Bottom Position with Gradient Overlay */}
+          <div style={{ position: 'relative', width: '100%' }}>
+            {/* Gradient overlay at the top of the image */}
+            <div style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '40px',
+              background: 'linear-gradient(180deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.2) 80%, rgba(0,0,0,0) 100%)',
+              zIndex: 2,
+              pointerEvents: 'none',
+              borderTopLeftRadius: '8px',
+              borderTopRightRadius: '8px'
+            }}></div>
+            <div className="mobile-background" style={{
+              width: '100%',
+              height: '160px',
+              backgroundImage: "url('/images/kathakali_with_back_light_hero_ai.png')",
+              backgroundSize: 'contain',
+              backgroundRepeat: 'no-repeat',
+              backgroundPosition: 'center top',
+              opacity: 0.7,
+              filter: 'blur(0.5px)',
+              marginBottom: '5px',
+              paddingTop: '10px',
+              borderRadius: '8px'
+            }}></div>
+          </div>
+        </div>
+        {/* Desktop Background */}
+        <div className="hidden md:block hero-background" style={{
           position: 'absolute',
-          top: '40%',
-          right: 0,
+          top: '25%',
+          right: '10px',
           left: 'auto',
-          width: '18%',
-          height: '50%',
+          width: '30%',
+          height: '75%',
           backgroundImage: "url('/images/kathakali_with_back_light_hero_ai.png')",
           backgroundSize: 'cover',
-          backgroundPosition: 'right bottom',
-          opacity: 0.7,
-          WebkitMaskImage: 'radial-gradient(circle at 100% 80%, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 60%, rgba(0,0,0,0) 100%)',
-          maskImage: 'radial-gradient(circle at 100% 80%, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 60%, rgba(0,0,0,0) 100%)',
+          backgroundPosition: 'center',
+          opacity: 0.8,
+          filter: 'blur(0.5px)',
+          WebkitMaskImage: 'radial-gradient(ellipse at center, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 35%, rgba(0,0,0,0.9) 50%, rgba(0,0,0,0.7) 65%, rgba(0,0,0,0.3) 85%, rgba(0,0,0,0) 100%)',
+          maskImage: 'radial-gradient(ellipse at center, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 35%, rgba(0,0,0,0.9) 50%, rgba(0,0,0,0.7) 65%, rgba(0,0,0,0.3) 85%, rgba(0,0,0,0) 100%)',
           zIndex: 2,
           pointerEvents: 'none',
-        }}></div>
-        <div className="hero-overlay" style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'linear-gradient(90deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.5) 50%, rgba(0,0,0,0.3) 100%)',
-          zIndex: 1
-        }}></div>
+        }}>
+          {/* Top gradient overlay */}
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: '25%',
+            background: 'linear-gradient(180deg, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.5) 40%, rgba(0,0,0,0.3) 70%, rgba(0,0,0,0.1) 100%)',
+            zIndex: 1,
+            filter: 'blur(1px)'
+          }}></div>
+          {/* Bottom gradient overlay */}
+          <div style={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: '25%',
+            background: 'linear-gradient(0deg, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.5) 40%, rgba(0,0,0,0.3) 70%, rgba(0,0,0,0.1) 100%)',
+            zIndex: 1,
+            filter: 'blur(1px)'
+          }}></div>
+          {/* Left gradient overlay - enhanced for better fade */}
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '20%',
+            height: '100%',
+            background: 'linear-gradient(90deg, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.6) 20%, rgba(0,0,0,0.4) 40%, rgba(0,0,0,0.2) 60%, rgba(0,0,0,0.1) 80%, rgba(0,0,0,0) 100%)',
+            zIndex: 1,
+            filter: 'blur(1px)'
+          }}></div>
+
+          {/* Additional left fade gradient for smoother transition */}
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '35%',
+            height: '100%',
+            background: 'linear-gradient(90deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.2) 30%, rgba(0,0,0,0.1) 60%, rgba(0,0,0,0.05) 80%, rgba(0,0,0,0) 100%)',
+            zIndex: 1,
+            filter: 'blur(1.5px)'
+          }}></div>
+          {/* Right gradient overlay */}
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            right: 0,
+            width: '25%',
+            height: '100%',
+            background: 'linear-gradient(270deg, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.5) 40%, rgba(0,0,0,0.3) 70%, rgba(0,0,0,0.1) 100%)',
+            zIndex: 1,
+            filter: 'blur(1px)'
+          }}></div>
+          {/* Corner gradient overlays for smoother blending */}
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '20%',
+            height: '20%',
+            background: 'radial-gradient(ellipse at top left, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0) 100%)',
+            zIndex: 2
+          }}></div>
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            right: 0,
+            width: '30%',
+            height: '30%',
+            background: 'radial-gradient(ellipse at top right, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.4) 50%, rgba(0,0,0,0) 100%)',
+            zIndex: 2
+          }}></div>
+          <div style={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            width: '30%',
+            height: '30%',
+            background: 'radial-gradient(ellipse at bottom left, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.4) 50%, rgba(0,0,0,0) 100%)',
+            zIndex: 2
+          }}></div>
+          <div style={{
+            position: 'absolute',
+            bottom: 0,
+            right: 0,
+            width: '30%',
+            height: '30%',
+            background: 'radial-gradient(ellipse at bottom right, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.4) 50%, rgba(0,0,0,0) 100%)',
+            zIndex: 2
+          }}></div>
+        </div>
+        {/* Hero overlay removed to match events page brightness */}
       </section>
 
-      {/* FEATURE BOXES - full-bleed, edge-to-edge, no constraints */}
-      <div className="w-screen overflow-x-hidden" style={{ margin: 0, padding: 0 }}>
-        <div className="flex flex-col md:flex-row w-full gap-0" style={{ margin: 0, padding: 0 }}>
-          {/* Left Feature Box */}
-          <div className="relative overflow-hidden w-full md:w-[calc(50%-90px)] h-[300px] md:h-[1410px] flex flex-col" style={{ margin: 0, padding: 0 }}>
-            <div className="flex flex-col w-full h-full" style={{ gap: '20px', padding: '20px 7px' }}>
-              <img
-                src="/images/buy_tickets_click_here_red.webp"
-                alt="Buy Tickets"
-                style={{ width: '100%', height: '20%', objectFit: 'contain', objectPosition: 'center', margin: 0, padding: 0 }}
-              />
-              <Link href="/events/1/tickets" style={{ width: '100%', height: '25%', display: 'block' }}>
+      {/* FEATURE BOXES SECTION - two columns on desktop, stacked on mobile */}
+      <div className="feature-boxes-container w-full" style={{ marginTop: '30px', margin: '0', padding: '0' }}>
+        <div className="flex flex-col md:flex-row gap-4 md:gap-0" style={{ margin: '0', padding: '0' }}>
+          {/* LEFT FEATURE BOX - three images stacked vertically */}
+          <div className="flex-1 rounded-xl p-1" style={{ justifyContent: 'flex-start', alignItems: 'stretch' }}>
+            <div style={{ gap: '0px', padding: '0px', justifyContent: 'flex-start', display: 'flex', flexDirection: 'column' }}>
+              {/* First image - Buy Tickets Click Here */}
+              <Link href="/events/1/tickets" style={{ height: 'auto', flex: 1, display: 'block' }}>
                 <img
-                  src="/images/side_img_event_1.png"
+                  src="/images/buy_tickets_click_here_red.webp"
+                  alt="Buy Tickets"
+                  style={{
+                    width: '100%',
+                    height: 'auto',
+                    minHeight: '120px',
+                    maxHeight: '180px',
+                    objectFit: 'contain',
+                    objectPosition: 'center',
+                    margin: 0,
+                    padding: '0px',
+                    boxSizing: 'border-box',
+                    maxWidth: '100%',
+                    overflow: 'hidden',
+                    flexShrink: 0
+                  }}
+                />
+              </Link>
+
+              {/* Second image - Buy Tickets Sep 15 Parsippany */}
+              <Link href="/events/1/tickets" style={{ height: 'auto', flex: 1, display: 'block' }}>
+                <img
+                  src="/images/buy_tickets_sep_15_parsippany.png"
                   alt="Buy Tickets Sep 2 Houston"
-                  style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'center', margin: 0, paddingTop: '7px', cursor: 'pointer' }}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'contain',
+                    objectPosition: 'center',
+                    margin: 0,
+                    padding: '0px',
+                    boxSizing: 'border-box',
+                    maxWidth: '100%',
+                    overflow: 'hidden'
+                  }}
                 />
               </Link>
-              <Link href="/events/2/tickets" style={{ width: '100%', height: '25%', display: 'block' }}>
+
+              {/* Third image - Buy Tickets Sep 21 Knanaya */}
+              <Link href="/events/2/tickets" style={{ height: 'auto', flex: 1, display: 'block', marginTop: '20px' }}>
                 <img
-                  src="/images/side_img_event_2.png"
+                  src="/images/buy_tickets_sep_21_knanaya.png"
                   alt="Buy Tickets Sep 15 Houston"
-                  style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'center', margin: 0, paddingTop: '7px', cursor: 'pointer' }}
-                />
-              </Link>
-              <Link href="/events/3/tickets" style={{ width: '100%', height: '30%', display: 'block' }}>
-                <img
-                  src="/images/side_img_event_3.png"
-                  alt="Buy Tickets Sep 15 Houston"
-                  style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'center', margin: 0, paddingTop: '7px', cursor: 'pointer' }}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'contain',
+                    objectPosition: 'center',
+                    margin: 0,
+                    padding: '0px',
+                    boxSizing: 'border-box',
+                    maxWidth: '100%',
+                    overflow: 'hidden'
+                  }}
                 />
               </Link>
             </div>
           </div>
-          {/* Right Feature Box - image only */}
-          <div className="relative overflow-hidden w-full md:w-[calc(50%+60px)] h-[1040px] md:h-[1410px]" style={{ margin: 0, padding: 0 }}>
+
+          {/* RIGHT FEATURE BOX - single large image */}
+          <div className="flex-1 rounded-xl p-1" style={{ marginTop: '-60px', alignItems: 'flex-start' }}>
             <img
-              src="/images/spark_kerala_event_2025.jpeg"
-              alt="Spark Kerala Event"
-              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top center', zIndex: 0, margin: 0, padding: 0 }}
+              src="/images/spark_kerala_event_2025.png"
+              alt="Spark Kerala Event 2025"
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'contain',
+                objectPosition: 'center',
+                margin: 0,
+                padding: '0px',
+                boxSizing: 'border-box',
+                maxWidth: '100%',
+                overflow: 'hidden'
+              }}
             />
           </div>
         </div>
       </div>
 
       {/* Main content container - ui_style_guide.mdc compliant */}
-      <div className="max-w-5xl mx-auto px-8 py-0">
+      <div className="max-w-5xl mx-auto px-8 py-0" style={{ marginTop: '-40px' }}>
         {/* WHAT WE DO SECTION - two columns on desktop, stacked on mobile */}
-        <section className="what-we-do bg-white py-12">
+        <section className="what-we-do bg-white py-8">
           <div className="container mx-auto px-4">
             <div className="section-title-wrapper flex items-center gap-4 mb-4">
               <span className="section-subtitle text-yellow-400 font-semibold text-lg border-b-2 border-yellow-400 pb-1">WHAT WE DO</span>
             </div>
-            <h2 className="text-3xl md:text-4xl font-semibold mb-10">Cultural Workshops and Educational Events</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-x-16 md:gap-y-12">
+            <h2 className="text-3xl md:text-4xl font-semibold mb-8">Cultural Workshops and Educational Events</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-x-16 md:gap-y-10">
               {/* Traditional Dance & Music */}
               <div className="flex items-start gap-6">
                 <div className="flex-shrink-0">
@@ -272,22 +501,105 @@ export default async function Page() {
           </div>
         </section>
         {/* TICKER/BANNER SECTION */}
-        <section className="ticker-section">
-          <div className="ticker">
-            <div className="ticker-item">Culture is the thread to thrive and ties generations to their roots !</div>
-            <div className="ticker-item">Culture is the thread to thrive and ties generations to their roots !</div>
-            <div className="ticker-item">Culture is the thread to thrive and ties generations to their roots !</div>
+        <section className="ticker-section" style={{ marginTop: '-20px', padding: '20px 0', overflow: 'hidden', backgroundColor: '#ff8c00' }}>
+          <div className="ticker" style={{
+            display: 'flex',
+            overflow: 'hidden',
+            whiteSpace: 'nowrap',
+            animation: 'ticker 15s linear infinite',
+            width: '100%'
+          }}>
+            <div className="ticker-item" style={{
+              display: 'inline-block',
+              paddingRight: '800px',
+              fontSize: '18px',
+              fontWeight: 'bold',
+              color: '#333',
+              whiteSpace: 'nowrap'
+            }}>Culture is the thread to thrive and ties generations to their roots !</div>
+            <div className="ticker-item" style={{
+              display: 'inline-block',
+              paddingRight: '800px',
+              fontSize: '18px',
+              fontWeight: 'bold',
+              color: '#333',
+              whiteSpace: 'nowrap'
+            }}>Culture is the thread to thrive and ties generations to their roots !</div>
+            <div className="ticker-item" style={{
+              display: 'inline-block',
+              paddingRight: '800px',
+              fontSize: '18px',
+              fontWeight: 'bold',
+              color: '#333',
+              whiteSpace: 'nowrap'
+            }}>Culture is the thread to thrive and ties generations to their roots !</div>
+            <div className="ticker-item" style={{
+              display: 'inline-block',
+              paddingRight: '800px',
+              fontSize: '18px',
+              fontWeight: 'bold',
+              color: '#333',
+              whiteSpace: 'nowrap'
+            }}>Culture is the thread to thrive and ties generations to their roots !</div>
+            <div className="ticker-item" style={{
+              display: 'inline-block',
+              paddingRight: '800px',
+              fontSize: '18px',
+              fontWeight: 'bold',
+              color: '#333',
+              whiteSpace: 'nowrap'
+            }}>Culture is the thread to thrive and ties generations to their roots !</div>
+            <div className="ticker-item" style={{
+              display: 'inline-block',
+              paddingRight: '800px',
+              fontSize: '18px',
+              fontWeight: 'bold',
+              color: '#333',
+              whiteSpace: 'nowrap'
+            }}>Culture is the thread to thrive and ties generations to their roots !</div>
+            <div className="ticker-item" style={{
+              display: 'inline-block',
+              paddingRight: '800px',
+              fontSize: '18px',
+              fontWeight: 'bold',
+              color: '#333',
+              whiteSpace: 'nowrap'
+            }}>Culture is the thread to thrive and ties generations to their roots !</div>
+            <div className="ticker-item" style={{
+              display: 'inline-block',
+              paddingRight: '800px',
+              fontSize: '18px',
+              fontWeight: 'bold',
+              color: '#333',
+              whiteSpace: 'nowrap'
+            }}>Culture is the thread to thrive and ties generations to their roots !</div>
+            <div className="ticker-item" style={{
+              display: 'inline-block',
+              paddingRight: '800px',
+              fontSize: '18px',
+              fontWeight: 'bold',
+              color: '#333',
+              whiteSpace: 'nowrap'
+            }}>Culture is the thread to thrive and ties generations to their roots !</div>
+            <div className="ticker-item" style={{
+              display: 'inline-block',
+              paddingRight: '800px',
+              fontSize: '18px',
+              fontWeight: 'bold',
+              color: '#333',
+              whiteSpace: 'nowrap'
+            }}>Culture is the thread to thrive and ties generations to their roots !</div>
           </div>
         </section>
         {/* ABOUT, VISION, STORY SECTIONS - styled as cards with image left, text right */}
-        <section className="bg-[#f9f9f9] py-12">
-          <div className="max-w-4xl mx-auto flex flex-col gap-10">
+        <section className="bg-[#f9f9f9] py-8" style={{ marginTop: '-20px' }}>
+          <div className="max-w-4xl mx-auto flex flex-col gap-8">
             {/* About Foundation */}
             <div className="bg-white rounded-xl shadow-md overflow-hidden flex flex-col md:flex-row">
               <div className="md:w-1/3 flex-shrink-0">
                 <img src="/images/kathakali_with_back_light_hero.jpg" alt="About Foundation" className="w-full h-64 md:h-full object-cover" />
               </div>
-              <div className="md:w-2/3 p-6 md:p-10 flex flex-col justify-center">
+              <div className="md:w-2/3 p-6 md:p-8 flex flex-col justify-center">
                 <span className="text-yellow-400 font-semibold uppercase tracking-wide text-sm mb-2">About Foundation</span>
                 <h3 className="text-2xl md:text-3xl font-bold mb-4">The Malayali Cultural Exchange Foundation</h3>
                 <p className="text-gray-700 text-base md:text-lg mb-2">The Malayali Cultural Exchange Foundation for Education and Events is a vibrant, community-driven organization based in New Jersey, USA, dedicated to reviving real Malayali culture, empowering the next generation through education, and offering a nostalgic sense of home to our community. Our mission is to preserve and promote the rich cultural heritage of Kerala while fostering a deeper connection among Malayalis in the USA, creating a sense of belonging and unity.</p>
@@ -301,7 +613,7 @@ export default async function Page() {
               <div className="md:w-1/3 flex-shrink-0">
                 <img src="/images/vision_to_future.jpeg" alt="Vision" className="w-full h-64 md:h-full object-cover" />
               </div>
-              <div className="md:w-2/3 p-6 md:p-10 flex flex-col justify-center">
+              <div className="md:w-2/3 p-6 md:p-8 flex flex-col justify-center">
                 <span className="text-yellow-400 font-semibold uppercase tracking-wide text-sm mb-2">Vision Statement</span>
                 <h3 className="text-2xl md:text-3xl font-bold mb-4">Our Vision</h3>
                 <p className="text-gray-700 text-base md:text-lg">Our vision is to create a thriving community where Malayali culture is celebrated, preserved, and passed on to future generations. We envision a foundation that acts as a hub for cultural exchange, education, and unity, fostering pride in our heritage while adapting it for the modern world. By building lasting connections, both within the Malayali community and with others, we strive to contribute to a greater understanding and appreciation of Kerala's traditions and values in the USA. We aim to be a beacon of empowerment, nostalgia, and cultural pride for generations to come.</p>
@@ -312,7 +624,7 @@ export default async function Page() {
               <div className="md:w-1/3 flex-shrink-0">
                 <img src="/images/story_foundation.jpeg" alt="Story" className="w-full h-64 md:h-full object-cover" />
               </div>
-              <div className="md:w-2/3 p-6 md:p-10 flex flex-col justify-center">
+              <div className="md:w-2/3 p-6 md:p-8 flex flex-col justify-center">
                 <span className="text-yellow-400 font-semibold uppercase tracking-wide text-sm mb-2">Our Story</span>
                 <h3 className="text-2xl md:text-3xl font-bold mb-4">Story Behind the Foundation</h3>
                 <p className="text-gray-700 text-base md:text-lg mb-2">The Malayali Cultural Exchange Foundation for Education and Events was born out of a deep passion for preserving and sharing the rich cultural heritage of Kerala with the Malayali community in the USA. The idea emerged when a group of passionate individuals, united by their love for their roots, began to realize the power of genuine, quality cultural experiences in fostering connection and belonging.</p>
@@ -452,7 +764,7 @@ export default async function Page() {
               <div className="md:col-span-2 flex flex-col gap-6">
                 {/* Event 1 */}
                 <div className="flex bg-[#f9f9f9] rounded-xl shadow-sm overflow-hidden">
-                  <img src="/images/spark_kerala_event_2025.jpeg" alt="SPARK OF KERALA" className="w-32 h-44 object-cover rounded-l-xl" />
+                  <img src="/images/spark_kerala_event_2025.png" alt="SPARK OF KERALA" className="w-32 h-44 object-cover rounded-l-xl" />
                   <div className="flex flex-col justify-between p-4 flex-1">
                     <div>
                       <h5 className="font-semibold text-lg mb-1">SPARK OF KERALA</h5>
@@ -496,6 +808,46 @@ export default async function Page() {
       <a href="#" className="back-to-top">
         <i className="fas fa-arrow-up"></i>
       </a>
+
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          @keyframes ticker {
+            0% {
+              transform: translateX(100%);
+            }
+            100% {
+              transform: translateX(-100%);
+            }
+          }
+
+          .ticker {
+            animation: ticker 15s linear infinite;
+            width: 100%;
+            overflow: hidden;
+          }
+
+          .ticker-item {
+            display: inline-block;
+            padding-right: 800px;
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            white-space: nowrap;
+            text-overflow: clip;
+          }
+
+          @media (max-width: 767px) {
+            .ticker-item {
+              font-size: 14px;
+              padding-right: 600px;
+            }
+
+            .ticker {
+              animation: ticker 12s linear infinite;
+            }
+          }
+        `
+      }} />
     </>
   );
 }
