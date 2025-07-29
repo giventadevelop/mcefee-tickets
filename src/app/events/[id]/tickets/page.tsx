@@ -8,6 +8,7 @@ import { Modal } from '@/components/Modal';
 import { formatInTimeZone } from 'date-fns-tz';
 import { PhilantropHeaderClient } from '@/components/PhilantropHeaderClient';
 import { Footer } from '@/components/Footer';
+import { storeHeroImageForBuffering } from '@/lib/useBufferedHeroImage';
 
 export default function TicketingPage() {
   const params = useParams();
@@ -42,6 +43,13 @@ export default function TicketingPage() {
         const eventRes = await fetch(`/api/proxy/event-details/${eventId}`);
         const eventData = await eventRes.json();
         setEvent(eventData);
+
+        // Store event details early for loading page
+        if (eventData) {
+          sessionStorage.setItem('eventTitle', eventData.title || '');
+          sessionStorage.setItem('eventLocation', eventData.location || '');
+        }
+
         // Fetch ticket types for this event
         const ticketRes = await fetch(`/api/proxy/event-ticket-types?eventId.equals=${eventId}`);
         const ticketData = await ticketRes.json();
@@ -87,10 +95,10 @@ export default function TicketingPage() {
         }
         setHeroImageUrl(imageUrl);
 
-        // Store hero image URL in localStorage for loading page
+        // Store hero image URL for loading page (enhanced buffering strategy)
         if (imageUrl) {
-          localStorage.setItem('eventHeroImageUrl', imageUrl);
-          localStorage.setItem('eventId', eventId as string);
+          console.log('Tickets page - storing hero image URL:', imageUrl);
+          storeHeroImageForBuffering(imageUrl, eventId as string);
         }
       } catch (e) {
         setEvent(null);
@@ -279,14 +287,43 @@ export default function TicketingPage() {
         __html: `
           .hero-image {
             width: 100%;
-            height: 600px; /* Desktop - adjusted for 1920×600px image */
-            object-fit: contain;
+            height: auto; /* Let image dictate height */
+            object-fit: cover; /* Cover full width, may crop height */
             object-position: center;
+            display: block;
+            margin: 0;
+            padding: 0; /* Remove padding to bleed to edges */
+          }
+
+          .hero-section {
+            min-height: 10vh;
+            background-color: transparent !important; /* Remove coral background */
+            padding-top: 40px; /* Top padding to prevent header cut-off */
+            margin-left: calc(-50vw + 50%) !important;
+            margin-right: calc(-50vw + 50%) !important;
+            width: 100vw !important;
           }
 
           @media (max-width: 768px) {
             .hero-image {
-              height: 250px; /* Mobile */
+              height: auto; /* Let image dictate height on mobile */
+              padding: 25px 0 0 0; /* Increased top padding for mobile */
+            }
+          }
+
+          @media (max-width: 767px) {
+            .hero-section {
+              padding-top: 50px !important; /* Extra mobile top padding */
+              margin-top: 0 !important;
+              min-height: 5vh !important;
+              background-color: transparent !important; /* Remove coral background on mobile */
+              margin-left: calc(-50vw + 50%) !important;
+              margin-right: calc(-50vw + 50%) !important;
+              width: 100vw !important;
+            }
+
+            .mobile-logo {
+              top: 120px !important;
             }
           }
         `
@@ -294,20 +331,21 @@ export default function TicketingPage() {
 
       {/* HEADER */}
       <PhilantropHeaderClient />
-      {/* Responsive logo in top left if not home page */}
-      <div className="absolute top-20 left-4 z-50">
-        <img src="/images/mcefee_logo_black_border_transparent.png" alt="MCEFEE Logo" style={{ width: '140px', height: 'auto', maxWidth: '30vw' }} className="block md:hidden" />
-        <img src="/images/mcefee_logo_black_border_transparent.png" alt="MCEFEE Logo" style={{ width: '180px', height: 'auto', maxWidth: '15vw' }} className="hidden md:block" />
-      </div>
 
-      {/* HERO SECTION - Responsive Image Implementation */}
-      <section className="hero-section" style={{ position: 'relative', marginTop: '-1px' }}>
+      {/* HERO SECTION - Full width bleeding to edges */}
+      <section className="hero-section" style={{ position: 'relative', marginTop: '60px', paddingTop: '40px', padding: '40px 0 0 0', margin: '0', backgroundColor: 'transparent', height: 'auto', overflow: 'hidden', width: '100vw', marginLeft: 'calc(-50vw + 50%)', marginRight: 'calc(-50vw + 50%)' }}>
         <img
           src={heroImageUrl || defaultHeroImageUrl}
           alt="Event Hero"
           className="hero-image"
+          style={{ margin: '0', padding: '0', display: 'block', width: '100%', height: 'auto' }}
         />
-        <div className="hero-overlay" style={{ opacity: 0.1 }}></div>
+        {/* Responsive logo positioned as overlay on hero image */}
+        <div className="absolute top-1/2 left-4 z-50 mobile-logo" style={{ transform: 'translateY(-50%)' }}>
+          <img src="/images/mcefee_logo_black_border_transparent.png" alt="MCEFEE Logo" style={{ width: '140px', height: 'auto', maxWidth: '30vw' }} className="block md:hidden" />
+          <img src="/images/mcefee_logo_black_border_transparent.png" alt="MCEFEE Logo" style={{ width: '180px', height: 'auto', maxWidth: '15vw' }} className="hidden md:block" />
+        </div>
+        <div className="hero-overlay" style={{ opacity: 0.1, height: '5px', padding: '20' }}></div>
       </section>
       <div className="flex-grow max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Event Details Card */}

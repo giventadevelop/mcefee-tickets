@@ -137,7 +137,7 @@ export default async function Page() {
         `
       }} />
       <section className="hero-section events-hero-section" style={{
-        height: 'calc(30vh + 62px)',
+        height: 'calc(20vh + 22px)',
         minHeight: '300px',
         position: 'relative',
         overflow: 'visible',
@@ -221,7 +221,7 @@ export default async function Page() {
               top: 0,
               left: 0,
               width: '100%',
-              height: '40px',
+              height: '20px',
               background: 'linear-gradient(180deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.2) 80%, rgba(0,0,0,0) 100%)',
               zIndex: 2,
               pointerEvents: 'none',
@@ -238,7 +238,7 @@ export default async function Page() {
               opacity: 0.7,
               filter: 'blur(0.5px)',
               marginBottom: '5px',
-              paddingTop: '10px',
+              paddingTop: '5px',
               borderRadius: '8px'
             }}></div>
           </div>
@@ -267,7 +267,7 @@ export default async function Page() {
             top: 0,
             left: 0,
             right: 0,
-            height: '25%',
+            height: '15%',
             background: 'linear-gradient(180deg, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.5) 40%, rgba(0,0,0,0.3) 70%, rgba(0,0,0,0.1) 100%)',
             zIndex: 1,
             filter: 'blur(1px)'
@@ -278,7 +278,7 @@ export default async function Page() {
             bottom: 0,
             left: 0,
             right: 0,
-            height: '25%',
+            height: '15%',
             background: 'linear-gradient(0deg, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.5) 40%, rgba(0,0,0,0.3) 70%, rgba(0,0,0,0.1) 100%)',
             zIndex: 1,
             filter: 'blur(1px)'
@@ -366,9 +366,9 @@ export default async function Page() {
             <div style={{ gap: '0px', padding: '0px', justifyContent: 'flex-start', display: 'flex', flexDirection: 'column' }}>
               {/* First image - Buy Tickets Click Here */}
               <Link href="/events/1/tickets" style={{ height: 'auto', flex: 1, display: 'block' }}>
-                <img
-                  src="/images/buy_tickets_click_here_red.webp"
-                  alt="Buy Tickets"
+              <img
+                src="/images/buy_tickets_click_here_red.webp"
+                alt="Buy Tickets"
                   style={{
                     width: '100%',
                     height: 'auto',

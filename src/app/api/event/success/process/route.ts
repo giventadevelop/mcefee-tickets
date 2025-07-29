@@ -61,10 +61,21 @@ export async function POST(req: NextRequest) {
     let qrCodeData = null;
     if (transaction.id && eventDetails?.id) {
       try {
+        console.log('[QR Code Debug] Attempting to fetch QR code for:', {
+          eventId: eventDetails.id,
+          transactionId: transaction.id
+        });
         qrCodeData = await fetchTransactionQrCode(eventDetails.id, transaction.id);
+        console.log('[QR Code Debug] QR code fetched successfully:', qrCodeData);
       } catch (err) {
+        console.error('[QR Code Debug] Failed to fetch QR code:', err);
         qrCodeData = null;
       }
+    } else {
+      console.log('[QR Code Debug] Skipping QR code fetch - missing IDs:', {
+        transactionId: transaction.id,
+        eventId: eventDetails?.id
+      });
     }
     // Fetch transaction items and ticket type names
     let transactionItems = [];

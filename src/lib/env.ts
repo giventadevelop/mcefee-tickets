@@ -31,3 +31,17 @@ export function getTenantId() {
   }
   return tenantId;
 }
+
+/**
+ * Get the email host URL prefix for QR code generation
+ * This is used to ensure QR codes work properly in email contexts
+ * Returns the full URL including protocol (e.g., "http://localhost:3000" or "https://mcefee.org")
+ */
+export function getEmailHostUrlPrefix(): string {
+  // In production, use the actual domain
+  if (process.env.NODE_ENV === 'production') {
+    return process.env.NEXT_PUBLIC_APP_URL || 'https://mcefee.org';
+  }
+  // In development, use localhost
+  return process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+}

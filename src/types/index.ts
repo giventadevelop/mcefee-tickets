@@ -597,4 +597,6 @@ export interface PromotionEmailRequestDTO {
   headerImagePath?: string;
   /** Path to footer image or content (optional) */
   footerPath?: string;
+  /** Email host URL prefix for email context */
+  emailHostUrlPrefix?: string;
 }

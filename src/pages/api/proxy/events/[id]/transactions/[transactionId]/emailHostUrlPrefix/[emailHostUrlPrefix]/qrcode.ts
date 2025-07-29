@@ -1,6 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getCachedApiJwt, generateApiJwt } from '@/lib/api/jwt';
-import { getEmailHostUrlPrefix } from '@/lib/env';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
@@ -37,17 +36,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     res.status(500).json({ error: 'API base URL not configured' });
     return;
   }
-  const { id, transactionId } = req.query;
-  if (!id || !transactionId) {
-    res.status(400).json({ error: 'Missing eventId or transactionId' });
+
+  const { id, transactionId, emailHostUrlPrefix } = req.query;
+  if (!id || !transactionId || !emailHostUrlPrefix) {
+    res.status(400).json({ error: 'Missing eventId, transactionId, or emailHostUrlPrefix' });
     return;
   }
 
-  // Get emailHostUrlPrefix from request headers or use default
-  const emailHostUrlPrefix = req.headers['x-email-host-url-prefix'] as string ||
-                           getEmailHostUrlPrefix();
-
-  const apiUrl = `${API_BASE_URL}/api/events/${id}/transactions/${transactionId}/emailHostUrlPrefix/${encodeURIComponent(emailHostUrlPrefix)}/qrcode`;
+  const apiUrl = `${API_BASE_URL}/api/events/${id}/transactions/${transactionId}/emailHostUrlPrefix/${emailHostUrlPrefix}/qrcode`;
 
   console.log('[QR Code Proxy] Backend URL:', apiUrl);
 

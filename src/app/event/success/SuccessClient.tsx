@@ -10,6 +10,7 @@ import { formatInTimeZone } from "date-fns-tz";
 import { PhilantropHeaderClient } from '@/components/PhilantropHeaderClient';
 import { Footer } from '@/components/Footer';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { HydrationSafeHeroImage } from '@/components/HydrationSafeHeroImage';
 
 interface SuccessClientProps {
   session_id: string;
@@ -30,9 +31,10 @@ export default function SuccessClient({ session_id }: SuccessClientProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<any>(null);
-  const [heroImageUrl, setHeroImageUrl] = useState<string>("/images/side_images/chilanka_2025.webp");
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  // Hero image is handled by the HydrationSafeHeroImage component
 
   // Check if we were redirected due to already processed payment
   useEffect(() => {
@@ -61,13 +63,8 @@ export default function SuccessClient({ session_id }: SuccessClientProps) {
       window.location.replace('/');
     };
 
-    // Enhanced beforeunload prevention
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      console.log('Page unload detected - preventing refresh');
-      e.preventDefault();
-      e.returnValue = 'Your payment has been processed. Please do not refresh this page.';
-      return e.returnValue;
-    };
+    // Remove beforeunload handler to allow normal navigation
+    // Only prevent specific refresh attempts via keydown
 
     // Enhanced keydown prevention for F5 and Ctrl+R
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -81,7 +78,6 @@ export default function SuccessClient({ session_id }: SuccessClientProps) {
 
     // Add event listeners
     window.addEventListener('popstate', handlePopState);
-    window.addEventListener('beforeunload', handleBeforeUnload);
     window.addEventListener('keydown', handleKeyDown);
 
     // Push current state to prevent back navigation
@@ -93,7 +89,6 @@ export default function SuccessClient({ session_id }: SuccessClientProps) {
     // Cleanup
     return () => {
       window.removeEventListener('popstate', handlePopState);
-      window.removeEventListener('beforeunload', handleBeforeUnload);
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, []);
@@ -120,9 +115,7 @@ export default function SuccessClient({ session_id }: SuccessClientProps) {
           if (data.transaction) {
             if (!cancelled) {
               setResult(data);
-              if (data.heroImageUrl) {
-                setHeroImageUrl(data.heroImageUrl);
-              }
+              // Hero image is handled by HydrationSafeHeroImage component
             }
             setLoading(false);
             return;
@@ -138,9 +131,7 @@ export default function SuccessClient({ session_id }: SuccessClientProps) {
         const postData = await postRes.json();
         if (!cancelled) {
           setResult(postData);
-          if (postData.heroImageUrl) {
-            setHeroImageUrl(postData.heroImageUrl);
-          }
+          // Hero image is handled by HydrationSafeHeroImage component
         }
       } catch (err: any) {
         if (!cancelled) setError(err?.message || "Unknown error");
@@ -152,7 +143,9 @@ export default function SuccessClient({ session_id }: SuccessClientProps) {
     return () => { cancelled = true; };
   }, [session_id]);
 
-  if (loading) return <LoadingTicket heroImageUrl={heroImageUrl} sessionId={session_id} />;
+  if (loading) {
+    return <LoadingTicket sessionId={session_id} />;
+  }
   if (error) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 text-center p-4">
@@ -164,10 +157,12 @@ export default function SuccessClient({ session_id }: SuccessClientProps) {
   }
   const { transaction, userProfile, eventDetails, qrCodeData, transactionItems, heroImageUrl: fetchedHeroImageUrl } = result || {};
 
-  // Update hero image URL if fetched and clear localStorage
-  if (fetchedHeroImageUrl && fetchedHeroImageUrl !== heroImageUrl) {
-    setHeroImageUrl(fetchedHeroImageUrl);
-    // Clear localStorage since we have the actual data now
+  // Clear hero image storage since we're on success page
+  if (fetchedHeroImageUrl) {
+    // Don't update heroImageUrl state, handled by component
+    // Clear storage since we have the actual data now
+    sessionStorage.removeItem('eventHeroImageUrl');
+    sessionStorage.removeItem('eventId');
     localStorage.removeItem('eventHeroImageUrl');
     localStorage.removeItem('eventId');
   }
@@ -198,17 +193,68 @@ export default function SuccessClient({ session_id }: SuccessClientProps) {
     <div className="min-h-screen bg-gray-100">
       {/* HEADER */}
       <PhilantropHeaderClient />
-      {/* Responsive logo in top left if not home page */}
-      <div className="absolute top-20 left-4 z-50">
-        <img src="/images/mcefee_logo_black_border_transparent.png" alt="MCEFEE Logo" style={{ width: '140px', height: 'auto', maxWidth: '30vw' }} className="block md:hidden" />
-        <img src="/images/mcefee_logo_black_border_transparent.png" alt="MCEFEE Logo" style={{ width: '180px', height: 'auto', maxWidth: '15vw' }} className="hidden md:block" />
-      </div>
 
-      {/* HERO SECTION - matches ticketing page styling */}
-      <section className="hero-section" style={{ minHeight: '240px', height: '377px', position: 'relative', marginTop: '0px' }}>
-        <div className="hero-background" style={{ backgroundImage: `url('${heroImageUrl}')`, backgroundRepeat: 'no-repeat', backgroundSize: 'cover', backgroundPosition: 'top center', width: '100%', height: '100%', position: 'absolute', top: '40px', left: 0 }}></div>
-        <div className="hero-overlay" style={{ opacity: 0.1 }}></div>
+      {/* HERO SECTION - Full width bleeding to edges */}
+      <section className="hero-section" style={{ position: 'relative', marginTop: '20px', paddingTop: '40px', padding: '40px 0 0 0', margin: '0', backgroundColor: 'transparent', height: 'auto', overflow: 'hidden', width: '100vw', marginLeft: 'calc(-50vw + 50%)', marginRight: 'calc(-50vw + 50%)' }}>
+        <HydrationSafeHeroImage
+          alt="Event Hero"
+          className="hero-image"
+          fetchedImageUrl={fetchedHeroImageUrl}
+        />
+        {/* Responsive logo positioned as overlay on hero image */}
+        <div className="absolute top-1/2 left-4 z-50 mobile-logo" style={{ transform: 'translateY(-50%)' }}>
+          <img src="/images/mcefee_logo_black_border_transparent.png" alt="MCEFEE Logo" style={{ width: '140px', height: 'auto', maxWidth: '30vw' }} className="block md:hidden" />
+          <img src="/images/mcefee_logo_black_border_transparent.png" alt="MCEFEE Logo" style={{ width: '180px', height: 'auto', maxWidth: '15vw' }} className="hidden md:block" />
+        </div>
+        <div className="hero-overlay" style={{ opacity: 0.1, height: '5px', padding: '20' }}></div>
       </section>
+
+      {/* CSS Styles for hero section */}
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          .hero-image {
+            width: 100%;
+            height: auto; /* Let image dictate height */
+            object-fit: cover; /* Cover full width, may crop height */
+            object-position: center;
+            display: block;
+            margin: 0;
+            padding: 0; /* Remove padding to bleed to edges */
+          }
+
+          .hero-section {
+            min-height: 10vh;
+            background-color: transparent !important; /* Remove coral background */
+            padding-top: 40px; /* Top padding to prevent header cut-off */
+            margin-left: calc(-50vw + 50%) !important;
+            margin-right: calc(-50vw + 50%) !important;
+            width: 100vw !important;
+          }
+
+          @media (max-width: 768px) {
+            .hero-image {
+              height: auto; /* Let image dictate height on mobile */
+              padding: 0; /* Remove padding to bleed to edges on mobile */
+            }
+          }
+
+          @media (max-width: 767px) {
+            .hero-section {
+              padding-top: 50px !important; /* Extra mobile top padding */
+              margin-top: 0 !important;
+              min-height: 5vh !important;
+              background-color: transparent !important; /* Remove coral background on mobile */
+              margin-left: calc(-50vw + 50%) !important;
+              margin-right: calc(-50vw + 50%) !important;
+              width: 100vw !important;
+            }
+
+            .mobile-logo {
+              top: 120px !important;
+            }
+          }
+        `
+      }} />
 
       {/* Main content container - ui_style_guide.mdc compliant */}
       <div className="max-w-5xl mx-auto px-8 py-8" style={{ marginTop: '80px' }}>

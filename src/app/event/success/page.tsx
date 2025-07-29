@@ -105,8 +105,10 @@ function formatTime(time: string): string {
   return `${hour.toString().padStart(2, '0')}:${minute} ${ampm}`;
 }
 
-export default async function SuccessPage({ searchParams }: { searchParams: { session_id?: string } }) {
-  const session_id = searchParams.session_id;
+export default async function SuccessPage({ searchParams }: { searchParams: Promise<{ session_id?: string }> | { session_id?: string } }) {
+  // Await searchParams for Next.js 15+ compatibility
+  const resolvedParams = typeof searchParams.then === 'function' ? await searchParams : searchParams;
+  const session_id = resolvedParams.session_id;
   if (!session_id) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 text-center p-4">

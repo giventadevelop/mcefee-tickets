@@ -1,6 +1,7 @@
 "use server";
 import { PromotionEmailRequestDTO } from '@/types';
 import { withTenantId } from '@/lib/withTenantId';
+import { getEmailHostUrlPrefix } from '@/lib/env';
 
 export async function sendPromotionEmailServer(form: Partial<PromotionEmailRequestDTO>) {
   // Trim and validate all required fields
@@ -11,12 +12,17 @@ export async function sendPromotionEmailServer(form: Partial<PromotionEmailReque
   if (!to || !subject || !promoCode || !bodyHtml) {
     throw new Error('All fields (recipient email, subject, promo code, body HTML) are required.');
   }
+
+  // Get the email host URL prefix for email context
+  const emailHostUrlPrefix = getEmailHostUrlPrefix();
+
   const payload = withTenantId({
     ...form,
     to,
     subject,
     promoCode,
     bodyHtml,
+    emailHostUrlPrefix,
   });
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
   const res = await fetch(`${baseUrl}/api/proxy/send-promotion-emails`, {

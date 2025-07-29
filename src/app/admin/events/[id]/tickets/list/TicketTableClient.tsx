@@ -186,14 +186,20 @@ export default function TicketTableClient({ rows }: { rows: EventTicketTransacti
   const handleClose = () => setPopoverTicket(null);
 
   async function handleSendEmail(ticket: EventTicketTransactionDTO) {
-    setSendingEmailId(typeof ticket.id === 'number' ? ticket.id : -1);
+    setSendingEmailId(ticket.id);
     setEmailSentId(null);
     setEmailErrorId(null);
     try {
+      // Get the current domain for email context
+      const emailHostUrlPrefix = window.location.origin;
+
       const res = await fetch(`/api/proxy/events/${ticket.eventId}/transactions/${ticket.id}/send-ticket-email?to=${encodeURIComponent(ticket.email ?? '')}`,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'x-email-host-url-prefix': emailHostUrlPrefix
+          },
         });
       if (res.ok) {
         setEmailSentId(typeof ticket.id === 'number' ? ticket.id : -1);
