@@ -1,11 +1,13 @@
-import { EventTicketTransactionDTO, EventTicketTransactionStatisticsDTO } from '@/types';
-import { FaSearch, FaTicketAlt, FaEnvelope, FaUser, FaHashtag, FaCalendarAlt, FaChevronLeft, FaChevronRight, FaUsers, FaPhotoVideo, FaTags, FaPercent } from 'react-icons/fa';
+import { EventTicketTransactionDTO, EventTicketTransactionStatisticsDTO, EventDetailsDTO, EventTicketTypeDTO } from '@/types';
+import { FaSearch, FaTicketAlt, FaEnvelope, FaUser, FaHashtag, FaCalendarAlt, FaChevronLeft, FaChevronRight, FaUsers, FaPhotoVideo, FaTags, FaPercent, FaHome, FaInfoCircle } from 'react-icons/fa';
 import Link from 'next/link';
 import React, { useState, useRef } from 'react';
 import { Pagination } from '@/components/Pagination';
 import TicketPaginationClient from './TicketPaginationClient';
 import ReactDOM from 'react-dom';
 import TicketTableClient from './TicketTableClient';
+import { fetchEventDetailsServer } from '@/app/admin/ApiServerActions';
+import { formatInTimeZone } from 'date-fns-tz';
 
 interface SearchParams {
   page?: string;
@@ -37,7 +39,7 @@ async function fetchTickets(eventId: string, searchParams: SearchParams) {
   const pageSize = parseInt(searchParams.pageSize || PAGE_SIZE.toString(), 10);
   const query: Record<string, any> = {
     'eventId.equals': eventId,
-    _sort: 'purchaseDate,desc',
+    sort: 'createdAt,desc', // Use createdAt for proper sorting
     page,
     size: pageSize,
   };
@@ -45,18 +47,40 @@ async function fetchTickets(eventId: string, searchParams: SearchParams) {
   if (searchParams.transactionId) query['id.equals'] = searchParams.transactionId;
   if (searchParams.name) query['firstName.contains'] = searchParams.name;
   const qs = buildQueryString(query);
+  console.log('Fetching tickets with query:', qs);
   const res = await fetch(`${baseUrl}/api/proxy/event-ticket-transactions?${qs}`, { cache: 'no-store' });
   if (!res.ok) throw new Error('Failed to fetch tickets');
   const rows = await res.json();
+  // Debug: Log purchase dates to verify sorting
+  console.log('Purchase dates from response:', rows.map((row: any) => ({
+    id: row.id,
+    purchaseDate: row.purchaseDate,
+    createdAt: row.createdAt
+  })));
+
+  // Fallback: Sort consistently by createdAt (descending) if backend sorting doesn't work
+  const sortedRows = Array.isArray(rows) ? rows.sort((a: any, b: any) => {
+    const dateA = new Date(a.createdAt || 0);
+    const dateB = new Date(b.createdAt || 0);
+    return dateB.getTime() - dateA.getTime(); // Descending order
+  }) : [];
+
   // Read total count from x-total-count header
   const totalCount = parseInt(res.headers.get('x-total-count') || '0', 10);
-  return { rows, totalCount };
+  return { rows: sortedRows, totalCount };
 }
 
 async function fetchStatistics(eventId: string): Promise<EventTicketTransactionStatisticsDTO | null> {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
   const res = await fetch(`${baseUrl}/api/proxy/event-ticket-transactions/statistics/${eventId}`, { cache: 'no-store' });
   if (!res.ok) return null;
+  return res.json();
+}
+
+async function fetchTicketTypes(eventId: string): Promise<EventTicketTypeDTO[]> {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  const res = await fetch(`${baseUrl}/api/proxy/event-ticket-types?eventId.equals=${eventId}`, { cache: 'no-store' });
+  if (!res.ok) return [];
   return res.json();
 }
 
@@ -74,11 +98,15 @@ export default async function TicketListPage({ params, searchParams }: { params:
   let totalCount = 0;
   let error: string | null = null;
   let statistics: EventTicketTransactionStatisticsDTO | null = null;
+  let eventDetails: EventDetailsDTO | null = null;
+  let ticketTypes: EventTicketTypeDTO[] = [];
   try {
     const result = await fetchTickets(eventId, { page: page.toString(), pageSize: pageSize.toString(), email, transactionId, name });
     rows = Array.isArray(result.rows) ? result.rows : [];
     totalCount = result.totalCount;
     statistics = await fetchStatistics(eventId);
+    eventDetails = await fetchEventDetailsServer(Number(eventId));
+    ticketTypes = await fetchTicketTypes(eventId);
   } catch (err: any) {
     error = err.message || 'Failed to load tickets';
   }
@@ -109,33 +137,49 @@ export default async function TicketListPage({ params, searchParams }: { params:
   const endItemControl = (currentPage - 1) * pageSize + rows.length;
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8">
+    <div className="max-w-6xl mx-auto px-4 pt-32 pb-8">
+      {/* Concise Event Summary */}
+      {eventDetails && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 text-sm text-gray-700">
+            <div><span className="font-semibold text-gray-600">Event ID:</span> {eventDetails.id}</div>
+            <div className="sm:col-span-2"><span className="font-semibold text-gray-600">Title:</span> {eventDetails.title}</div>
+            <div><span className="font-semibold text-gray-600">Start Date:</span> {formatInTimeZone(eventDetails.startDate, eventDetails.timezone, 'EEEE, MMMM d, yyyy')}</div>
+            <div><span className="font-semibold text-gray-600">End Date:</span> {formatInTimeZone(eventDetails.endDate || eventDetails.startDate, eventDetails.timezone, 'EEEE, MMMM d, yyyy')}</div>
+            <div><span className="font-semibold text-gray-600">Time:</span> {eventDetails.startTime} {eventDetails.endTime ? `- ${eventDetails.endTime}` : ''} ({formatInTimeZone(eventDetails.startDate, eventDetails.timezone, 'zzz')})</div>
+          </div>
+        </div>
+      )}
       {/* Responsive Button Group */}
-      <div className="w-full overflow-x-auto">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 mb-6 justify-items-center mx-auto">
-          <Link href="/admin/manage-usage" className="w-48 max-w-xs mx-auto flex flex-col items-center justify-center bg-blue-50 hover:bg-blue-100 text-blue-800 rounded-md shadow p-1 sm:p-2 text-xs sm:text-xs transition-all">
-            <FaUsers className="text-base sm:text-lg mb-1 mx-auto" />
-            <span className="font-semibold text-center leading-tight">Manage Usage<br />[Users]</span>
+      <div className="w-full">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1 sm:gap-2 mb-8 justify-items-stretch max-w-[280px] sm:max-w-4xl sm:mx-auto">
+          <Link href="/admin" className="flex flex-col items-center justify-center bg-gray-50 hover:bg-gray-100 text-gray-800 rounded-lg shadow-sm hover:shadow-md p-1.5 sm:p-3 text-xs transition-all duration-200 min-h-[60px] sm:min-h-[80px]">
+            <FaHome className="text-xs sm:text-base mb-0.5 sm:mb-1" />
+            <span className="font-medium text-center leading-tight text-[8px] sm:text-xs">Admin Home</span>
           </Link>
-          <Link href={`/admin/events/${eventId}/media/list`} className="w-48 max-w-xs mx-auto flex flex-col items-center justify-center bg-yellow-50 hover:bg-yellow-100 text-yellow-800 rounded-md shadow p-1 sm:p-2 text-xs sm:text-xs transition-all">
-            <FaPhotoVideo className="text-base sm:text-lg mb-1 mx-auto" />
-            <span className="font-semibold text-center leading-tight">Manage Media Files</span>
+          <Link href="/admin/manage-usage" className="flex flex-col items-center justify-center bg-blue-50 hover:bg-blue-100 text-blue-800 rounded-lg shadow-sm hover:shadow-md p-1.5 sm:p-3 text-xs transition-all duration-200 min-h-[60px] sm:min-h-[80px]">
+            <FaUsers className="text-xs sm:text-base mb-0.5 sm:mb-1" />
+            <span className="font-medium text-center leading-tight text-[8px] sm:text-xs">Manage Usage<br />[Users]</span>
           </Link>
-          <Link href="/admin" className="w-48 max-w-xs mx-auto flex flex-col items-center justify-center bg-green-50 hover:bg-green-100 text-green-800 rounded-md shadow p-1 sm:p-2 text-xs sm:text-xs transition-all">
-            <FaCalendarAlt className="text-base sm:text-lg mb-1 mx-auto" />
-            <span className="font-semibold text-center leading-tight">Manage Events</span>
+          <Link href={`/admin/events/${eventId}/media/list`} className="flex flex-col items-center justify-center bg-yellow-50 hover:bg-yellow-100 text-yellow-800 rounded-lg shadow-sm hover:shadow-md p-1.5 sm:p-3 text-xs transition-all duration-200 min-h-[60px] sm:min-h-[80px]">
+            <FaPhotoVideo className="text-xs sm:text-base mb-0.5 sm:mb-1" />
+            <span className="font-medium text-center leading-tight text-[8px] sm:text-xs">Manage Media Files</span>
           </Link>
-          <Link href={`/admin/events/${eventId}/ticket-types/list`} className="w-48 max-w-xs mx-auto flex flex-col items-center justify-center bg-purple-50 hover:bg-purple-100 text-purple-800 rounded-md shadow p-1 sm:p-2 text-xs sm:text-xs transition-all">
-            <FaTags className="text-base sm:text-lg mb-1 mx-auto" />
-            <span className="font-semibold text-center leading-tight">Manage Ticket Types</span>
+          <Link href="/admin" className="flex flex-col items-center justify-center bg-green-50 hover:bg-green-100 text-green-800 rounded-lg shadow-sm hover:shadow-md p-1.5 sm:p-3 text-xs transition-all duration-200 min-h-[60px] sm:min-h-[80px]">
+            <FaCalendarAlt className="text-xs sm:text-base mb-0.5 sm:mb-1" />
+            <span className="font-medium text-center leading-tight text-[8px] sm:text-xs">Manage Events</span>
           </Link>
-          <Link href={`/admin/events/${eventId}/tickets/list`} className="w-48 max-w-xs mx-auto flex flex-col items-center justify-center bg-teal-50 hover:bg-teal-100 text-teal-800 rounded-md shadow p-1 sm:p-2 text-xs sm:text-xs transition-all">
-            <FaTicketAlt className="text-base sm:text-lg mb-1 mx-auto" />
-            <span className="font-semibold text-center leading-tight">Manage Tickets</span>
+          <Link href={`/admin/events/${eventId}/ticket-types/list`} className="flex flex-col items-center justify-center bg-purple-50 hover:bg-purple-100 text-purple-800 rounded-lg shadow-sm hover:shadow-md p-1.5 sm:p-3 text-xs transition-all duration-200 min-h-[60px] sm:min-h-[80px]">
+            <FaTags className="text-xs sm:text-base mb-0.5 sm:mb-1" />
+            <span className="font-medium text-center leading-tight text-[8px] sm:text-xs">Manage Ticket Types</span>
           </Link>
-          <Link href={`/admin/events/${eventId}/discount-codes/list`} className="w-48 max-w-xs mx-auto flex flex-col items-center justify-center bg-pink-50 hover:bg-pink-100 text-pink-800 rounded-md shadow p-1 sm:p-2 text-xs sm:text-xs transition-all">
-            <FaPercent className="text-base sm:text-lg mb-1 mx-auto" />
-            <span className="font-semibold text-center leading-tight">Manage Discount Codes</span>
+          <Link href={`/admin/events/${eventId}/tickets/list`} className="flex flex-col items-center justify-center bg-teal-50 hover:bg-teal-100 text-teal-800 rounded-lg shadow-sm hover:shadow-md p-1.5 sm:p-3 text-xs transition-all duration-200 min-h-[60px] sm:min-h-[80px]">
+            <FaTicketAlt className="text-xs sm:text-base mb-0.5 sm:mb-1" />
+            <span className="font-medium text-center leading-tight text-[8px] sm:text-xs">Manage Tickets</span>
+          </Link>
+          <Link href={`/admin/events/${eventId}/discount-codes/list`} className="flex flex-col items-center justify-center bg-pink-50 hover:bg-pink-100 text-pink-800 rounded-lg shadow-sm hover:shadow-md p-1.5 sm:p-3 text-xs transition-all duration-200 min-h-[60px] sm:min-h-[80px]">
+            <FaPercent className="text-xs sm:text-base mb-0.5 sm:mb-1" />
+            <span className="font-medium text-center leading-tight text-[8px] sm:text-xs">Manage Discount Codes</span>
           </Link>
         </div>
       </div>
@@ -151,6 +195,10 @@ export default async function TicketListPage({ params, searchParams }: { params:
             <span className="text-2xl font-bold text-blue-700">{statistics ? `$${statistics.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '--'}</span>
           </div>
           <div className="flex flex-col items-center min-w-[120px]">
+            <span className="text-xs text-gray-500">Net Amount</span>
+            <span className="text-2xl font-bold text-green-700">{statistics ? `$${statistics.netAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '--'}</span>
+          </div>
+          <div className="flex flex-col items-center min-w-[120px]">
             <span className="text-xs text-gray-500">By Status</span>
             {statistics ? (
               <div className="flex flex-col gap-1 text-sm mt-1">
@@ -164,6 +212,158 @@ export default async function TicketListPage({ params, searchParams }: { params:
           </div>
         </div>
       </div>
+
+      {/* Ticket Type Breakdown */}
+      {ticketTypes.length > 0 ? (
+        <div className="mb-6">
+          <div className="bg-gradient-to-r from-purple-100 to-indigo-100 rounded-lg shadow p-4">
+            <div className="flex items-center gap-2 mb-4">
+              <FaTags className="text-purple-600 text-lg" />
+              <h3 className="text-lg font-semibold text-purple-800">Ticket Type Breakdown</h3>
+              <FaInfoCircle className="text-purple-500 text-sm" title="Detailed breakdown of each ticket type with remaining quantities and sales status" />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {ticketTypes.map((ticketType) => {
+                const remainingQuantity = ticketType.remainingQuantity ?? 0;
+                const soldQuantity = ticketType.soldQuantity ?? 0;
+                const availableQuantity = ticketType.availableQuantity ?? 0;
+                // Calculate total quantity, but don't use availableQuantity as fallback to avoid confusion
+                const totalQuantity = remainingQuantity + soldQuantity;
+                const soldPercentage = totalQuantity > 0 ? (soldQuantity / totalQuantity) * 100 : 0;
+
+                // Determine status color and text
+                let statusColor = 'text-green-600';
+                let statusText = 'Available';
+                let bgColor = 'bg-green-50';
+                let borderColor = 'border-green-200';
+
+                if (remainingQuantity === 0) {
+                  statusColor = 'text-red-600';
+                  statusText = 'Sold Out';
+                  bgColor = 'bg-red-50';
+                  borderColor = 'border-red-200';
+                } else if (remainingQuantity <= Math.ceil(totalQuantity * 0.1)) {
+                  statusColor = 'text-orange-600';
+                  statusText = 'Low Stock';
+                  bgColor = 'bg-orange-50';
+                  borderColor = 'border-orange-200';
+                } else if (remainingQuantity <= Math.ceil(totalQuantity * 0.25)) {
+                  statusColor = 'text-yellow-600';
+                  statusText = 'Limited';
+                  bgColor = 'bg-yellow-50';
+                  borderColor = 'border-yellow-200';
+                }
+
+                return (
+                  <div key={ticketType.id} className={`${bgColor} ${borderColor} border rounded-lg p-4 hover:shadow-md transition-shadow`}>
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-gray-800 text-sm mb-1">{ticketType.name}</h4>
+                        <p className="text-xs text-gray-600 mb-2">{ticketType.description || 'No description'}</p>
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-lg font-bold text-purple-700">${ticketType.price.toFixed(2)}</span>
+                          <span className={`text-xs font-medium px-2 py-1 rounded-full ${bgColor} ${statusColor} border ${borderColor}`}>
+                            {statusText}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 text-xs">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Code:</span>
+                        <span className="font-mono font-medium text-gray-800">{ticketType.code}</span>
+                      </div>
+
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Total Quantity:</span>
+                        <span className="font-semibold text-gray-800">
+                          {totalQuantity > 0 ? totalQuantity : 'N/A'}
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Sold:</span>
+                        <span className="font-semibold text-green-700">{soldQuantity}</span>
+                      </div>
+
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Remaining:</span>
+                        <span className={`font-semibold ${remainingQuantity === 0 ? 'text-red-600' : remainingQuantity <= Math.ceil(totalQuantity * 0.1) ? 'text-orange-600' : 'text-blue-600'}`}>
+                          {remainingQuantity}
+                        </span>
+                      </div>
+
+                      {ticketType.minQuantityPerOrder && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Min per Order:</span>
+                          <span className="font-medium text-gray-800">{ticketType.minQuantityPerOrder}</span>
+                        </div>
+                      )}
+
+                      {ticketType.maxQuantityPerOrder && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Max per Order:</span>
+                          <span className="font-medium text-gray-800">{ticketType.maxQuantityPerOrder}</span>
+                        </div>
+                      )}
+
+                      {ticketType.serviceFee && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Service Fee:</span>
+                          <span className="font-medium text-gray-800">
+                            ${ticketType.serviceFee.toFixed(2)}
+                            {ticketType.isServiceFeeIncluded && <span className="text-green-600 ml-1">(Included)</span>}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Progress bar for sales */}
+                    {totalQuantity > 0 ? (
+                      <div className="mt-3">
+                        <div className="flex justify-between text-xs text-gray-600 mb-1">
+                          <span>Sales Progress</span>
+                          <span>{soldPercentage.toFixed(1)}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div
+                            className="bg-gradient-to-r from-green-500 to-blue-500 h-2 rounded-full transition-all duration-300"
+                            style={{ width: `${Math.min(soldPercentage, 100)}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="mt-3">
+                        <div className="text-xs text-gray-500 text-center py-2 bg-gray-100 rounded">
+                          No inventory data available
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Sale dates if available */}
+                    {(ticketType.saleStartDate || ticketType.saleEndDate) && (
+                      <div className="mt-3 pt-3 border-t border-gray-200 text-xs text-gray-600">
+                        {ticketType.saleStartDate && (
+                          <div className="mb-1">
+                            <span className="font-medium">Sale Start:</span> {new Date(ticketType.saleStartDate).toLocaleDateString()}
+                          </div>
+                        )}
+                        {ticketType.saleEndDate && (
+                          <div>
+                            <span className="font-medium">Sale End:</span> {new Date(ticketType.saleEndDate).toLocaleDateString()}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
         <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
           <FaTicketAlt className="text-teal-500" /> Tickets Sold
@@ -189,19 +389,19 @@ export default async function TicketListPage({ params, searchParams }: { params:
       <div className="bg-white rounded-lg shadow p-4 overflow-x-auto">
         {error && <div className="text-red-500 font-semibold mb-4">{error}</div>}
         <div className="text-xs text-gray-500 mb-2">Hover over the <b>ID</b> or <b>Name</b> columns to see full ticket details.</div>
-        <table className="min-w-full divide-y divide-gray-200">
+        <table className="min-w-full divide-y divide-gray-300 border border-gray-300">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700">ID</th>
-              <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700">Name</th>
-              <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700">Email</th>
-              <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700">Quantity</th>
-              <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700">Total</th>
-              <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700">Purchase Date</th>
-              <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700">Status</th>
+              <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 border-b border-r border-gray-300">ID</th>
+              <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 border-b border-r border-gray-300">Name</th>
+              <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 border-b border-r border-gray-300">Email</th>
+              <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 border-b border-r border-gray-300">Quantity</th>
+              <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 border-b border-r border-gray-300">Total</th>
+              <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 border-b border-r border-gray-300">Date</th>
+              <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 border-b border-gray-300">Status</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-gray-300 bg-white">
             <TicketTableClient rows={rows} />
           </tbody>
         </table>
@@ -229,7 +429,11 @@ export default async function TicketListPage({ params, searchParams }: { params:
             </Link>
           </div>
           <div className="text-center text-sm text-gray-600 mt-2">
-            Showing <span className="font-medium">{rows.length > 0 ? startItemControl : 0}</span> to <span className="font-medium">{rows.length > 0 ? endItemControl : 0}</span> of <span className="font-medium">{totalCount}</span> tickets
+            {rows.length > 0 ? (
+              <>Showing <span className="font-medium">{startItemControl}</span> to <span className="font-medium">{endItemControl}</span> of <span className="font-medium">{totalCount}</span> tickets</>
+            ) : (
+              <>No tickets found</>
+            )}
           </div>
         </div>
       </div>

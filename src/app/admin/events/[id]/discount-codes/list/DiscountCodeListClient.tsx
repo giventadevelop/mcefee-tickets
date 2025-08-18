@@ -24,16 +24,19 @@ export default function DiscountCodeListClient({
   const [deletingCode, setDeletingCode] = useState<DiscountCodeDTO | null>(null);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const handleAddNewClick = () => {
     setEditingCode(null);
     setError(null);
+    setSuccessMessage(null);
     setIsModalOpen(true);
   };
 
   const handleEditClick = (code: DiscountCodeDTO) => {
     setEditingCode(code);
     setError(null);
+    setSuccessMessage(null);
     setIsModalOpen(true);
   };
 
@@ -69,6 +72,7 @@ export default function DiscountCodeListClient({
     startTransition(async () => {
       try {
         setError(null);
+        setSuccessMessage(null);
         let updatedCode;
         if (editingCode) {
           // PATCH update via server action
@@ -78,6 +82,7 @@ export default function DiscountCodeListClient({
             createdAt: editingCode.createdAt, // preserve original
           };
           updatedCode = await patchDiscountCodeServer(editingCode.id!, payload);
+          setSuccessMessage(`Discount code "${updatedCode.code}" updated successfully!`);
         } else {
           // CREATE via server action (not direct fetch!)
           // Ensure all required fields are present for the DTO
@@ -95,6 +100,7 @@ export default function DiscountCodeListClient({
             isActive: formData.isActive,
           };
           updatedCode = await createDiscountCodeServer(payload, eventId);
+          setSuccessMessage(`Discount code "${updatedCode.code}" created successfully!`);
         }
 
         setDiscountCodes(prev => {
@@ -105,6 +111,9 @@ export default function DiscountCodeListClient({
         });
 
         handleCloseModal();
+
+        // Clear success message after 3 seconds
+        setTimeout(() => setSuccessMessage(null), 3000);
       } catch (err: any) {
         console.error("Save operation failed:", err);
         setError(err.message || "An unexpected error occurred.");
@@ -113,7 +122,19 @@ export default function DiscountCodeListClient({
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-8 py-8">
+    <div className="max-w-5xl mx-auto px-8" style={{ paddingTop: '118px', paddingBottom: '32px' }}>
+      {/* Concise Event Summary */}
+      {eventDetails && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 text-sm text-gray-700">
+            <div><span className="font-semibold text-gray-600">Event ID:</span> {eventDetails.id}</div>
+            <div className="sm:col-span-2"><span className="font-semibold text-gray-600">Title:</span> {eventDetails.title}</div>
+            <div><span className="font-semibold text-gray-600">Start Date:</span> {eventDetails.startDate}</div>
+            <div><span className="font-semibold text-gray-600">End Date:</span> {eventDetails.endDate || eventDetails.startDate}</div>
+            <div><span className="font-semibold text-gray-600">Time:</span> {eventDetails.startTime} {eventDetails.endTime ? `- ${eventDetails.endTime}` : ''}</div>
+          </div>
+        </div>
+      )}
       <div className="flex justify-center mb-8">
         <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-4xl">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 justify-items-center mx-auto">
@@ -133,17 +154,44 @@ export default function DiscountCodeListClient({
         </div>
       </div>
       <div className="bg-white rounded-lg shadow-md p-6">
-        <div className="flex justify-between items-center mb-4">
-          <h1 className="text-2xl font-bold text-gray-800">
-            Discount Codes for {eventDetails?.title}
-          </h1>
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-800">
+              Discount Codes for {eventDetails?.title}
+            </h1>
+            <p className="text-gray-600 mt-1">Manage discount codes for this event</p>
+          </div>
           <button
             onClick={handleAddNewClick}
-            className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 transition-colors"
+            className="bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg flex items-center gap-3 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
           >
-            <FaPlus /> Add New Discount Code
+            <FaPlus className="text-lg" /> Add New Discount Code
           </button>
         </div>
+
+        {/* Success Message */}
+        {successMessage && (
+          <div className="mb-4 bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-md">
+            <div className="flex items-center">
+              <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+              {successMessage}
+            </div>
+          </div>
+        )}
+
+        {/* Error Message */}
+        {error && (
+          <div className="mb-4 bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md">
+            <div className="flex items-center">
+              <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+              {error}
+            </div>
+          </div>
+        )}
 
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
@@ -239,13 +287,22 @@ function DiscountCodeModal({ open, onClose, onSave, code, isPending, error }: {
 
   React.useEffect(() => {
     if (code) {
-      setFormData(code);
+      // Edit mode - populate with existing data
+      setFormData({
+        code: code.code || '',
+        description: code.description || '',
+        discountType: code.discountType || 'PERCENTAGE',
+        discountValue: code.discountValue || 0,
+        maxUses: code.maxUses || 100,
+        isActive: code.isActive !== undefined ? code.isActive : true,
+      });
     } else {
+      // Add new mode - set clean defaults
       setFormData({
         code: '',
         description: '',
         discountType: 'PERCENTAGE',
-        discountValue: 0,
+        discountValue: 10,
         maxUses: 100,
         isActive: true,
       });
@@ -274,63 +331,155 @@ function DiscountCodeModal({ open, onClose, onSave, code, isPending, error }: {
     onSave(formData);
   };
 
+  const generateRandomCode = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let result = '';
+    for (let i = 0; i < 8; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setFormData(prev => ({ ...prev, code: result }));
+  };
+
   return (
     <Modal open={open} onClose={onClose} title={code ? 'Edit Discount Code' : 'Add New Discount Code'}>
-      <form onSubmit={handleSubmit}>
-        {error && <div className="mb-4 text-red-600 bg-red-100 p-3 rounded-md">{error}</div>}
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {error && <div className="text-red-600 bg-red-100 p-3 rounded-md">{error}</div>}
+
+        {/* Code Section */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="md:col-span-2">
+            <label htmlFor="code" className="block text-sm font-medium text-gray-700 mb-1">
+              Discount Code *
+            </label>
+            <input
+              type="text"
+              name="code"
+              id="code"
+              value={formData.code || ''}
+              onChange={handleChange}
+              className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              placeholder="e.g., SUMMER2024"
+              required
+            />
+          </div>
+          <div className="flex items-end">
+            <button
+              type="button"
+              onClick={generateRandomCode}
+              className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-3 rounded-md text-sm transition-colors"
+            >
+              Generate Code
+            </button>
+          </div>
+        </div>
+
+        {/* Description */}
+        <div>
+          <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+            Description
+          </label>
+          <input
+            type="text"
+            name="description"
+            id="description"
+            value={formData.description || ''}
+            onChange={handleChange}
+            className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+            placeholder="e.g., Summer sale discount"
+          />
+        </div>
+
+        {/* Discount Type and Value */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label htmlFor="code" className="block text-sm font-medium text-gray-700">Code</label>
-            <input type="text" name="code" id="code" value={formData.code || ''} onChange={handleChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" required />
-          </div>
-          <div>
-            <label htmlFor="description" className="block text-sm font-medium text-gray-700">Description</label>
-            <input type="text" name="description" id="description" value={formData.description || ''} onChange={handleChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
-          </div>
-          <div>
-            <label htmlFor="discountType" className="block text-sm font-medium text-gray-700">Discount Type</label>
-            <select name="discountType" id="discountType" value={formData.discountType || 'PERCENTAGE'} onChange={handleChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-              <option value="PERCENTAGE">Percentage</option>
-              <option value="FIXED_AMOUNT">Fixed Amount</option>
+            <label htmlFor="discountType" className="block text-sm font-medium text-gray-700 mb-1">
+              Discount Type *
+            </label>
+            <select
+              name="discountType"
+              id="discountType"
+              value={formData.discountType || 'PERCENTAGE'}
+              onChange={handleChange}
+              className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+            >
+              <option value="PERCENTAGE">Percentage (%)</option>
+              <option value="FIXED_AMOUNT">Fixed Amount ($)</option>
             </select>
           </div>
           <div>
-            <label htmlFor="discountValue" className="block text-sm font-medium text-gray-700">Discount Value</label>
-            <input type="number" name="discountValue" id="discountValue" value={formData.discountValue || 0} onChange={handleChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" required />
-          </div>
-          <div>
-            <label htmlFor="maxUses" className="block text-sm font-medium text-gray-700">Max Uses</label>
-            <input type="number" name="maxUses" id="maxUses" value={formData.maxUses || 0} onChange={handleChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
-          </div>
-          <div className="flex items-center pt-6">
-            <label htmlFor="isActive" className="flex items-center cursor-pointer">
-              <span className="relative flex items-center justify-center">
-                <input
-                  type="checkbox"
-                  name="isActive"
-                  id="isActive"
-                  className="custom-checkbox"
-                  checked={!!formData.isActive}
-                  onChange={handleChange}
-                  onClick={(e) => e.stopPropagation()}
-                />
-                <span className="custom-checkbox-tick">
-                  {formData.isActive && (
-                    <svg className="w-6 h-6 text-black" fill="none" stroke="currentColor" strokeWidth="4" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l5 5L19 7" />
-                    </svg>
-                  )}
-                </span>
-              </span>
-              <span className="ml-3 block text-sm text-gray-900">Active</span>
+            <label htmlFor="discountValue" className="block text-sm font-medium text-gray-700 mb-1">
+              Discount Value *
             </label>
+            <div className="relative">
+              <input
+                type="number"
+                name="discountValue"
+                id="discountValue"
+                value={formData.discountValue || 0}
+                onChange={handleChange}
+                className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                min="0"
+                max={formData.discountType === 'PERCENTAGE' ? 100 : 9999}
+                step={formData.discountType === 'PERCENTAGE' ? 1 : 0.01}
+                required
+              />
+              <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                <span className="text-gray-500 sm:text-sm">
+                  {formData.discountType === 'PERCENTAGE' ? '%' : '$'}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
-        <div className="mt-6 flex justify-end gap-3">
-          <button type="button" onClick={onClose} disabled={isPending} className="bg-teal-100 hover:bg-teal-200 text-teal-800 font-bold py-2 px-4 rounded-lg flex items-center gap-2 transition-colors disabled:opacity-50">
+
+        {/* Max Uses */}
+        <div>
+          <label htmlFor="maxUses" className="block text-sm font-medium text-gray-700 mb-1">
+            Maximum Uses
+          </label>
+          <input
+            type="number"
+            name="maxUses"
+            id="maxUses"
+            value={formData.maxUses || 100}
+            onChange={handleChange}
+            className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+            min="1"
+            placeholder="Leave empty for unlimited"
+          />
+          <p className="mt-1 text-xs text-gray-500">Leave empty or set to 0 for unlimited uses</p>
+        </div>
+
+        {/* Active Status */}
+        <div className="flex items-center">
+          <input
+            type="checkbox"
+            name="isActive"
+            id="isActive"
+            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            checked={!!formData.isActive}
+            onChange={handleChange}
+          />
+          <label htmlFor="isActive" className="ml-2 block text-sm text-gray-900">
+            Active (Available for use)
+          </label>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isPending}
+            className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-md flex items-center gap-2 transition-colors disabled:opacity-50"
+          >
             <FaBan /> Cancel
           </button>
-          <button type="submit" disabled={isPending} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 transition-colors disabled:opacity-50">
+          <button
+            type="submit"
+            disabled={isPending}
+            className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md flex items-center gap-2 transition-colors disabled:opacity-50"
+          >
             {isPending ? 'Saving...' : 'Save'} <FaSave />
           </button>
         </div>

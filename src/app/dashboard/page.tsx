@@ -198,6 +198,7 @@ export default async function DashboardPage(props: PageProps) {
           stats={stats}
           subscription={subscription}
           pendingSubscription={pendingSubscription}
+          userProfileId={userProfile?.id}
           errorBanner={
             userProfileError ? (
               <div className="bg-red-50 p-4 rounded-md mb-4">
@@ -228,6 +229,7 @@ export default async function DashboardPage(props: PageProps) {
           stats={{ total: 0, completed: 0, inProgress: 0, pending: 0, highPriority: 0 }}
           subscription={null}
           pendingSubscription={false}
+          userProfileId={undefined}
           errorBanner={
             <div className="bg-red-50 p-4 rounded-md mb-4">
               <h2 className="text-red-800">Error loading your dashboard</h2>

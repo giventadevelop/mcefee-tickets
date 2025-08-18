@@ -1,6 +1,6 @@
 "use server";
 import { fetchWithJwtRetry } from '@/lib/proxyHandler';
-import { getTenantId } from '@/lib/env';
+import { getTenantId, getAppUrl } from '@/lib/env';
 import type { EventDetailsDTO, EventTypeDetailsDTO, UserProfileDTO, EventCalendarEntryDTO } from '@/types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -17,6 +17,14 @@ export async function fetchEventTypesServer(): Promise<EventTypeDetailsDTO[]> {
   const res = await fetchWithJwtRetry(url, { cache: 'no-store' });
   if (!res.ok) throw new Error('Failed to fetch event types');
   return await res.json();
+}
+
+export async function fetchCalendarEventsServer(): Promise<EventCalendarEntryDTO[]> {
+  const url = `${API_BASE_URL}/api/event-calendar-entries?size=1000&tenantId.equals=${getTenantId()}`;
+  const res = await fetchWithJwtRetry(url, { cache: 'no-store' });
+  if (!res.ok) throw new Error('Failed to fetch calendar events');
+  const data = await res.json();
+  return Array.isArray(data) ? data : [];
 }
 
 export async function createEventServer(event: any): Promise<any> {
@@ -192,7 +200,7 @@ export async function fetchEventsFilteredServer(params: {
 }
 
 export async function fetchEventDetailsServer(eventId: number): Promise<EventDetailsDTO | null> {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  const baseUrl = getAppUrl();
   const response = await fetch(`${baseUrl}/api/proxy/event-details/${eventId}`, {
       method: 'GET',
       headers: {

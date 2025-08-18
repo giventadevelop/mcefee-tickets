@@ -122,6 +122,26 @@ export function createProxyHandler({ injectTenantId = true, allowedMethods = ['G
             payload: json
           });
         } else if (method !== 'GET' && method !== 'DELETE') {
+          // Apply tenantId injection for POST/PUT requests if needed
+          if (injectTenantId && payload && typeof payload === 'object') {
+            if (Array.isArray(payload)) {
+              // For arrays, inject tenantId into each array item if they are objects
+              payload = payload.map(item => 
+                typeof item === 'object' && item !== null ? withTenantId(item) : item
+              );
+            } else {
+              // For single objects, inject tenantId normally
+              payload = withTenantId(payload);
+            }
+          }
+          
+          // Special debugging for promotion emails
+          if (path.includes('send-promotion-emails')) {
+            console.log('[PROXY DEBUG] Promotion email request - payload after tenantId injection:', payload);
+            console.log('[PROXY DEBUG] Promotion email request - payload.isTestEmail:', payload?.isTestEmail);
+            console.log('[PROXY DEBUG] Promotion email request - typeof payload.isTestEmail:', typeof payload?.isTestEmail);
+            console.log('[PROXY DEBUG] Promotion email request - JSON.stringify(payload):', JSON.stringify(payload));
+          }
           bodyToSend = JSON.stringify(payload);
         }
         // Log the outgoing payload for all non-GET/DELETE
@@ -155,6 +175,24 @@ export function createProxyHandler({ injectTenantId = true, allowedMethods = ['G
           }
         }
         console.log('[ProxyHandler] About to call fetchWithJwtRetry');
+        
+        // Special logging for promotion emails - log exactly what we're sending to backend
+        if (path.includes('send-promotion-emails') && bodyToSend) {
+          console.log('[PROXY FINAL] About to send to backend API:', {
+            url: apiUrl,
+            method: method,
+            headers: { 'Content-Type': contentType, ...extraHeaders },
+            body: bodyToSend
+          });
+          try {
+            const parsedBody = JSON.parse(bodyToSend);
+            console.log('[PROXY FINAL] Parsed body being sent to backend:', parsedBody);
+            console.log('[PROXY FINAL] isTestEmail in final payload:', parsedBody.isTestEmail);
+          } catch (e) {
+            console.log('[PROXY FINAL] Could not parse body:', e);
+          }
+        }
+        
         const apiRes = await fetchWithJwtRetry(apiUrl, {
           method,
           headers: { 'Content-Type': contentType, ...extraHeaders },

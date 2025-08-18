@@ -1,11 +1,6 @@
 "use client";
 import Image from "next/image";
 import { useEffect, useState } from 'react';
-import { PhilantropHeaderClient } from '@/components/PhilantropHeaderClient';
-import { Footer } from '@/components/Footer';
-import { HeroImageDebugger } from '@/components/HeroImageDebugger';
-import { ImageCacheTest } from '@/components/ImageCacheTest';
-import { HydrationSafeHeroImage } from '@/components/HydrationSafeHeroImage';
 
 interface LoadingTicketProps {
   sessionId?: string;
@@ -14,20 +9,94 @@ interface LoadingTicketProps {
 export default function LoadingTicket({ sessionId }: LoadingTicketProps) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const [heroImageUrl, setHeroImageUrl] = useState<string | null>(null);
 
   console.log('LoadingTicket received sessionId:', sessionId);
   console.log('LoadingTicket image status - loaded:', isLoaded, 'error:', hasError);
 
-  return (
-    <div className="min-h-screen bg-gray-100 flex flex-col">
-      {/* HEADER */}
-      <PhilantropHeaderClient />
+  // Fetch hero image data using the success process endpoint
+  useEffect(() => {
+    if (sessionId) {
+      const fetchHeroImage = async () => {
+        try {
+          console.log('LoadingTicket: Fetching hero image for session:', sessionId);
+          
+          // Get the pi parameter from URL if available
+          const url = new URL(window.location.href);
+          const pi = url.searchParams.get('pi');
+          const qs = sessionId ? `session_id=${encodeURIComponent(sessionId)}` : (pi ? `pi=${encodeURIComponent(pi)}` : '');
+          
+          if (!qs) {
+            console.log('LoadingTicket: No session_id or pi available');
+            return;
+          }
 
-      {/* HERO SECTION - Full width bleeding to edges */}
-      <section className="hero-section" style={{ position: 'relative', marginTop: '20px', paddingTop: '40px', padding: '40px 0 0 0', margin: '0', backgroundColor: 'transparent', height: 'auto', overflow: 'hidden', width: '100vw', marginLeft: 'calc(-50vw + 50%)', marginRight: 'calc(-50vw + 50%)' }}>
-        <HydrationSafeHeroImage
+          // Use the same endpoint as the success page to get event details and hero image
+          const response = await fetch(`/api/event/success/process?${qs}`, {
+            cache: 'no-store',
+            headers: {
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache'
+            }
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            console.log('LoadingTicket: Response data:', { 
+              hasTransaction: !!data.transaction,
+              hasEventDetails: !!data.eventDetails,
+              hasHeroImageUrl: !!data.heroImageUrl 
+            });
+            
+            if (data.heroImageUrl) {
+              setHeroImageUrl(data.heroImageUrl);
+              console.log('LoadingTicket: Successfully fetched hero image URL:', data.heroImageUrl);
+            } else {
+              console.log('LoadingTicket: No hero image URL in response');
+            }
+          } else {
+            console.error('LoadingTicket: Failed to get success process data:', response.status);
+          }
+        } catch (error) {
+          console.error('LoadingTicket: Failed to fetch hero image:', error);
+        }
+      };
+      fetchHeroImage();
+    }
+  }, [sessionId]);
+
+  return (
+    <div className="min-h-screen bg-gray-100 flex flex-col" style={{ overflowX: 'hidden' }}>
+
+      {/* HERO SECTION - Full width bleeding to header */}
+      <section className="hero-section" style={{
+        position: 'relative',
+        marginTop: '0',
+        backgroundColor: 'transparent',
+        minHeight: '400px',
+        overflow: 'hidden',
+        width: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '80px 0 0 0'
+      }}>
+        <Image
+          src={heroImageUrl || "/images/default_placeholder_hero_image.jpeg"}
           alt="Event Hero"
-          className="hero-image"
+          width={1200}
+          height={400}
+          className="hero-image object-cover"
+          style={{
+            margin: '0 auto',
+            padding: '0',
+            display: 'block',
+            width: '100%',
+            maxWidth: '100%',
+            height: 'auto',
+            objectFit: 'cover',
+            borderRadius: '0'
+          }}
           onLoad={() => {
             console.log('Hero image loaded successfully');
             setIsLoaded(true);
@@ -37,11 +106,6 @@ export default function LoadingTicket({ sessionId }: LoadingTicketProps) {
             setHasError(true);
           }}
         />
-        {/* Responsive logo positioned as overlay on hero image */}
-        <div className="absolute top-1/2 left-4 z-50 mobile-logo" style={{ transform: 'translateY(-50%)' }}>
-          <img src="/images/mcefee_logo_black_border_transparent.png" alt="MCEFEE Logo" style={{ width: '140px', height: 'auto', maxWidth: '30vw' }} className="block md:hidden" />
-          <img src="/images/mcefee_logo_black_border_transparent.png" alt="MCEFEE Logo" style={{ width: '180px', height: 'auto', maxWidth: '15vw' }} className="hidden md:block" />
-        </div>
         <div className="hero-overlay" style={{ opacity: 0.1, height: '5px', padding: '20' }}></div>
       </section>
 
@@ -50,50 +114,59 @@ export default function LoadingTicket({ sessionId }: LoadingTicketProps) {
         __html: `
           .hero-image {
             width: 100%;
-            height: auto; /* Let image dictate height */
-            object-fit: cover; /* Cover full width, may crop height */
+            max-width: 100%;
+            height: auto;
+            object-fit: cover;
             object-position: center;
             display: block;
-            margin: 0;
-            padding: 0; /* Remove padding to bleed to edges */
+            margin: 0 auto;
+            padding: 0;
+            border-radius: 0;
           }
 
           .hero-section {
-            min-height: 10vh;
-            background-color: transparent !important; /* Remove coral background */
-            padding-top: 40px; /* Top padding to prevent header cut-off */
-            margin-left: calc(-50vw + 50%) !important;
-            margin-right: calc(-50vw + 50%) !important;
-            width: 100vw !important;
+            min-height: 15vh;
+            background-color: transparent !important;
+            padding: 80px 0 0 0 !important;
+            width: 100% !important;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
           }
 
           @media (max-width: 768px) {
             .hero-image {
-              height: auto; /* Let image dictate height on mobile */
-              padding: 0; /* Remove padding to bleed to edges on mobile */
+              width: 100%;
+              max-width: 100%;
+              height: auto;
+              padding: 0;
+              border-radius: 0;
+            }
+
+            .hero-section {
+              padding: 95px 0 15px 0 !important;
+              min-height: 12vh !important;
             }
           }
 
-          @media (max-width: 767px) {
-            .hero-section {
-              padding-top: 50px !important; /* Extra mobile top padding */
-              margin-top: 0 !important;
-              min-height: 5vh !important;
-              background-color: transparent !important; /* Remove coral background on mobile */
-              margin-left: calc(-50vw + 50%) !important;
-              margin-right: calc(-50vw + 50%) !important;
-              width: 100vw !important;
+          @media (max-width: 480px) {
+            .hero-image {
+              width: 100%;
+              padding: 0;
+              border-radius: 0;
             }
 
-            .mobile-logo {
-              top: 120px !important;
+            .hero-section {
+              padding: 90px 0 10px 0 !important;
+              min-height: 10vh !important;
             }
           }
         `
       }} />
 
       {/* Loading content - flex-grow to push footer down */}
-      <div className="flex-grow flex flex-col items-center justify-center min-h-[200px] p-6 animate-pulse" style={{ marginTop: '80px' }}>
+      <div className="flex-grow flex flex-col items-center justify-center min-h-[200px] p-6 animate-pulse" style={{ marginTop: '150px', paddingTop: '60px' }}>
         <Image
           src="/images/selling-tickets-vector-loading-image.jpg"
           alt="Ticket Loading"
@@ -102,16 +175,11 @@ export default function LoadingTicket({ sessionId }: LoadingTicketProps) {
           className="mb-4 rounded shadow-lg"
           priority
         />
-        <div className="text-xl font-bold text-teal-700 mb-2">Please wait while your ticket is generated</div>
-        <div className="text-gray-600 text-base text-center">It may take a few minutes.<br />Do not close this page.</div>
+        <div className="text-xl font-bold text-teal-700 mb-2">Processing your payment and generating your QR code</div>
+        <div className="text-gray-600 text-base text-center">This may take a few moments.<br />Please do not close or refresh this page.</div>
       </div>
 
-      {/* FOOTER - bleeds to edges */}
-      <Footer />
 
-      {/* Debug components - set show={true} to enable */}
-      <HeroImageDebugger show={false} />
-      <ImageCacheTest />
     </div>
   );
 }

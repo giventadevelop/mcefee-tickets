@@ -1,79 +1,67 @@
 import { authMiddleware } from "@clerk/nextjs";
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
 
-// Define protected routes that require authentication
-// Commented out since currently unused, but kept for future reference
-// const protectedPaths = [
-//   '/dashboard(.*)',
-//   '/tasks(.*)',
-//   '/profile(.*)',
-// ];
+export default authMiddleware({
+  // Public routes that don't require authentication
+  publicRoutes: [
+    "/",
+    "/event",
+    "/event/success",
+    "/event/success/(.*)",
+    "/event/ticket-qr",
+    "/test-mobile",
+    "/pricing",
+    "/events",
+    "/events/(.*)/tickets",
+    "/events/(.*)/tickets/(.*)",
+    "/events/(.*)/register",
+    "/events/(.*)/register/(.*)",
+    "/events/(.*)/checkout",
+    "/events/(.*)/checkout/(.*)",
+    "/events/(.*)/payment",
+    "/events/(.*)/payment/(.*)",
+    "/events/(.*)/success",
+    "/events/(.*)/success/(.*)",
+    "/events/(.*)",
+    "/api/proxy/(.*)",
+    "/api/webhooks/(.*)",
+    "/api/event/success/process",
+    "/api/debug/(.*)",
+    "/api/test-mobile",
+    "/api/tasks",
+    "/api/billing/(.*)",
+    "/api/stripe/(.*)",
+    "/api/payment/(.*)",
+    "/api/checkout/(.*)",
+    "/images/(.*)",
+    "/_next/(.*)",
+    "/favicon.ico",
+    "/manifest.json",
+    "/robots.txt",
+    "/sitemap.xml"
+  ],
 
-// Define public routes that don't require authentication
-const publicPaths = [
-  '/',
-  '/sign-in(.*)',
-  '/sign-up(.*)',
-  '/event(/.*)?',     // Broader match for all event pages
-  '/event/success(.*)', // Explicitly make event success page public
-  '/api/webhooks(.*)', // Keep webhooks public
-  '/api/stripe/event-checkout', // Make event checkout public
-  '/api/proxy/user-tasks(.*)', // Allow user-tasks proxy to be public
-];
+  // Routes that can be accessed while signed out, but also show user info if signed in
+  ignoredRoutes: [
+    "/api/webhooks/(.*)",
+    "/api/proxy/(.*)",
+    "/api/stripe/event-checkout",
+    "/api/stripe/get-session",
+    "/api/payment/(.*)",
+    "/api/checkout/(.*)",
+    "/api/billing/(.*)"
+  ],
 
-// Initialize Clerk middleware with proper error handling
-const initClerkMiddleware = () => {
-  try {
-    // Only check env vars in production runtime
-    if (process.env.NODE_ENV === 'production' && process.env.NEXT_PHASE !== 'build') {
-      const requiredEnvVars = [
-        'CLERK_SECRET_KEY',
-        'NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY',
-        'NEXT_PUBLIC_CLERK_SIGN_IN_URL',
-        'NEXT_PUBLIC_CLERK_SIGN_UP_URL',
-        'NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL',
-        'NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL'
-      ];
+  // Debug mode for development
+  debug: true,
 
-      const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
-
-      if (missingEnvVars.length > 0) {
-        console.error('Missing required Clerk environment variables:', missingEnvVars);
-      }
+  // After authentication, redirect to this path if the user is not signed in
+  afterAuth(auth, req) {
+    // Handle users who aren't authenticated
+    if (!auth.userId && !auth.isPublicRoute) {
+      return Response.redirect(new URL('/sign-in', req.url));
     }
-
-    console.log('CLERK_SECRET_KEY:', !!process.env.CLERK_SECRET_KEY);
-
-    return authMiddleware({
-      publicRoutes: publicPaths,
-      ignoredRoutes: [
-        '/api/webhooks/stripe',
-        '/api/webhooks/clerk',
-      ],
-      // Add debug mode in development
-      debug: process.env.NODE_ENV === 'development',
-      // Handle initialization errors gracefully
-      afterAuth: (auth, req) => {
-        // Skip auth check during build
-        if (process.env.NEXT_PHASE === 'build') {
-          return NextResponse.next();
-        }
-
-        if (!auth.userId && !publicPaths.some(path => req.nextUrl.pathname.match(path))) {
-          return NextResponse.redirect(new URL('/sign-in', req.url));
-        }
-        return NextResponse.next();
-      },
-    });
-  } catch (error) {
-    console.error('Failed to initialize Clerk middleware:', error);
-    // Return a passthrough middleware that doesn't block requests
-    return (request: NextRequest) => NextResponse.next();
   }
-};
-
-export default initClerkMiddleware();
+});
 
 export const config = {
   matcher: [

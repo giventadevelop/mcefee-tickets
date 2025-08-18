@@ -6,7 +6,8 @@ import { MediaClientPage } from './MediaClientPage';
 interface UploadMediaPageProps { params: { id: string } }
 
 export default async function UploadMediaPage({ params }: UploadMediaPageProps) {
-  const eventId = params.id;
+  const resolvedParams = typeof params.then === 'function' ? await params : params;
+  const eventId = resolvedParams.id;
   const mediaList = eventId ? await fetchMediaServer(eventId) : [];
   const eventDetails = eventId ? await fetchEventDetailsServer(eventId) : null;
   const officialDocsList = eventId ? await fetchOfficialDocsServer(eventId) : [];

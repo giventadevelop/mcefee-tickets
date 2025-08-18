@@ -1,8 +1,9 @@
 "use server";
 import { QrCodeUsageDTO, EventTicketTransactionDTO } from '@/types';
 import { getCachedApiJwt, generateApiJwt } from '@/lib/api/jwt';
+import { getAppUrl } from '@/lib/env';
 
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+const BASE_URL = getAppUrl();
 
 export async function fetchQrCodeUsageDetails(eventId: string, transactionId: string): Promise<QrCodeUsageDTO | null> {
   const url = `${BASE_URL}/api/proxy/qrcode-scan/tickets/events/${eventId}/transactions/${transactionId}`;
@@ -23,7 +24,10 @@ export async function updateQrCodeCheckIn(
   const res = await fetch(url, {
     method: 'PATCH',
     headers,
-    body: JSON.stringify(payload),
+    body: JSON.stringify({
+      ...payload,
+      id: transactionId, // Include the id field as required by backend
+    }),
   });
   if (!res.ok) throw new Error(await res.text());
   return res.json();

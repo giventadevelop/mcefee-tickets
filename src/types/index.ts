@@ -196,7 +196,14 @@ export interface EventTicketTypeDTO {
   code: string;
   availableQuantity?: number;
   soldQuantity?: number;
+  remainingQuantity?: number;
   isActive?: boolean;
+  saleStartDate?: string;
+  saleEndDate?: string;
+  minQuantityPerOrder?: number;
+  maxQuantityPerOrder?: number;
+  requiresApproval?: boolean;
+  sortOrder?: number;
   createdAt: string;
   updatedAt: string;
   event?: EventDetailsDTO;
@@ -570,6 +577,8 @@ export interface EventTicketTransactionStatisticsDTO {
   totalTicketsSold: number;
   /** Total amount collected for the event */
   totalAmount: number;
+
+  netAmount: number;
   /** Map of ticket status to count (e.g., { COMPLETED: 26 }) */
   ticketsByStatus: Record<string, number>;
   /** Map of ticket status to total amount (e.g., { COMPLETED: 444 }) */

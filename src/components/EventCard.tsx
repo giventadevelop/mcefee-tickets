@@ -3,7 +3,7 @@ import { EventWithMedia } from '@/types';
 import Image from 'next/image';
 import Link from 'next/link';
 import { formatDateLocal } from '@/lib/date';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 
 interface EventCardProps {
   event: EventWithMedia;
@@ -11,6 +11,8 @@ interface EventCardProps {
 }
 
 export function EventCard({ event, placeholderText }: EventCardProps) {
+  const [imageError, setImageError] = useState(false);
+
   const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -58,31 +60,56 @@ export function EventCard({ event, placeholderText }: EventCardProps) {
     return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${start}/${end}&details=${details}&location=${location}`;
   }, [event, isUpcoming]);
 
+  // Debug logging
+  console.log(`EventCard ${event.id}: thumbnailUrl = ${event.thumbnailUrl}, imageError = ${imageError}`);
+
   return (
     <div className="event-item bg-gray-50 rounded-lg shadow-lg p-4 flex flex-col items-center h-full hover:shadow-2xl transition-shadow duration-200 cursor-pointer w-[320px] max-w-[calc(100vw-2rem)]">
       <Link href={`/events/${event.id}`} className="block w-full h-full group flex flex-col items-center" tabIndex={-1}>
         <div className="event-image rounded-lg overflow-hidden mb-3 relative"
           style={{ width: '100%', height: 160 }}>
-          {event.thumbnailUrl ? (
-            <Image
-              src={event.thumbnailUrl}
-              alt={event.title}
-              fill
-              className="object-cover"
-            />
-          ) : (
-            <div className="absolute inset-0 w-full h-full bg-gray-200 flex items-center justify-center">
-              <span
-                className="font-bold text-gray-900 text-lg text-center px-2 w-full overflow-hidden whitespace-nowrap"
-                style={{
-                  textOverflow: 'ellipsis',
-                  display: 'block',
-                  width: '100%',
+          {event.thumbnailUrl && !imageError ? (
+            event.thumbnailUrl.includes('s3.amazonaws.com') ? (
+              // Use regular img tag for S3 URLs
+              <img
+                src={event.thumbnailUrl}
+                alt={event.title}
+                className="object-cover w-full h-full"
+                onError={(e) => {
+                  console.error(`Image failed to load for event ${event.id}:`, event.thumbnailUrl, e);
+                  setImageError(true);
                 }}
-                title={placeholderText || event.title || 'No image available'}
-              >
-                {placeholderText || event.title || 'No image available'}
-              </span>
+                onLoad={() => {
+                  console.log(`Image loaded successfully for event ${event.id}:`, event.thumbnailUrl);
+                }}
+              />
+            ) : (
+              // Use Next.js Image for other URLs
+              <Image
+                src={event.thumbnailUrl}
+                alt={event.title}
+                fill
+                className="object-cover"
+                onError={(e) => {
+                  console.error(`Image failed to load for event ${event.id}:`, event.thumbnailUrl, e);
+                  setImageError(true);
+                }}
+                onLoad={() => {
+                  console.log(`Image loaded successfully for event ${event.id}:`, event.thumbnailUrl);
+                }}
+              />
+            )
+          ) : (
+            <div className="absolute inset-0 w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex flex-col items-center justify-center p-4">
+              <div className="text-center">
+                <div className="text-gray-400 text-4xl mb-2">📷</div>
+                <div className="text-gray-600 font-medium text-sm leading-tight">
+                  {placeholderText || 'No poster available for this event yet'}
+                </div>
+                <div className="text-gray-500 text-xs mt-1">
+                  Check back soon!
+                </div>
+              </div>
             </div>
           )}
         </div>

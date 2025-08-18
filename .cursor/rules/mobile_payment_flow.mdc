@@ -1,0 +1,436 @@
+---
+description: Rules for implementing mobile payment flow (Apple Pay/Google Pay PRB), success handling, and QR generation without duplicates
+globs: src/**/*
+alwaysApply: false
+---
+
+- **Main Points in Bold**
+  - Use Payment Intent (pi_) for mobile PRB; redirect with `?pi=` and support it everywhere
+  - Create PI only on button click; use idempotency; sync PaymentRequest total to PI amount
+  - Webhooks must create transactions on `payment_intent.succeeded`; `tenantId` injected
+  - Success flow must poll/backoff and treat empty QR as not-ready; mobile redirects to `ticket-qr`
+  - Avoid duplicate QR/emails with singleton/poll guards and `skip_qr=true`
+  - Follow AWS Amplify env rules; use `getAppUrl()` for absolute URLs
+
+# Mobile Payment Flow Architecture
+
+This document outlines the comprehensive mobile payment flow architecture for the MCEFEE event management application, detailing the critical differences between mobile and desktop payment processing.
+
+## Overview
+
+The mobile payment flow is fundamentally different from the desktop flow due to Stripe's mobile wallet limitations, browser behavior differences, and the need for optimal user experience on mobile devices.
+
+## Payment Intent vs Session ID Usage
+
+### Why Payment Intent is Preferred for Mobile
+
+**Key Architectural Decision**: Mobile flows primarily use Payment Intent IDs (`pi_`) instead of Checkout Session IDs (`cs_`) due to technical limitations and optimal user experience requirements.
+
+#### Technical Reasons:
+
+1. **Stripe Mobile Wallet Limitations**:
+   - Payment Request Button (PRB) for Apple Pay/Google Pay returns Payment Intent IDs
+   - Checkout Session IDs are not directly available in mobile wallet flows
+   - Mobile wallets complete payments via `stripe.confirmCardPayment()` which works with Payment Intents
+
+2. **Browser Redirect Behavior**:
+   - Mobile browsers handle redirects differently than desktop
+   - Payment Intent provides more granular status tracking
+   - Avoids potential session timeout issues on mobile devices
+
+3. **Wallet API Integration**:
+   ```typescript
+   // Mobile wallet payment completion
+   const { error, paymentIntent } = await stripe.confirmCardPayment(secret, {
+     payment_method: ev.paymentMethod.id,
+     receipt_email: ev.payerEmail || email,
+   });
+
+   // Redirect using Payment Intent ID
+   const piId = paymentIntent?.id;
+   window.location.href = piId ? `/event/success?pi=${encodeURIComponent(piId)}` : '/event/success';
+   ```
+
+#### Implementation Details:
+
+**Payment Intent Creation** ([route](mdc:src/app/api/stripe/payment-intent/route.ts)):
+- Creates Payment Intent with `automatic_payment_methods: { enabled: true }`
+- Includes metadata for cart, eventId, and discountCodeId
+- Uses idempotency keys to prevent duplicate intents
+- Returns `clientSecret` for mobile wallet confirmation
+
+**Payment Intent Processing** ([ApiServerActions](mdc:src/app/event/success/ApiServerActions.ts)):
+- `findTransactionByPaymentIntentId()` - Looks up existing transactions
+- Handles conversion from Payment Intent to Session ID when needed
+- Backend lookups use `stripePaymentIntentId.equals` parameter
+
+## Mobile Device Detection Methods
+
+### Client-Side Detection
+
+The application uses multiple methods to reliably detect mobile devices:
+
+#### 1. User Agent Detection
+```typescript
+const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+```
+
+#### 2. Screen Width Detection
+```typescript
+const isMobileWidth = window.innerWidth <= 768;
+```
+
+#### 3. Combined Detection Logic
+```typescript
+const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+                 window.innerWidth <= 768;
+```
+
+### Server-Side Detection
+
+#### CloudFront Headers (AWS Deployment)
+```typescript
+const cloudFrontHeaders = {
+  isDesktopViewer: headers['cloudfront-is-desktop-viewer'],
+  isMobileViewer: headers['cloudfront-is-mobile-viewer'],
+  isIosViewer: headers['cloudfront-is-ios-viewer'],
+  isAndroidViewer: headers['cloudfront-is-android-viewer'],
+  isTabletViewer: headers['cloudfront-is-tablet-viewer']
+};
+```
+
+#### Debug Endpoint (`/api/debug/mobile`)
+Provides comprehensive device detection debugging:
+- User agent analysis
+- CloudFront header inspection
+- Request parameter logging
+- Device capability detection
+
+## Payment Request Button (PRB) Mobile Flow
+
+### Why Separate Mobile Flow for PRB
+
+**Critical Architectural Decision**: The Payment Request Button requires a completely separate flow from traditional Stripe Checkout due to fundamental differences in wallet APIs.
+
+#### Key Differences:
+
+1. **Payment Method**:
+   - **Desktop Checkout**: Uses Stripe Checkout Sessions with hosted payment page
+   - **Mobile PRB**: Uses native wallet APIs (Apple Pay/Google Pay) with Payment Request API
+
+2. **User Experience**:
+   - **Desktop**: Multi-step form → Stripe hosted page → redirect
+   - **Mobile**: Single tap → native wallet sheet → immediate completion
+
+3. **Technical Implementation**:
+   - **Desktop**: Session-based flow with server-side session creation
+   - **Mobile**: Client-side Payment Intent creation and confirmation
+
+### PRB Implementation Details
+
+#### Component Structure ([StripePaymentRequestButton.tsx](mdc:src/components/StripePaymentRequestButton.tsx))
+
+**Eligibility Detection**:
+```typescript
+pr.canMakePayment().then((result) => {
+  console.log('[PRB] Payment methods available:', {
+    applePay: result.applePay || (result as any).apple_pay,
+    googlePay: result.googlePay || (result as any).google_pay,
+    link: (result as any).link
+  });
+
+  if (result) {
+    setEligible(true);
+    setReady(true);
+  }
+});
+```
+
+**Payment Processing Flow**:
+1. Create fresh Payment Intent on each payment attempt
+2. Update Payment Request total to match PI amount (prevents amount_mismatch)
+3. Confirm payment using `stripe.confirmCardPayment()`
+4. Handle Apple Pay immediate completion to prevent sheet timeout
+5. Redirect to success page with Payment Intent ID
+
+**Critical Synchronization**:
+```typescript
+// CRITICAL: Ensure Payment Request total matches PI amount before confirm
+if (typeof data.amount === 'number' && pr) {
+  try {
+    pr.update({ total: { label: 'Tickets', amount: data.amount } });
+    console.log('[PRB] Updated Payment Request total to match PI');
+  } catch (updateErr) {
+    console.warn('[PRB] Failed to update Payment Request total:', updateErr);
+  }
+}
+```
+
+#### Mobile Wallet Specific Handling
+
+**Apple Pay on iOS/Safari**:
+- Immediate `ev.complete('success')` to prevent sheet timeout
+- Handle WebKit-specific behaviors
+- Safari security restrictions for payment processing
+
+**Google Pay on Android/Chrome**:
+- Minimum amount requirements ($0.50)
+- Google account signin requirements
+- Saved card requirements
+- Chrome browser optimization
+
+## Mobile vs Desktop Flow Comparison
+
+### Desktop Flow
+```
+User fills form →
+Stripe Checkout Session created →
+Hosted payment page →
+Payment completion →
+Redirect to /event/success?session_id=cs_xxx →
+SuccessClient detects desktop →
+Stays on success page →
+Fetches transaction data + QR inline
+```
+
+### Mobile Flow
+```
+User taps PRB →
+Native wallet sheet opens →
+Payment Intent created →
+Payment confirmed with PI →
+Redirect to /event/success?pi=pi_xxx →
+SuccessClient detects mobile →
+Shows brief success (2 seconds) →
+Redirect to /event/ticket-qr?pi=pi_xxx →
+Dedicated QR page with singleton fetch
+```
+
+## Critical Mobile Optimizations
+
+### 1. Duplicate Email Prevention
+
+**Problem**: Mobile flow was triggering QR endpoint twice (causing duplicate emails)
+
+**Solution**:
+- `skip_qr=true` parameter in mobile API calls
+- Single QR fetch via TicketQrClient singleton
+- API route skips QR generation when `skip_qr=true`
+
+```typescript
+// Mobile client prevents API route QR fetch
+queryParams.set('skip_qr', 'true');
+
+// API route respects skip_qr parameter
+const skipQr = searchParams.get('skip_qr') === 'true';
+if (!skipQr && transaction.id && eventDetails?.id) {
+  // Only fetch QR if not mobile request
+  qrCodeData = await fetchTransactionQrCode(eventDetails.id, transaction.id);
+}
+```
+
+### 2. Session Storage Persistence
+
+Mobile browsers can lose URL parameters during redirects, so critical data is stored:
+
+```typescript
+// Store for mobile ticket-qr page access
+if (session_id) {
+  sessionStorage.setItem('stripe_session_id', session_id);
+} else if (payment_intent) {
+  sessionStorage.setItem('stripe_payment_intent', payment_intent);
+}
+```
+
+### 3. QR Code Singleton Pattern
+
+Prevents duplicate QR API calls that trigger multiple emails:
+
+```typescript
+class QrFetchSingleton {
+  private static instance: QrFetchSingleton;
+  private fetchInProgress = false;
+  private fetchedTransactions = new Set<string>();
+  private qrResults = new Map<string, any>();
+
+  async fetchQrCodeOnce(eventId: number, transactionId: number): Promise<any> {
+    const key = `${eventId}-${transactionId}`;
+
+    // Return cached result if available
+    if (this.qrResults.has(key)) {
+      return this.qrResults.get(key);
+    }
+
+    // Prevent duplicate calls
+    if (this.fetchedTransactions.has(key) || this.fetchInProgress) {
+      return { error: 'QR fetch already attempted' };
+    }
+
+    // Single API call with caching
+    this.fetchedTransactions.add(key);
+    this.fetchInProgress = true;
+    // ... API call logic
+  }
+}
+```
+
+## API Endpoint Adjustments
+
+### 1. Success Processing Route ([route](mdc:src/app/api/event/success/process/route.ts))
+
+**GET Method**:
+- Looks up existing transactions only
+- Respects `skip_qr` parameter for mobile
+- Supports both `session_id` and `pi` parameters
+- Handles Payment Intent to Session ID conversion
+
+**POST Method**:
+- Creates new transactions from Stripe data
+- Processes both session IDs and payment intents
+- Includes mobile-specific optimizations
+
+### 2. QR Code Proxy Route ([SuccessClient](mdc:src/app/event/success/SuccessClient.tsx))
+
+**Enhanced Logging**:
+```typescript
+console.log('[QR Code Proxy] Backend API call:', {
+  eventId: id,
+  transactionId: transactionId,
+  emailHostUrlPrefix: decodedEmailHostUrlPrefix,
+  encodedEmailHostUrlPrefix: emailHostUrlPrefix,
+  backendUrl: apiUrl
+});
+```
+
+**Email Context Handling**:
+- Base64 encodes `emailHostUrlPrefix` for backend compatibility
+- Maintains consistent email template URL generation
+- Supports both localhost and production domains
+
+### 3. Transaction Lookup Optimization
+
+**Multiple Lookup Methods**:
+```typescript
+// Primary lookup by session ID
+existingTransaction = await findTransactionBySessionId(session_id);
+
+// Fallback lookup by payment intent
+if (!existingTransaction && pi) {
+  existingTransaction = await findTransactionByPaymentIntentId(pi);
+}
+
+// Handle mismatched parameters (session_id containing pi_)
+if (session_id?.startsWith('pi_')) {
+  existingTransaction = await findTransactionByPaymentIntentId(session_id);
+}
+```
+
+## Development Testing
+
+### Mobile Flow Testing
+
+**Test Mobile Page** (`/test-mobile`):
+- Device detection verification
+- Payment scenario simulation
+- User agent spoofing capabilities
+
+**Debug Endpoints**:
+- `/api/debug/mobile` - Comprehensive device analysis
+- `/api/test-mobile` - Payment flow testing
+
+### Testing Commands
+
+```bash
+# Mobile flow testing
+curl -H "User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)" \
+     http://localhost:3000/api/debug/mobile
+
+# Payment Intent testing
+curl -X POST http://localhost:3000/api/event/success/process \
+     -H "Content-Type: application/json" \
+     -d '{"pi":"pi_test_123","skip_qr":true}'
+```
+
+## Security Considerations
+
+### 1. Payment Validation
+
+- All amounts validated server-side against backend prices
+- Idempotency keys prevent duplicate payment processing
+- JWT authentication for backend API calls
+- Tenant ID isolation for multi-tenant security
+
+### 2. Mobile-Specific Security
+
+- HTTPS required for Payment Request API
+- Secure origin validation for wallet APIs
+- XSS prevention in mobile redirect flows
+- CSRF protection on API endpoints
+
+## Performance Optimizations
+
+### 1. Mobile-Specific Caching
+
+- Payment Request caching to prevent recreation
+- Transaction data caching with singleton pattern
+- Image optimization for mobile bandwidth
+- Lazy loading of non-critical components
+
+### 2. Network Optimization
+
+- Reduced API calls for mobile flows
+- Combined data fetching where possible
+- Compressed response handling
+- Connection timeout adjustments for mobile networks
+
+## Monitoring and Debugging
+
+### 1. Enhanced Logging
+
+All mobile flows include comprehensive logging:
+```typescript
+console.log('[MOBILE FLOW]', {
+  userAgent: navigator.userAgent,
+  windowWidth: window.innerWidth,
+  paymentMethod: 'PRB',
+  identifier: session_id || payment_intent,
+  timestamp: new Date().toISOString()
+});
+```
+
+### 2. Error Tracking
+
+- Specific mobile error codes and messages
+- Payment failure reason tracking
+- Device capability limitations logging
+- Performance metric collection
+
+## Best Practices for Mobile Implementation
+
+### 1. Always Use Payment Intent for Mobile Wallets
+- Never rely on session IDs for mobile wallet flows
+- Create fresh Payment Intent for each payment attempt
+- Validate Payment Request totals match Payment Intent amounts
+
+### 2. Implement Proper Mobile Detection
+- Use multiple detection methods (user agent + screen width)
+- Test on actual mobile devices, not just browser dev tools
+- Consider tablet behavior separately from phones
+
+### 3. Handle Mobile Browser Limitations
+- Store critical data in sessionStorage
+- Implement singleton patterns to prevent duplicate API calls
+- Use appropriate timeouts for mobile network conditions
+
+### 4. Optimize for Mobile UX
+- Show immediate feedback for payment actions
+- Use native payment sheets when available
+- Minimize redirect chains and form steps
+
+### 5. Debug Mobile Flows Thoroughly
+- Test with actual mobile devices and wallets
+- Verify email delivery doesn't duplicate
+- Check payment completion across different network conditions
+- Validate session persistence across mobile browser behavior
+
+This architecture ensures optimal mobile payment experience while maintaining security, reliability, and proper email delivery for the MCEFEE event management system.

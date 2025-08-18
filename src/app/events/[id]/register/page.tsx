@@ -7,6 +7,8 @@ import Image from "next/image";
 import { getTenantId } from "@/lib/env";
 import type { EventDetailsDTO, EventMediaDTO, EventAttendeeDTO, EventAttendeeGuestDTO, UserProfileDTO } from "@/types";
 import { FaPlus, FaTrashAlt, FaCheck } from "react-icons/fa";
+import { formatInTimeZone } from 'date-fns-tz';
+import LocationDisplay from '@/components/LocationDisplay';
 
 export default function EventRegisterPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -219,7 +221,7 @@ export default function EventRegisterPage({ params }: { params: Promise<{ id: st
               <tr><th className="text-left font-semibold pr-2 py-1">Title</th><td className="py-1">{event.title}</td></tr>
               <tr><th className="text-left font-semibold pr-2 py-1">Date</th><td className="py-1">{event.startDate}</td></tr>
               <tr><th className="text-left font-semibold pr-2 py-1">Time</th><td className="py-1">{event.startTime} - {event.endTime}</td></tr>
-              <tr><th className="text-left font-semibold pr-2 py-1">Location</th><td className="py-1">{event.location}</td></tr>
+              <tr><th className="text-left font-semibold pr-2 py-1">Location</th><td className="py-1">{event.location && <LocationDisplay location={event.location} />}</td></tr>
               {event.description && <tr><th className="text-left font-semibold pr-2 py-1 align-top">Description</th><td className="py-1 align-top">{event.description}</td></tr>}
             </tbody>
           </table>

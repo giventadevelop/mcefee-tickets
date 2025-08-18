@@ -52,33 +52,28 @@ export function TaskForm({ task, mode = 'create' }: TaskFormProps) {
         priority: formData.get('priority'),
         dueDate: dueDateIso,
       }
-      let response
+      // Import server actions
+      const { createTaskServer, updateTaskServer } = await import('../app/tasks/ApiServerActions');
+
+      let result = null;
       if (mode === 'edit' && task?.id) {
-        response = await fetch('/api/tasks', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id: task.id,
-            title: payload.title,
-            description: payload.description,
-            status: payload.status,
-            priority: payload.priority,
-            dueDate: payload.dueDate,
-            createdAt: task.createdAt,
-            updatedAt: new Date().toISOString(),
-            userId: task.userId,
-            completed: typeof task.completed === 'boolean' ? task.completed : payload.status === 'completed',
-          }),
-        })
+        result = await updateTaskServer(task.id, {
+          title: payload.title,
+          description: payload.description,
+          status: payload.status,
+          priority: payload.priority,
+          dueDate: payload.dueDate,
+          completed: typeof task.completed === 'boolean' ? task.completed : payload.status === 'completed',
+        });
       } else {
-        response = await fetch('/api/tasks', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        })
+        result = await createTaskServer({
+          ...payload,
+          completed: false,
+        });
       }
-      if (!response.ok) {
-        throw new Error('Failed to save task')
+
+      if (!result) {
+        throw new Error('Failed to save task');
       }
       router.push('/dashboard')
     } catch (error) {

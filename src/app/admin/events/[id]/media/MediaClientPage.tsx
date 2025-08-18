@@ -427,7 +427,7 @@ export function MediaClientPage({ eventId, mediaList: initialMediaList, eventDet
   }
 
   return (
-    <div className="p-8 max-w-4xl mx-auto bg-white rounded shadow">
+    <div className="p-8 max-w-4xl mx-auto bg-white rounded shadow" style={{ paddingTop: '118px' }}>
       <div className="mb-8">
         <div className="bg-white rounded-lg shadow-md p-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

@@ -1,7 +1,7 @@
 "use client";
 import React, { useRef, useState, useEffect, useCallback, useTransition } from "react";
 import { EventMediaDTO, EventDetailsDTO } from "@/types";
-import { FaEdit, FaTrashAlt, FaUsers, FaPhotoVideo, FaCalendarAlt, FaSave, FaTimes, FaChevronLeft, FaChevronRight, FaTicketAlt, FaUpload, FaBan } from 'react-icons/fa';
+import { FaEdit, FaTrashAlt, FaUsers, FaPhotoVideo, FaCalendarAlt, FaSave, FaTimes, FaChevronLeft, FaChevronRight, FaTicketAlt, FaUpload, FaBan, FaTags, FaHome } from 'react-icons/fa';
 import { deleteMediaServer, editMediaServer, fetchMediaFilteredServer } from '../ApiServerActions';
 import { fetchEventDetailsServer } from '@/app/admin/ApiServerActions';
 import { createPortal } from "react-dom";
@@ -9,6 +9,18 @@ import Link from 'next/link';
 import { useRouter, useParams } from "next/navigation";
 import { Modal } from "@/components/Modal";
 import { getTenantId } from '@/lib/env';
+import { formatInTimeZone } from 'date-fns-tz';
+
+// Helper function for timezone-aware date formatting
+function formatDateInTimezone(dateString: string, timezone: string = 'America/New_York'): string {
+  if (!dateString) return 'N/A';
+  try {
+    return formatInTimeZone(dateString, timezone, 'EEEE, MMMM d, yyyy');
+  } catch {
+    // Fallback to simple date formatting if timezone parsing fails
+    return new Date(dateString).toLocaleDateString();
+  }
+}
 
 // Tooltip component (reuse from MediaClientPage)
 function MediaDetailsTooltip({ media, anchorRect, onClose, onTooltipMouseEnter, onTooltipMouseLeave, tooltipType }: { media: EventMediaDTO | null, anchorRect: DOMRect | null, onClose: () => void, onTooltipMouseEnter: () => void, onTooltipMouseLeave: () => void, tooltipType: 'officialDocs' | 'uploadedMedia' | null }) {
@@ -77,7 +89,7 @@ function MediaDetailsTooltip({ media, anchorRect, onClose, onTooltipMouseEnter, 
               <td style={{ textAlign: 'left', width: 'auto' }}>{
                 typeof value === 'boolean' ? (value ? 'Yes' : 'No') :
                   value instanceof Date ? value.toLocaleString() :
-                    (key.toLowerCase().includes('date') || key.toLowerCase().includes('at')) && value ? new Date(value).toLocaleString() :
+                    (key.toLowerCase().includes('date') || key.toLowerCase().includes('at')) && value ? formatDateInTimezone(value, 'America/New_York') :
                       value === null || value === undefined || value === '' ? <span className="text-gray-400 italic">(empty)</span> : String(value)
               }</td>
             </tr>
@@ -97,8 +109,8 @@ function EventDetailsTable({ event }: { event: EventDetailsDTO | null }) {
   const details = [
     { label: 'Event ID', value: event.id },
     { label: 'Title', value: event.title },
-    { label: 'Start Date', value: event.startDate ? new Date(event.startDate).toLocaleDateString() : 'N/A' },
-    { label: 'End Date', value: event.endDate ? new Date(event.endDate).toLocaleDateString() : 'N/A' },
+    { label: 'Start Date', value: formatDateInTimezone(event.startDate, event.timezone) },
+    { label: 'End Date', value: formatDateInTimezone(event.endDate, event.timezone) },
     { label: 'Start Time', value: event.startTime || 'N/A' },
     { label: 'End Time', value: event.endTime || 'N/A' },
     { label: 'Description', value: event.description },
@@ -348,7 +360,7 @@ export default function EventMediaListPage() {
         if (!eventId) return;
         setLoading(true);
         try {
-          const details = await fetchEventDetailsServer(eventId);
+          const details = await fetchEventDetailsServer(parseInt(eventId, 10));
           setEventDetails(details);
 
           const mediaResponse = await fetchMediaFilteredServer(eventId, page, pageSize, searchTerm, eventFlyerOnly);
@@ -457,22 +469,34 @@ export default function EventMediaListPage() {
   const endItem = Math.min((page + 1) * pageSize, totalCount);
 
   return (
-    <div className="w-[80%] mx-auto py-8">
+    <div className="w-[80%] mx-auto py-8" style={{ paddingTop: '118px' }}>
       <div className="mb-8">
         <div className="bg-white rounded-lg shadow-md p-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 justify-items-center mx-auto">
-            <Link href="/admin/manage-usage" className="w-48 max-w-xs mx-auto flex flex-col items-center justify-center bg-blue-50 hover:bg-blue-100 text-blue-800 rounded-md shadow p-1 sm:p-2 text-xs sm:text-xs transition-all">
-              <FaUsers className="text-base sm:text-lg mb-1 mx-auto" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 justify-items-center mx-auto max-w-6xl">
+            <Link href="/admin" className="w-full max-w-xs flex flex-col items-center justify-center bg-gray-50 hover:bg-gray-100 text-gray-800 rounded-lg shadow-sm hover:shadow-md p-3 sm:p-4 text-xs sm:text-sm transition-all duration-200">
+              <FaHome className="text-lg sm:text-xl mb-2" />
+              <span className="font-semibold text-center leading-tight">Admin Home</span>
+            </Link>
+            <Link href="/admin/manage-usage" className="w-full max-w-xs flex flex-col items-center justify-center bg-blue-50 hover:bg-blue-100 text-blue-800 rounded-lg shadow-sm hover:shadow-md p-3 sm:p-4 text-xs sm:text-sm transition-all duration-200">
+              <FaUsers className="text-lg sm:text-xl mb-2" />
               <span className="font-semibold text-center leading-tight">Manage Users [Usage]</span>
             </Link>
-            <Link href="/admin" className="w-48 max-w-xs mx-auto flex flex-col items-center justify-center bg-green-50 hover:bg-green-100 text-green-800 rounded-md shadow p-1 sm:p-2 text-xs sm:text-xs transition-all">
-              <FaCalendarAlt className="text-base sm:text-lg mb-1 mx-auto" />
+            <Link href="/admin" className="w-full max-w-xs flex flex-col items-center justify-center bg-green-50 hover:bg-green-100 text-green-800 rounded-lg shadow-sm hover:shadow-md p-3 sm:p-4 text-xs sm:text-sm transition-all duration-200">
+              <FaCalendarAlt className="text-lg sm:text-xl mb-2" />
               <span className="font-semibold text-center leading-tight">Manage Events</span>
             </Link>
-            <Link href={`/admin/events/${eventId}/ticket-types/list`} className="w-48 max-w-xs mx-auto flex flex-col items-center justify-center bg-purple-50 hover:bg-purple-100 text-purple-800 rounded-md shadow p-1 sm:p-2 text-xs sm:text-xs transition-all">
-              <FaTicketAlt className="text-base sm:text-lg mb-1 mx-auto" />
-              <span className="font-semibold text-center leading-tight">Manage Ticket Types</span>
-            </Link>
+            {eventDetails?.admissionType === 'ticketed' && (
+              <>
+                <Link href={`/admin/events/${eventId}/ticket-types/list`} className="w-full max-w-xs flex flex-col items-center justify-center bg-purple-50 hover:bg-purple-100 text-purple-800 rounded-lg shadow-sm hover:shadow-md p-3 sm:p-4 text-xs sm:text-sm transition-all duration-200">
+                  <FaTags className="text-lg sm:text-xl mb-2" />
+                  <span className="font-semibold text-center leading-tight">Manage Ticket Types</span>
+                </Link>
+                <Link href={`/admin/events/${eventId}/tickets/list`} className="w-full max-w-xs flex flex-col items-center justify-center bg-teal-50 hover:bg-teal-100 text-teal-800 rounded-lg shadow-sm hover:shadow-md p-3 sm:p-4 text-xs sm:text-sm transition-all duration-200">
+                  <FaTicketAlt className="text-lg sm:text-xl mb-2" />
+                  <span className="font-semibold text-center leading-tight">Manage Tickets</span>
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </div>

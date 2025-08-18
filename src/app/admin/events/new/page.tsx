@@ -62,7 +62,7 @@ export default function CreateEventPage() {
   }
 
   return (
-    <div className="w-[80%] max-w-5xl mx-auto p-4">
+    <div className="w-[80%] max-w-5xl mx-auto p-4" style={{ paddingTop: '118px' }}>
       {/* Dashboard Card with Grid Buttons */}
       <div className="flex justify-center mb-8">
         <div className="bg-white rounded-xl shadow-lg p-6 w-full">

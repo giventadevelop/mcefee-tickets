@@ -1,7 +1,8 @@
 import type { TenantSettingsDTO } from '@/types';
+import { getAppUrl } from '@/lib/env';
 
 const CACHE_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours
-const API_BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+const API_BASE_URL = getAppUrl();
 
 interface TenantSettingsCacheEntry {
   settings: TenantSettingsDTO | null;

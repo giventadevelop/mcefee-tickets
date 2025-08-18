@@ -3,9 +3,7 @@ import { TaskForm } from '@/components/task-form'
 import { notFound } from 'next/navigation'
 
 interface EditTaskPageProps {
-  params: {
-    id: string
-  }
+  params: Promise<{ id: string }> | { id: string }
 }
 
 export default async function EditTaskPage(props: EditTaskPageProps) {
@@ -15,13 +13,13 @@ export default async function EditTaskPage(props: EditTaskPageProps) {
     return null
   }
 
-  // Await params if it is a Promise (Next.js dynamic API)
-  const params = await Promise.resolve(props.params);
+  // Await params for Next.js 15+ compatibility
+  const resolvedParams = typeof props.params.then === 'function' ? await props.params : props.params;
 
   // Fetch the task from the API
   let task = null;
   try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/user-tasks/${params.id}`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/user-tasks/${resolvedParams.id}`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
       cache: 'no-store',

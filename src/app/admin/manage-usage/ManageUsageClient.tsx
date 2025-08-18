@@ -3,7 +3,7 @@ import { useEffect, useState, useRef } from 'react';
 import type { UserProfileDTO } from '@/types';
 import Link from 'next/link';
 import ReactDOM from 'react-dom';
-import { FaEye, FaCheck, FaEdit, FaTimes, FaUsers, FaPhotoVideo, FaCalendarAlt, FaUpload, FaDownload, FaBan, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import { FaEye, FaCheck, FaEdit, FaTimes, FaUsers, FaPhotoVideo, FaCalendarAlt, FaUpload, FaDownload, FaBan, FaChevronLeft, FaChevronRight, FaHome } from 'react-icons/fa';
 import * as XLSX from 'xlsx';
 import { getTenantId } from '@/lib/env';
 import { fetchUsersServer, patchUserProfileServer, bulkUploadUsersServer } from './ApiServerActions';
@@ -514,10 +514,14 @@ export default function ManageUsageClient({ adminProfile }: { adminProfile: User
   const totalPages = Math.ceil(totalUsers / pageSize) || 1;
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8" style={{ paddingTop: '118px' }}>
       <div className="flex justify-center mb-8">
         <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-2xl">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 justify-items-center mx-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 justify-items-center mx-auto">
+            <Link href="/admin" className="w-48 max-w-xs mx-auto flex flex-col items-center justify-center bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-md shadow p-1 sm:p-2 text-xs sm:text-xs transition-all">
+              <FaHome className="text-base sm:text-lg mb-1 mx-auto" />
+              <span className="font-semibold text-center leading-tight">Admin Home</span>
+            </Link>
             <Link href="/admin/manage-usage" className="w-48 max-w-xs mx-auto flex flex-col items-center justify-center bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-md shadow p-1 sm:p-2 text-xs sm:text-xs transition-all">
               <FaUsers className="text-base sm:text-lg mb-1 mx-auto" />
               <span className="font-semibold text-center leading-tight">Manage Users [Usage]</span>
@@ -538,7 +542,7 @@ export default function ManageUsageClient({ adminProfile }: { adminProfile: User
             {bulkLoading ? 'Uploading...' : 'Bulk Upload User List'}
           </button>
           <input type="file" ref={fileInputRef} onChange={handleBulkUpload} className="hidden" accept=".xlsx" />
-          <a href={`/api/proxy/user-profiles/download?tenantId.equals=${getTenantId()}`} download="users_template.xlsx" className="h-10 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+          <a href="https://eventapp-media-bucket.s3.us-east-2.amazonaws.com/media/users_profile_list_bulk_upload_template/users_profile_list_bulk_upload_template.xlsx" download="users_profile_list_bulk_upload_template.xlsx" className="h-10 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
             <FaDownload />
             Download Bulk Upload Template File
           </a>
@@ -597,25 +601,25 @@ export default function ManageUsageClient({ adminProfile }: { adminProfile: User
       {/* Users Table */}
       <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+          <table className="min-w-full divide-y divide-gray-300 dark:divide-gray-600 border border-gray-300 dark:border-gray-600">
             <thead className="bg-gray-50 dark:bg-gray-700">
               <tr>
-                <th scope="col" className="px-8 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Name</th>
-                <th scope="col" className="px-8 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Contact</th>
-                <th scope="col" className="px-8 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Role</th>
-                <th scope="col" className="px-8 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
-                <th scope="col" className="px-8 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Joined</th>
-                <th scope="col" className="px-8 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
+                <th scope="col" className="px-8 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-r border-gray-300 dark:border-gray-600">Name</th>
+                <th scope="col" className="px-8 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-r border-gray-300 dark:border-gray-600">Contact</th>
+                <th scope="col" className="px-8 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-r border-gray-300 dark:border-gray-600">Role</th>
+                <th scope="col" className="px-8 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-r border-gray-300 dark:border-gray-600">Status</th>
+                <th scope="col" className="px-8 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-r border-gray-300 dark:border-gray-600">Joined</th>
+                <th scope="col" className="px-8 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-gray-300 dark:border-gray-600">Actions</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200 dark:bg-gray-800 dark:divide-gray-700">
+            <tbody className="divide-y divide-gray-300 dark:divide-gray-600">
               {loading && Array.from({ length: pageSize }).map((_, i) => (
-                <tr key={`skel-${i}`}>
-                  <td className="px-8 py-4 whitespace-nowrap"><div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4 animate-pulse"></div></td>
-                  <td className="px-8 py-4 whitespace-nowrap"><div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-full animate-pulse"></div></td>
-                  <td className="px-8 py-4 whitespace-nowrap"><div className="h-6 bg-gray-200 dark:bg-gray-700 rounded-full w-20 animate-pulse"></div></td>
-                  <td className="px-8 py-4 whitespace-nowrap"><div className="h-6 bg-gray-200 dark:bg-gray-700 rounded-full w-20 animate-pulse"></div></td>
-                  <td className="px-8 py-4 whitespace-nowrap"><div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-24 animate-pulse"></div></td>
+                <tr key={`skel-${i}`} className={`${i % 2 === 0 ? 'bg-white dark:bg-gray-800' : 'bg-blue-50 dark:bg-gray-700'} border-b border-gray-300 dark:border-gray-600`}>
+                  <td className="px-8 py-4 whitespace-nowrap border-r border-gray-200 dark:border-gray-600"><div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4 animate-pulse"></div></td>
+                  <td className="px-8 py-4 whitespace-nowrap border-r border-gray-200 dark:border-gray-600"><div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-full animate-pulse"></div></td>
+                  <td className="px-8 py-4 whitespace-nowrap border-r border-gray-200 dark:border-gray-600"><div className="h-6 bg-gray-200 dark:bg-gray-700 rounded-full w-20 animate-pulse"></div></td>
+                  <td className="px-8 py-4 whitespace-nowrap border-r border-gray-200 dark:border-gray-600"><div className="h-6 bg-gray-200 dark:bg-gray-700 rounded-full w-20 animate-pulse"></div></td>
+                  <td className="px-8 py-4 whitespace-nowrap border-r border-gray-200 dark:border-gray-600"><div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-24 animate-pulse"></div></td>
                   <td className="px-8 py-4 whitespace-nowrap text-right">
                     <div className="flex justify-end items-center gap-2">
                       <div className="h-8 w-8 bg-gray-200 dark:bg-gray-700 rounded-full animate-pulse"></div>
@@ -624,9 +628,9 @@ export default function ManageUsageClient({ adminProfile }: { adminProfile: User
                   </td>
                 </tr>
               ))}
-              {!loading && users.map((user) => (
-                <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                  <td className="px-8 py-4 whitespace-nowrap" onMouseEnter={(e) => handleMouseEnter(user, e)} onMouseLeave={handleMouseLeave}>
+              {!loading && users.map((user, index) => (
+                <tr key={user.id} className={`${index % 2 === 0 ? 'bg-white dark:bg-gray-800' : 'bg-blue-50 dark:bg-gray-700'} hover:bg-yellow-100 dark:hover:bg-gray-700/50 transition-colors border-b border-gray-300 dark:border-gray-600`}>
+                  <td className="px-8 py-4 whitespace-nowrap border-r border-gray-200 dark:border-gray-600" onMouseEnter={(e) => handleMouseEnter(user, e)} onMouseLeave={handleMouseLeave}>
                     <div className="flex items-center">
                       <div className="flex-shrink-0 h-10 w-10">
                         <img className="h-10 w-10 rounded-full object-cover" src={user.profileImageUrl || `https://ui-avatars.com/api/?name=${user.firstName}+${user.lastName}&background=random`} alt={`${user.firstName} ${user.lastName}`} />
@@ -637,13 +641,13 @@ export default function ManageUsageClient({ adminProfile }: { adminProfile: User
                       </div>
                     </div>
                   </td>
-                  <td className="px-8 py-4 whitespace-nowrap" onMouseEnter={(e) => handleMouseEnter(user, e)} onMouseLeave={handleMouseLeave}>
+                  <td className="px-8 py-4 whitespace-nowrap border-r border-gray-200 dark:border-gray-600" onMouseEnter={(e) => handleMouseEnter(user, e)} onMouseLeave={handleMouseLeave}>
                     <div className="text-xs text-gray-900 dark:text-white">{user.phone}</div>
                     <div className="text-xs text-gray-500 dark:text-gray-400">{user.city}, {user.state}</div>
                   </td>
-                  <td className="px-8 py-4 whitespace-nowrap">{renderRoleBadge(user.userRole)}</td>
-                  <td className="px-8 py-4 whitespace-nowrap">{renderStatusBadge(user.userStatus)}</td>
-                  <td className="px-8 py-4 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
+                  <td className="px-8 py-4 whitespace-nowrap border-r border-gray-200 dark:border-gray-600">{renderRoleBadge(user.userRole)}</td>
+                  <td className="px-8 py-4 whitespace-nowrap border-r border-gray-200 dark:border-gray-600">{renderStatusBadge(user.userStatus)}</td>
+                  <td className="px-8 py-4 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400 border-r border-gray-200 dark:border-gray-600">
                     {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
                   </td>
                   <td className="px-8 py-4 whitespace-nowrap text-right text-sm font-medium">

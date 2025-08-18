@@ -13,9 +13,8 @@ export function TeamImage({ src, name }: TeamImageProps) {
         <Image
           src={src}
           alt={`Photo of ${name}`}
-          layout="fill"
-          objectFit="cover"
-          className="rounded-full"
+          fill
+          className="rounded-full object-cover"
         />
       </div>
       <p className="font-semibold">{name}</p>

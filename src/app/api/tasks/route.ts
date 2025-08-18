@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs';
 import { z } from 'zod';
 import type { UserTaskDTO } from '@/types';
+import { getAppUrl } from '@/lib/env';
 
 // Force Node.js runtime
 export const runtime = 'nodejs';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+const API_BASE_URL = getAppUrl();
 if (!API_BASE_URL) {
   throw new Error('API base URL not configured');
 }

@@ -45,6 +45,10 @@ export function EventForm({ event, eventTypes, onSubmit, loading }: EventFormPro
   function validate(): boolean {
     const errs: Record<string, string> = {};
     if (!form.title) errs.title = 'Title is required';
+    if (form.title && form.title.length > 250) errs.title = 'Title must not exceed 250 characters';
+    if (form.caption && form.caption.length > 450) errs.caption = 'Caption must not exceed 450 characters';
+    if (form.description && form.description.length > 900) errs.description = 'Description must not exceed 900 characters';
+    if (form.directionsToVenue && form.directionsToVenue.length > 580) errs.directionsToVenue = 'Directions to Venue must not exceed 580 characters';
     if (!form.eventType || !form.eventType.id) errs.eventType = 'Event type is required';
     if (!form.startDate) errs.startDate = 'Start date is required';
     if (!form.endDate) errs.endDate = 'End date is required';
@@ -173,17 +177,19 @@ export function EventForm({ event, eventTypes, onSubmit, loading }: EventFormPro
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className="block font-medium">Title *</label>
-        <input name="title" value={form.title} onChange={handleChange} className="w-full border rounded p-2" />
+        <label className="block font-medium">Title * <span className="text-sm text-gray-500">({(form.title || '').length}/250)</span></label>
+        <input name="title" value={form.title} onChange={handleChange} className="w-full border rounded p-2" maxLength={250} />
         {errors.title && <div className="text-red-500 text-sm">{errors.title}</div>}
       </div>
       <div>
-        <label className="block font-medium">Caption</label>
-        <input name="caption" value={form.caption} onChange={handleChange} className="w-full border rounded p-2" />
+        <label className="block font-medium">Caption <span className="text-sm text-gray-500">({(form.caption || '').length}/450)</span></label>
+        <input name="caption" value={form.caption} onChange={handleChange} className="w-full border rounded p-2" maxLength={450} />
+        {errors.caption && <div className="text-red-500 text-sm">{errors.caption}</div>}
       </div>
       <div>
-        <label className="block font-medium">Description</label>
-        <textarea name="description" value={form.description ?? ""} onChange={handleChange} className="w-full border rounded p-2" />
+        <label className="block font-medium">Description <span className="text-sm text-gray-500">({(form.description || '').length}/900)</span></label>
+        <textarea name="description" value={form.description ?? ""} onChange={handleChange} className="w-full border rounded p-2" maxLength={900} rows={4} />
+        {errors.description && <div className="text-red-500 text-sm">{errors.description}</div>}
       </div>
       <div>
         <label className="block font-medium">Event Type *</label>
@@ -240,8 +246,9 @@ export function EventForm({ event, eventTypes, onSubmit, loading }: EventFormPro
         <input name="location" value={form.location} onChange={handleChange} className="w-full border rounded p-2" />
       </div>
       <div>
-        <label className="block font-medium">Directions to Venue</label>
-        <textarea name="directionsToVenue" value={form.directionsToVenue ?? ""} onChange={handleChange} className="w-full border rounded p-2" />
+        <label className="block font-medium">Directions to Venue <span className="text-sm text-gray-500">({(form.directionsToVenue || '').length}/580)</span></label>
+        <textarea name="directionsToVenue" value={form.directionsToVenue ?? ""} onChange={handleChange} className="w-full border rounded p-2" maxLength={580} rows={3} />
+        {errors.directionsToVenue && <div className="text-red-500 text-sm">{errors.directionsToVenue}</div>}
       </div>
       <div>
         <label className="block font-medium">Capacity</label>

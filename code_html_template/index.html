@@ -425,18 +425,17 @@
 
                 .event-image {
                     width: 100%;
-                    height: 400px;
+                    height: 250px;
                     margin: 0;
                     padding: 0;
                     border-radius: 10px 10px 0 0;
                     overflow: hidden;
-                    max-width: 100%;
                 }
 
                 .event-image img {
                     width: 100%;
                     height: 100%;
-                    object-fit: contain;
+                    object-fit: cover;
                     object-position: center;
                 }
 
@@ -470,25 +469,6 @@
             @media (max-width: 480px) {
                 .hero-section {
                     padding-top: 110px; /* Slightly reduced padding for smaller screens */
-                }
-
-                .event-image {
-                    height: 300px;
-                }
-
-                .event-image img {
-                    width: 100%;
-                    height: 100%;
-                    object-fit: contain;
-                    object-position: center;
-                }
-
-                .event-item {
-                    flex-direction: column;
-                }
-
-                .event-content {
-                    padding: 15px;
                 }
 
                 .hero-background {
@@ -656,6 +636,9 @@
                 right: 0;
                 width: 40%;
                 height: 80%;
+                background-image: url('images/kathakali_with_back_light_hero_ai.png');
+                background-size: cover;
+                background-position: center;
                 overflow: hidden;
                 opacity: 0.7;
                 mask-image: radial-gradient(circle at 100% 50%,
@@ -666,15 +649,6 @@
                     rgba(0, 0, 0, 1) 0%,
                     rgba(0, 0, 0, 1) 60%,
                     rgba(0, 0, 0, 0) 100%);
-            }
-
-            .hero-background-img {
-                width: 100%;
-                height: 100%;
-                object-fit: contain;
-                object-position: center;
-                padding: 20px;
-                box-sizing: border-box;
             }
 
             .hero-background::before {
@@ -713,7 +687,7 @@
             .hero-background img {
                 width: 100%;
                 height: 100%;
-                object-fit: contain;
+                object-fit: cover;
                 position: relative;
                 z-index: 0;
             }
@@ -799,17 +773,6 @@
                 background: transparent;
             }
 
-            @media (max-width: 480px) {
-                .feature-boxes {
-                    flex-direction: column;
-                }
-
-                .feature-box {
-                    width: 100%;
-                    margin-bottom: 20px;
-                }
-            }
-
             .feature-box {
                 flex: 1;
                 padding: 30px;  /* Increased padding for better spacing */
@@ -817,11 +780,10 @@
                 display: flex;
                 flex-direction: column;
                 justify-content: space-between;
-                min-height: 200px; /* Increased for better alignment */
+                min-height: 120px;
                 background-size: cover;
                 background-position: center;
                 overflow: hidden;
-                height: 100%; /* Ensure equal height */
             }
 
             .feature-box::before {
@@ -841,24 +803,19 @@
 
             .feature-box:nth-child(1) {
                 background-image: url('images/deepam_chirad.jpeg');
-                background-size: 70%;
+                background-size: 80%;
                 background-repeat: no-repeat;
                 background-position: center;
                 background-color: #1a1a1a;  /* Light black background */
-                padding: 40px 30px;  /* Added more padding for better spacing */
-                height: 100%; /* Ensure equal height */
-                overflow: hidden;
             }
 
             .feature-box:nth-child(2) {
-                background-image: url('images/spark_kerala_event_2025.png');
-                background-size: 70%;
+                background-image: url('images/lady_dance.jpeg');
+                background-size: contain;
                 background-repeat: no-repeat;
                 background-position: center;
                 position: relative;
-                overflow: hidden;  /* Changed to hidden to prevent overflow */
-                padding: 40px 30px;  /* Added consistent padding */
-                height: 100%; /* Ensure equal height */
+                overflow: visible;
             }
 
             .feature-box:nth-child(2)::before {
@@ -883,7 +840,7 @@
                 left: 50%;
                 width: 0;
                 height: 0;
-                background-image: url('images/spark_kerala_event_2025.png');
+                background-image: url('images/spark_kerala_event_2025.jpeg');
                 background-size: contain;
                 background-repeat: no-repeat;
                 background-position: center;
@@ -1036,24 +993,8 @@
 
             @media (max-width: 768px) {
                 .feature-box {
-                    min-height: 150px;
-                    padding: 25px 20px;
-                    height: 100%; /* Maintain equal height on tablet */
-                    overflow: hidden;
-                }
-
-                .feature-box:nth-child(1) {
-                    background-size: 60%;
-                    padding: 25px 20px;
-                    height: 100%;
-                    overflow: hidden;
-                }
-
-                .feature-box:nth-child(2) {
-                    background-size: 60%;
-                    padding: 25px 20px;
-                    height: 100%;
-                    overflow: hidden;
+                    min-height: 100px;
+                    padding: 20px;
                 }
 
                 .feature-box h4 {
@@ -1884,17 +1825,14 @@
             }
 
             .event-image {
-                width: 500px;
-                height: 700px;
+                width: 150px;
                 flex-shrink: 0;
-                max-width: 100%;
             }
 
             .event-image img {
                 width: 100%;
                 height: 100%;
-                object-fit: contain;
-                object-position: center;
+                object-fit: cover;
             }
 
             .event-content {
@@ -2380,19 +2318,6 @@
                         rgba(0, 0, 0, 1) 0%,
                         rgba(0, 0, 0, 1) 60%,
                         rgba(0, 0, 0, 0) 100%);
-                    padding: 15px;
-                    box-sizing: border-box;
-                    overflow: hidden;
-                }
-
-                .hero-background-img {
-                    object-fit: contain;
-                    max-width: 100%;
-                    max-height: 100%;
-                    width: 100%;
-                    height: 100%;
-                    padding: 10px;
-                    box-sizing: border-box;
                 }
             }
 
@@ -2407,9 +2332,9 @@
                 }
 
                 .event-image {
-                    width: 100%;
-                    height: 400px;
-                    min-width: auto;
+                    width: 100px;
+                    height: 100px;
+                    min-width: 100px;
                     margin: 0;
                     padding: 0;
                     border-radius: 8px;
@@ -2448,58 +2373,10 @@
             }
 
             @media (max-width: 480px) {
-                .hero-background {
-                    height: 40%;
-                    opacity: 0.5;
-                    padding: 15px;
-                    box-sizing: border-box;
-                    overflow: hidden;
-                    margin: 10px;
-                }
-
-                .hero-background-img {
-                    object-fit: contain;
-                    max-width: 100%;
-                    max-height: 100%;
-                    width: 100%;
-                    height: 100%;
-                    padding: 10px;
-                    box-sizing: border-box;
-                }
-
-                .feature-box {
-                    min-height: 120px;
-                    padding: 20px 15px;
-                    height: auto; /* Allow natural height on mobile */
-                }
-
-                .feature-box:nth-child(1) {
-                    background-size: 60%;
-                    padding: 20px 15px;
-                    height: auto;
-                    overflow: hidden;
-                }
-
-                .feature-box:nth-child(2) {
-                    background-size: 60%;
-                    padding: 20px 15px;
-                    height: auto;
-                    overflow: hidden;
-                }
-
-                .feature-box h4 {
-                    font-size: 16px;
-                    margin-bottom: 15px;
-                }
-
-                .feature-box .link-text {
-                    font-size: 14px;
-                }
-
                 .event-image {
-                    width: 100%;
-                    height: 300px;
-                    min-width: auto;
+                    width: 90px;
+                    height: 90px;
+                    min-width: 90px;
                 }
 
                 .event-content {
@@ -2866,30 +2743,6 @@
             }
 
             @media (max-width: 480px) {
-                .feature-box {
-                    min-height: 100px;
-                    padding: 20px 15px;
-                }
-
-                .feature-box:nth-child(1) {
-                    background-size: 50%;
-                    padding: 20px 15px;
-                }
-
-                .feature-box:nth-child(2) {
-                    background-size: 50%;
-                    padding: 20px 15px;
-                }
-
-                .feature-box h4 {
-                    font-size: 16px;
-                    margin-bottom: 15px;
-                }
-
-                .feature-box .link-text {
-                    font-size: 14px;
-                }
-
                 .event-image {
                     height: 180px;
                 }
@@ -3086,9 +2939,7 @@
 
         <!-- Hero Section -->
         <section class="hero-section">
-            <div class="hero-background">
-                <img src="images/kathakali_with_back_light_hero_ai.png" alt="Hero Background" class="hero-background-img">
-            </div>
+            <div class="hero-background"></div>
             <div class="hero-overlay"></div>
             <div class="hero-content">
                 <img src="images/mcefee_logo_black_border_transparent.png" alt="MCEFEE Logo" class="hero-mcafee-logo">
@@ -3420,7 +3271,7 @@
                         <!-- New Event Item -->
                         <div class="event-item">
                             <div class="event-image">
-                                <img src="images/spark_kerala_event_2025.png" alt="SPARK OF KERALA 2025">
+                                <img src="images/spark_kerala_event_2025.jpeg" alt="SPARK OF KERALA 2025">
                             </div>
                             <div class="event-content">
                                 <h5 class="event-title">SPARK OF KERALA</h5>

@@ -8,147 +8,123 @@ import { getTenantId } from '@/lib/env';
 import { formatDateLocal } from '@/lib/date';
 import { auth, currentUser } from '@clerk/nextjs/server';
 import { bootstrapUserProfile } from '@/components/ProfileBootstrapperApiServerActions';
-import { PhilantropHeaderClient } from '@/components/PhilantropHeaderClient';
-import { Footer } from '@/components/Footer';
+import VideoSection from '@/components/VideoSection';
 
-// Add EventWithMedia type for local use
-interface EventWithMedia extends EventDetailsDTO {
-  thumbnailUrl?: string;
-  placeholderText?: string;
-}
-
-// Move all event fetching to the server component
-async function fetchEventsWithMedia(): Promise<EventWithMedia[]> {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3001';
-
-  let eventsResponse = await fetch(
-    `${baseUrl}/api/proxy/event-details?sort=startDate,asc`,
-    { cache: 'no-store' }
-  );
-  let eventsData: EventDetailsDTO[] = [];
-  if (eventsResponse.ok) {
-    eventsData = await eventsResponse.json();
-  }
-  if (!eventsData || eventsData.length === 0) {
-    eventsResponse = await fetch(
-      `${baseUrl}/api/proxy/event-details?sort=startDate,desc`,
-      { cache: 'no-store' }
-    );
-    if (eventsResponse.ok) {
-      eventsData = await eventsResponse.json();
-    }
-  }
-
-  const eventsWithMedia = await Promise.all(
-    eventsData.map(async (event: EventDetailsDTO) => {
-      try {
-        const flyerRes = await fetch(`${baseUrl}/api/proxy/event-medias?eventId.equals=${event.id}&eventFlyer.equals=true`, { cache: 'no-store' });
-        let mediaArray: any[] = [];
-        if (flyerRes.ok) {
-          const flyerData = await flyerRes.json();
-          mediaArray = Array.isArray(flyerData) ? flyerData : (flyerData ? [flyerData] : []);
-        }
-        if (!mediaArray.length) {
-          const featuredRes = await fetch(`${baseUrl}/api/proxy/event-medias?eventId.equals=${event.id}&isFeaturedImage.equals=true`, { cache: 'no-store' });
-          if (featuredRes.ok) {
-            const featuredData = await featuredRes.json();
-            mediaArray = Array.isArray(featuredData) ? featuredData : (featuredData ? [featuredData] : []);
-          }
-        }
-        if (mediaArray.length > 0) {
-          return { ...event, thumbnailUrl: mediaArray[0].fileUrl };
-        }
-        return { ...event, thumbnailUrl: undefined, placeholderText: event.title || 'No image available' };
-      } catch (err) {
-        return { ...event, thumbnailUrl: undefined, placeholderText: event.title || 'No image available' };
-      }
-    })
-  );
-  return eventsWithMedia;
-}
-
-async function fetchHeroImageForEvent(eventId: number): Promise<string | null> {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3001';
-  try {
-    const mediaRes = await fetch(`${baseUrl}/api/proxy/event-medias?eventId.equals=${eventId}&isHeroImage.equals=true&isActiveHeroImage.equals=true`);
-    if (mediaRes.ok) {
-      const mediaData = await mediaRes.json();
-      const mediaArray = Array.isArray(mediaData) ? mediaData : (mediaData ? [mediaData] : []);
-      if (mediaArray.length > 0 && mediaArray[0].fileUrl) {
-        return mediaArray[0].fileUrl;
-      }
-    }
-  } catch {
-    return null;
-  }
-  return null;
-}
-
-export default async function Page() {
-  // Fetch events on the server side
-  const events = await fetchEventsWithMedia();
-
-  // Determine hero image based on upcoming events
-  const today = new Date();
-  const threeMonthsFromNow = new Date();
-  threeMonthsFromNow.setMonth(today.getMonth() + 3);
-  let heroImage = '/images/side_images/chilanka_2025.webp';
-
-  if (events && events.length > 0) {
-    const upcomingEvents = events
-      .filter((event: EventWithMedia) => event.startDate && new Date(event.startDate) >= today)
-      .sort((a: EventWithMedia, b: EventWithMedia) => {
-        const aDate = a.startDate ? new Date(a.startDate).getTime() : Infinity;
-        const bDate = b.startDate ? new Date(b.startDate).getTime() : Infinity;
-        return aDate - bDate;
-      });
-    if (upcomingEvents.length > 0) {
-      const event = upcomingEvents[0];
-      const eventDate = event.startDate ? new Date(event.startDate) : null;
-      if (eventDate && eventDate <= threeMonthsFromNow && event.thumbnailUrl) {
-        heroImage = event.thumbnailUrl;
-      }
-    }
-  }
-
-  // Fallback: If heroImage is still default, use cache-busting version
-  if (!heroImage || heroImage === '/images/side_images/chilanka_2025.webp') {
-    heroImage = `/images/side_images/chilanka_2025.webp?v=${Date.now()}`;
-  }
+export default function Page() {
+  // Use static hero image - no backend dependencies
+  const heroImage = `/images/side_images/chilanka_2025.webp?v=${Date.now()}`;
 
   return (
-    <>
-      <PhilantropHeaderClient />
+    <div className="w-full overflow-x-hidden">
       <style dangerouslySetInnerHTML={{
         __html: `
-          @media (min-width: 768px) {
-            .mobile-layout { display: none !important; }
-            .desktop-layout { display: flex !important; }
-          }
+          /* Mobile-specific hero adjustments */
           @media (max-width: 767px) {
-            .mobile-layout { display: flex !important; }
-            .desktop-layout { display: none !important; }
+            .hero-section {
+              min-height: 180px !important;
+              height: 180px !important;
+              padding-top: 80px !important;
+              background-color: #000 !important;
+              margin: 0 !important;
+              padding: 80px 0 0 0 !important;
+            }
+            /* Prevent horizontal overflow */
+            body {
+              overflow-x: hidden !important;
+            }
+            /* Ensure content fits mobile viewport */
+            .container {
+              max-width: 100vw !important;
+              padding-left: 15px !important;
+              padding-right: 15px !important;
+            }
+            /* Ensure mobile text doesn't duplicate */
+            .hero-title {
+              display: none !important;
+            }
+            /* Ensure mobile text stays within hero bounds */
+            .hero-section h1 {
+              margin-bottom: 0 !important;
+              padding-bottom: 0 !important;
+            }
+            /* Mobile feature box spacing - increased significantly */
+            .feature-boxes-container {
+              margin-top: 110px !important;
+            }
+            /* Mobile feature box spacing */
+            .feature-box-left {
+              margin-bottom: 20px !important;
+            }
+            .feature-box-right {
+              margin-bottom: 0 !important;
+            }
+            /* Ensure mobile hero has solid black background */
+            .flex.md\\:hidden {
+              background-color: #000 !important;
+              padding: 0 !important;
+              margin: 0 !important;
+              border: none !important;
+              outline: none !important;
+            }
+            /* Force all mobile hero elements to have black background */
+            .flex.md\\:hidden * {
+              background-color: #000 !important;
+            }
+            /* Ensure no white spaces in mobile hero */
+            .flex.md\\:hidden img {
+              margin: 0 !important;
+              padding: 0 !important;
+            }
+            .flex.md\\:hidden div {
+              margin: 0 !important;
+              padding: 0 !important;
+              border: none !important;
+            }
+            .flex.md\\:hidden h1 {
+              margin: 0 !important;
+              padding: 0 !important;
+              background-color: #000 !important;
+            }
           }
-
-          /* Override hero-overlay for home page to match events page brightness */
-          .hero-overlay {
-            background: linear-gradient(90deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.1) 100%) !important;
+          /* Desktop-specific adjustments */
+          @media (min-width: 768px) {
+            .hero-section {
+              min-height: 320px !important;
+              height: 320px !important;
+              padding-top: 100px !important;
+            }
+            .feature-boxes-container {
+              margin-top: 55px !important;
+            }
+            /* Ensure desktop doesn't show mobile elements */
+            .flex.md\\:hidden {
+              display: none !important;
+            }
+            /* Desktop feature box height */
+            .feature-box-left {
+              height: 1200px !important;
+              margin-bottom: 0 !important;
+            }
+            .feature-box-right {
+              height: 1200px !important;
+              margin-bottom: 0 !important;
+            }
           }
         `
       }} />
       <section className="hero-section events-hero-section" style={{
-        height: 'calc(20vh + 22px)',
-        minHeight: '300px',
+        height: '320px',
+        minHeight: '320px',
         position: 'relative',
         overflow: 'visible',
         backgroundColor: '#000',
         marginBottom: 0,
         paddingBottom: 0,
-        paddingTop: '0px',
+        paddingTop: '100px',
         marginTop: 0
       }}>
         {/* Desktop Layout */}
-        <div className="desktop-layout hero-content" style={{
+        <div className="hidden md:flex hero-content" style={{
           position: 'relative',
           zIndex: 3,
           padding: '0 20px',
@@ -158,23 +134,23 @@ export default async function Page() {
           flexDirection: 'row',
           alignItems: 'center',
           height: '100%',
-          minHeight: 180,
+          minHeight: 200,
           gap: '40px',
-          paddingTop: '60px',
-          paddingBottom: '40px'
+          paddingTop: '50px',
+          paddingBottom: '70px'
         }}>
-          <img src="/images/mcefee_logo_black_border_transparent.png" className="hero-mcafee-logo" alt="MCEFEE Logo" style={{ width: 220, height: 'auto', opacity: 0.6, marginLeft: -350 }} />
+          <img src="/images/mcefee_logo_black_border_transparent.png" className="hero-mcafee-logo" alt="MCEFEE Logo" style={{ width: 240, height: 'auto', opacity: 0.6, marginLeft: -200 }} />
           <h1 className="hero-title" style={{
             fontSize: 26,
-            lineHeight: 1.6,
+            lineHeight: 1.4,
             color: 'white',
             maxWidth: 450,
             fontFamily: 'Sora, sans-serif',
-            marginLeft: -36,
-            marginRight: 60,
+            marginLeft: -20,
+            marginRight: 40,
             display: 'flex',
             flexDirection: 'column',
-            gap: '8px'
+            gap: '6px'
           }}>
             <span>Connecting Cultures,</span>
             <span>Empowering Generations –</span>
@@ -182,65 +158,66 @@ export default async function Page() {
           </h1>
         </div>
         {/* Mobile Layout */}
-        <div className="mobile-layout" style={{
+        <div className="flex md:hidden" style={{
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          padding: '2px',
-          gap: '8px',
-          minHeight: '120px'
+          justifyContent: 'center',
+          padding: '20px 0px',
+          minHeight: '160px',
+          backgroundColor: '#000',
+          position: 'relative',
+          zIndex: 3,
+          width: '100%',
+          maxWidth: '100vw',
+          height: '100%',
+          margin: '0px',
+          border: 'none',
+          outline: 'none'
         }}>
+          {/* Mobile Logo */}
           <img src="/images/mcefee_logo_black_border_transparent.png" alt="MCEFEE Logo" style={{
-            width: '160px',
+            width: '200px',
             height: 'auto',
             opacity: 0.9,
             display: 'block',
-            margin: '0 auto'
+            margin: '20px auto 10px auto',
+            padding: '0px'
           }} />
-          <h1 style={{
-            fontSize: '18px',
-            lineHeight: 1.3,
-            color: 'white',
-            maxWidth: '90%',
-            fontFamily: 'Sora, sans-serif',
+
+          {/* Mobile Main Text - Single instance only */}
+          <div style={{
+            backgroundColor: '#000',
+            padding: '0px',
+            margin: '0px',
+            width: '100%',
+            border: 'none',
+            outline: 'none',
             display: 'flex',
-            flexDirection: 'column',
-            gap: '4px',
-            textAlign: 'center',
-            margin: '0 auto'
+            justifyContent: 'center',
+            alignItems: 'center'
           }}>
-            <span>Connecting Cultures,</span>
-            <span>Empowering Generations –</span>
-            <span style={{ color: '#ffce59', fontSize: '18px' }}>Celebrating Malayali Roots in the USA</span>
-          </h1>
-          {/* Mobile Background - Bottom Position with Gradient Overlay */}
-          <div style={{ position: 'relative', width: '100%' }}>
-            {/* Gradient overlay at the top of the image */}
-            <div style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              width: '100%',
-              height: '20px',
-              background: 'linear-gradient(180deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.2) 80%, rgba(0,0,0,0) 100%)',
-              zIndex: 2,
-              pointerEvents: 'none',
-              borderTopLeftRadius: '8px',
-              borderTopRightRadius: '8px'
-            }}></div>
-            <div className="mobile-background" style={{
-              width: '100%',
-              height: '160px',
-              backgroundImage: "url('/images/kathakali_with_back_light_hero_ai.png')",
-              backgroundSize: 'contain',
-              backgroundRepeat: 'no-repeat',
-              backgroundPosition: 'center top',
-              opacity: 0.7,
-              filter: 'blur(0.5px)',
-              marginBottom: '5px',
-              paddingTop: '5px',
-              borderRadius: '8px'
-            }}></div>
+            <h1 style={{
+              fontSize: '18px',
+              lineHeight: 1.3,
+              color: 'white',
+              maxWidth: '300px',
+              fontFamily: 'Sora, sans-serif',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '3px',
+              textAlign: 'center',
+              margin: '0px auto',
+              padding: '0px',
+              fontWeight: '500',
+              backgroundColor: '#000',
+              justifyContent: 'center',
+              alignItems: 'center'
+            }}>
+              <span>Connecting Cultures,</span>
+              <span>Empowering Generations –</span>
+              <span style={{ color: '#ffce59', fontSize: '18px', fontWeight: '600' }}>Celebrating Malayali Roots in the USA</span>
+            </h1>
           </div>
         </div>
         {/* Desktop Background */}
@@ -358,22 +335,48 @@ export default async function Page() {
         {/* Hero overlay removed to match events page brightness */}
       </section>
 
+      {/* MOBILE SPACER DIV - Creates space between hero and feature boxes on mobile only */}
+      <div className="block md:hidden" style={{ height: '60px', width: '100%', backgroundColor: 'transparent' }}></div>
+
       {/* FEATURE BOXES SECTION - two columns on desktop, stacked on mobile */}
-      <div className="feature-boxes-container w-full" style={{ marginTop: '30px', margin: '0', padding: '0' }}>
-        <div className="flex flex-col md:flex-row gap-4 md:gap-0" style={{ margin: '0', padding: '0' }}>
+      <div className="feature-boxes-container w-full" style={{ marginTop: '60px', margin: '0', padding: '0', maxWidth: '100vw', overflow: 'hidden' }}>
+        <div className="flex flex-col md:flex-row gap-8 md:gap-0" style={{ margin: '0', padding: '0', maxWidth: '100%' }}>
           {/* LEFT FEATURE BOX - three images stacked vertically */}
-          <div className="flex-1 rounded-xl p-1" style={{ justifyContent: 'flex-start', alignItems: 'stretch' }}>
-            <div style={{ gap: '0px', padding: '0px', justifyContent: 'flex-start', display: 'flex', flexDirection: 'column' }}>
+          <div className="flex-1 rounded-xl p-0 feature-box-left" style={{
+            justifyContent: 'flex-start',
+            alignItems: 'stretch',
+            maxWidth: '100%',
+            height: 'auto', // Auto height for mobile, fixed for desktop
+            display: 'flex',
+            flexDirection: 'column',
+            marginBottom: '20px' // Add bottom margin for mobile spacing
+          }}>
+            <div style={{
+              gap: '12px',
+              padding: '0px',
+              justifyContent: 'space-between',
+              display: 'flex',
+              flexDirection: 'column',
+              maxWidth: '100%',
+              height: '100%'
+            }}>
               {/* First image - Buy Tickets Click Here */}
-              <Link href="/events/1/tickets" style={{ height: 'auto', flex: 1, display: 'block' }}>
-              <img
-                src="/images/buy_tickets_click_here_red.webp"
-                alt="Buy Tickets"
+              <Link href="/events/1/tickets" style={{
+                height: 'auto',
+                flex: '0 0 auto',
+                display: 'block',
+                maxWidth: '100%',
+                margin: '0',
+                padding: '0'
+              }}>
+                <img
+                  src="/images/buy_tickets_click_here_red.webp"
+                  alt="Buy Tickets"
                   style={{
                     width: '100%',
                     height: 'auto',
-                    minHeight: '120px',
-                    maxHeight: '180px',
+                    minHeight: '200px',
+                    maxHeight: '250px',
                     objectFit: 'contain',
                     objectPosition: 'center',
                     margin: 0,
@@ -387,13 +390,20 @@ export default async function Page() {
               </Link>
 
               {/* Second image - Buy Tickets Sep 15 Parsippany */}
-              <Link href="/events/1/tickets" style={{ height: 'auto', flex: 1, display: 'block' }}>
+              <Link href="/events/1/tickets" style={{
+                height: 'auto',
+                flex: '0 0 auto',
+                display: 'block',
+                maxWidth: '100%',
+                margin: '0',
+                padding: '0'
+              }}>
                 <img
-                  src="/images/buy_tickets_sep_15_parsippany.png"
+                  src="/images/spark_kerala_event_2025/event_1/khnj_onam_2025_1920px.jpg"
                   alt="Buy Tickets Sep 2 Houston"
                   style={{
                     width: '100%',
-                    height: '100%',
+                    height: 'auto',
                     objectFit: 'contain',
                     objectPosition: 'center',
                     margin: 0,
@@ -406,13 +416,46 @@ export default async function Page() {
               </Link>
 
               {/* Third image - Buy Tickets Sep 21 Knanaya */}
-              <Link href="/events/2/tickets" style={{ height: 'auto', flex: 1, display: 'block', marginTop: '20px' }}>
+              <Link href="/events/2/tickets" style={{
+                height: 'auto',
+                flex: '0 0 auto',
+                display: 'block',
+                maxWidth: '100%',
+                margin: '0',
+                padding: '0'
+              }}>
                 <img
-                  src="/images/buy_tickets_sep_21_knanaya.png"
-                  alt="Buy Tickets Sep 15 Houston"
+                  src="/images/spark_kerala_event_2025.jpeg"
+                  alt="Buy Tickets spark_kerala_event_2025"
                   style={{
                     width: '100%',
-                    height: '100%',
+                    height: 'auto',
+                    objectFit: 'contain',
+                    objectPosition: 'center',
+                    margin: 0,
+                    padding: '0px',
+                    boxSizing: 'border-box',
+                    maxWidth: '100%',
+                    overflow: 'hidden'
+                  }}
+                />
+              </Link>
+
+              {/* Fourth image - Buy Tickets Sep 21 Knanaya 450 */}
+              <Link href="/events/3/tickets" style={{
+                height: 'auto',
+                flex: '0 0 auto',
+                display: 'block',
+                maxWidth: '100%',
+                margin: '0',
+                padding: '0'
+              }}>
+                <img
+                  src="/images/spark_kerala_event_2025/event_3/buy_tickets_sep_21_ikcc_ny_450.jpeg"
+                  alt="Buy Tickets Sep 21 Knanaya 450"
+                  style={{
+                    width: '100%',
+                    height: 'auto',
                     objectFit: 'contain',
                     objectPosition: 'center',
                     margin: 0,
@@ -427,14 +470,21 @@ export default async function Page() {
           </div>
 
           {/* RIGHT FEATURE BOX - single large image */}
-          <div className="flex-1 rounded-xl p-1" style={{ marginTop: '-60px', alignItems: 'flex-start' }}>
+          <div className="flex-1 rounded-xl p-0 feature-box-right" style={{
+            marginTop: '0',
+            alignItems: 'stretch',
+            maxWidth: '100%',
+            height: 'auto', // Auto height for mobile, fixed for desktop
+            display: 'flex',
+            flexDirection: 'column'
+          }}>
             <img
-              src="/images/spark_kerala_event_2025.png"
+              src="/images/spark_kerala_event_2025_1_2.jpeg"
               alt="Spark Kerala Event 2025"
               style={{
                 width: '100%',
                 height: '100%',
-                objectFit: 'contain',
+                objectFit: 'cover',
                 objectPosition: 'center',
                 margin: 0,
                 padding: '0px',
@@ -447,11 +497,14 @@ export default async function Page() {
         </div>
       </div>
 
+      {/* VIDEO SECTION - YouTube embed with thumbnail and play button */}
+      <VideoSection />
+
       {/* Main content container - ui_style_guide.mdc compliant */}
-      <div className="max-w-5xl mx-auto px-8 py-0" style={{ marginTop: '-40px' }}>
+      <div className="max-w-5xl mx-auto px-4 md:px-8 py-0" style={{ marginTop: '60px', maxWidth: '100vw', overflow: 'hidden' }}>
         {/* WHAT WE DO SECTION - two columns on desktop, stacked on mobile */}
         <section className="what-we-do bg-white py-8">
-          <div className="container mx-auto px-4">
+          <div className="container mx-auto px-4 md:px-4">
             <div className="section-title-wrapper flex items-center gap-4 mb-4">
               <span className="section-subtitle text-yellow-400 font-semibold text-lg border-b-2 border-yellow-400 pb-1">WHAT WE DO</span>
             </div>
@@ -593,7 +646,7 @@ export default async function Page() {
         </section>
         {/* ABOUT, VISION, STORY SECTIONS - styled as cards with image left, text right */}
         <section className="bg-[#f9f9f9] py-8" style={{ marginTop: '-20px' }}>
-          <div className="max-w-4xl mx-auto flex flex-col gap-8">
+          <div className="max-w-4xl mx-auto flex flex-col gap-8 px-4 md:px-0">
             {/* About Foundation */}
             <div className="bg-white rounded-xl shadow-md overflow-hidden flex flex-col md:flex-row">
               <div className="md:w-1/3 flex-shrink-0">
@@ -637,90 +690,403 @@ export default async function Page() {
           </div>
         </section>
         {/* TEAM SECTION */}
-        <section className="philantrop_team_section team-section" id="team-section" style={{ scrollMarginTop: '100px' }}>
-          <div className="container">
-            <div className="row">
-              <div className="col-12 col-md-6">
-                <div className="section-title-wrapper">
-                  <span className="section-subtitle">Team</span>
-                  <h3 className="philantrop_team_title">Meet our the best volunteers team</h3>
-                </div>
-              </div>
+        <section className="team-section" id="team-section" style={{ padding: '40px 0' }}>
+          <div className="container mx-auto px-4 md:px-4">
+            <div className="section-title-wrapper text-center mb-12">
+              <span className="section-subtitle text-yellow-400 font-semibold text-sm uppercase tracking-wide mb-2 block" style={{
+                fontSize: '14px',
+                color: '#ffce59',
+                position: 'relative',
+                paddingLeft: '40px'
+              }}>
+                <span style={{
+                  position: 'absolute',
+                  left: '0',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  width: '30px',
+                  height: '2px',
+                  backgroundColor: '#ffce59'
+                }}></span>
+                Team
+              </span>
+              <h3 className="text-4xl font-bold" style={{
+                fontSize: '40px',
+                lineHeight: '1.2',
+                fontFamily: 'Sora, sans-serif',
+                margin: '0'
+              }}>Meet our the best volunteers team</h3>
             </div>
-            <div className="philantrop_team_grid team-grid">
+
+            <div className="team-grid" style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              justifyContent: 'center',
+              margin: '0 -10px'
+            }}>
               {/* Head Team Member */}
-              <div className="philantrop_team_item team-item">
-                <div className="philantrop_team_image team-image">
-                  <img src="/images/team_members/shaji_varghese.jpeg" alt="Shaji Varghese" />
-                  <div className="philantrop_team_overlay team-overlay">
-                    <ul className="philantrop_team_socials team-socials">
-                      <li><a href="#"><i className="fab fa-facebook-f"></i></a></li>
+              <div className="team-item" style={{
+                width: 'calc(20% - 20px)',
+                margin: '0 10px 30px',
+                textAlign: 'center'
+              }}>
+                <div className="team-image" style={{
+                  position: 'relative',
+                  overflow: 'hidden',
+                  borderRadius: '10px',
+                  aspectRatio: '1',
+                  marginBottom: '15px'
+                }}>
+                  <img src="/images/team_members/shaji_varghese.jpeg" alt="Shaji Varghese" style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    transition: 'transform 0.3s ease'
+                  }} />
+                  <div className="team-overlay" style={{
+                    position: 'absolute',
+                    top: '0',
+                    left: '0',
+                    right: '0',
+                    bottom: '0',
+                    backgroundColor: 'rgba(0,0,0,0.8)',
+                    opacity: '0',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    transition: 'all 0.3s ease'
+                  }}>
+                    <ul className="team-socials" style={{
+                      listStyle: 'none',
+                      padding: '0',
+                      margin: '0',
+                      display: 'flex',
+                      gap: '5px'
+                    }}>
+                      <li>
+                        <a href="#" style={{
+                          display: 'flex',
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                          width: '40px',
+                          height: '40px',
+                          backgroundColor: 'white',
+                          color: '#1877f2',
+                          borderRadius: '50%',
+                          textDecoration: 'none',
+                          transition: 'all 0.3s ease'
+                        }}>
+                          <i className="fab fa-facebook-f"></i>
+                        </a>
+                      </li>
                     </ul>
                   </div>
                 </div>
-                <div className="philantrop_team_content team-content">
-                  <h5 className="philantrop_team_title team-title">Shaji Varghese</h5>
-                  <div className="philantrop_team_position team-position">Head Volunteer</div>
+                <div className="team-content">
+                  <h5 className="team-title" style={{
+                    fontSize: '20px',
+                    fontWeight: '600',
+                    margin: '0 0 5px',
+                    fontFamily: 'Sora, sans-serif'
+                  }}>Shaji Varghese</h5>
+                  <div className="team-position" style={{
+                    fontSize: '14px',
+                    color: '#555555',
+                    fontFamily: 'Epilogue, sans-serif'
+                  }}>Head Volunteer</div>
                 </div>
               </div>
+
               {/* Team Member 1 */}
-              <div className="philantrop_team_item team-item">
-                <div className="philantrop_team_image team-image">
-                  <img src="/images/team_members/sujith_karakkadan.jpeg" alt="Team Member" />
-                  <div className="philantrop_team_overlay team-overlay">
-                    <ul className="philantrop_team_socials team-socials">
-                      <li><a href="https://www.facebook.com/sujith.thottan" target="_blank"><i className="fab fa-facebook-f"></i></a></li>
+              <div className="team-item" style={{
+                width: 'calc(20% - 20px)',
+                margin: '0 10px 30px',
+                textAlign: 'center'
+              }}>
+                <div className="team-image" style={{
+                  position: 'relative',
+                  overflow: 'hidden',
+                  borderRadius: '10px',
+                  aspectRatio: '1',
+                  marginBottom: '15px'
+                }}>
+                  <img src="/images/team_members/sujith_karakkadan.jpeg" alt="Sujith Karakkadan" style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    transition: 'transform 0.3s ease'
+                  }} />
+                  <div className="team-overlay" style={{
+                    position: 'absolute',
+                    top: '0',
+                    left: '0',
+                    right: '0',
+                    bottom: '0',
+                    backgroundColor: 'rgba(0,0,0,0.8)',
+                    opacity: '0',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    transition: 'all 0.3s ease'
+                  }}>
+                    <ul className="team-socials" style={{
+                      listStyle: 'none',
+                      padding: '0',
+                      margin: '0',
+                      display: 'flex',
+                      gap: '5px'
+                    }}>
+                      <li>
+                        <a href="https://www.facebook.com/sujith.thottan" target="_blank" style={{
+                          display: 'flex',
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                          width: '40px',
+                          height: '40px',
+                          backgroundColor: 'white',
+                          color: '#1877f2',
+                          borderRadius: '50%',
+                          textDecoration: 'none',
+                          transition: 'all 0.3s ease'
+                        }}>
+                          <i className="fab fa-facebook-f"></i>
+                        </a>
+                      </li>
                     </ul>
                   </div>
                 </div>
-                <div className="philantrop_team_content team-content">
-                  <h5 className="philantrop_team_title team-title">Sujith Karakkadan</h5>
-                  <div className="philantrop_team_position team-position">Volunteer</div>
+                <div className="team-content">
+                  <h5 className="team-title" style={{
+                    fontSize: '20px',
+                    fontWeight: '600',
+                    margin: '0 0 5px',
+                    fontFamily: 'Sora, sans-serif'
+                  }}>Sujith Karakkadan</h5>
+                  <div className="team-position" style={{
+                    fontSize: '14px',
+                    color: '#555555',
+                    fontFamily: 'Epilogue, sans-serif'
+                  }}>Volunteer</div>
                 </div>
               </div>
+
               {/* Team Member 2 */}
-              <div className="philantrop_team_item team-item">
-                <div className="philantrop_team_image team-image">
-                  <img src="/images/team_members/arun_sadasivan.jpeg" alt="Team Member" />
-                  <div className="philantrop_team_overlay team-overlay">
-                    <ul className="philantrop_team_socials team-socials">
-                      <li><a href="https://www.facebook.com/arun.sadasivan.3" target="_blank"><i className="fab fa-facebook-f"></i></a></li>
+              <div className="team-item" style={{
+                width: 'calc(20% - 20px)',
+                margin: '0 10px 30px',
+                textAlign: 'center'
+              }}>
+                <div className="team-image" style={{
+                  position: 'relative',
+                  overflow: 'hidden',
+                  borderRadius: '10px',
+                  aspectRatio: '1',
+                  marginBottom: '15px'
+                }}>
+                  <img src="/images/team_members/arun_sadasivan.jpeg" alt="Arun Sadasivan" style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    transition: 'transform 0.3s ease'
+                  }} />
+                  <div className="team-overlay" style={{
+                    position: 'absolute',
+                    top: '0',
+                    left: '0',
+                    right: '0',
+                    bottom: '0',
+                    backgroundColor: 'rgba(0,0,0,0.8)',
+                    opacity: '0',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    transition: 'all 0.3s ease'
+                  }}>
+                    <ul className="team-socials" style={{
+                      listStyle: 'none',
+                      padding: '0',
+                      margin: '0',
+                      display: 'flex',
+                      gap: '5px'
+                    }}>
+                      <li>
+                        <a href="https://www.facebook.com/arun.sadasivan.3" target="_blank" style={{
+                          display: 'flex',
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                          width: '40px',
+                          height: '40px',
+                          backgroundColor: 'white',
+                          color: '#1877f2',
+                          borderRadius: '50%',
+                          textDecoration: 'none',
+                          transition: 'all 0.3s ease'
+                        }}>
+                          <i className="fab fa-facebook-f"></i>
+                        </a>
+                      </li>
                     </ul>
                   </div>
                 </div>
-                <div className="philantrop_team_content team-content">
-                  <h5 className="philantrop_team_title team-title">Arun Sadasivan</h5>
-                  <div className="philantrop_team_position team-position">Volunteer</div>
+                <div className="team-content">
+                  <h5 className="team-title" style={{
+                    fontSize: '20px',
+                    fontWeight: '600',
+                    margin: '0 0 5px',
+                    fontFamily: 'Sora, sans-serif'
+                  }}>Arun Sadasivan</h5>
+                  <div className="team-position" style={{
+                    fontSize: '14px',
+                    color: '#555555',
+                    fontFamily: 'Epilogue, sans-serif'
+                  }}>Volunteer</div>
                 </div>
               </div>
+
               {/* Team Member 3 */}
-              <div className="philantrop_team_item team-item">
-                <div className="philantrop_team_image team-image">
-                  <img src="/images/team_members/latha_krishnan.jpeg" alt="Team Member" style={{ objectPosition: 'center 20%' }} />
-                  <div className="philantrop_team_overlay team-overlay">
-                    <ul className="philantrop_team_socials team-socials">
-                      <li><a href="#"><i className="fab fa-facebook-f"></i></a></li>
+              <div className="team-item" style={{
+                width: 'calc(20% - 20px)',
+                margin: '0 10px 30px',
+                textAlign: 'center'
+              }}>
+                <div className="team-image" style={{
+                  position: 'relative',
+                  overflow: 'hidden',
+                  borderRadius: '10px',
+                  aspectRatio: '1',
+                  marginBottom: '15px'
+                }}>
+                  <img src="/images/team_members/latha_krishnan.jpeg" alt="Latha Krishnan" style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    objectPosition: 'center 20%',
+                    transition: 'transform 0.3s ease'
+                  }} />
+                  <div className="team-overlay" style={{
+                    position: 'absolute',
+                    top: '0',
+                    left: '0',
+                    right: '0',
+                    bottom: '0',
+                    backgroundColor: 'rgba(0,0,0,0.8)',
+                    opacity: '0',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    transition: 'all 0.3s ease'
+                  }}>
+                    <ul className="team-socials" style={{
+                      listStyle: 'none',
+                      padding: '0',
+                      margin: '0',
+                      display: 'flex',
+                      gap: '5px'
+                    }}>
+                      <li>
+                        <a href="#" style={{
+                          display: 'flex',
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                          width: '40px',
+                          height: '40px',
+                          backgroundColor: 'white',
+                          color: '#1877f2',
+                          borderRadius: '50%',
+                          textDecoration: 'none',
+                          transition: 'all 0.3s ease'
+                        }}>
+                          <i className="fab fa-facebook-f"></i>
+                        </a>
+                      </li>
                     </ul>
                   </div>
                 </div>
-                <div className="philantrop_team_content team-content">
-                  <h5 className="philantrop_team_title team-title">Latha Krishnan</h5>
-                  <div className="philantrop_team_position team-position"> Volunteer</div>
+                <div className="team-content">
+                  <h5 className="team-title" style={{
+                    fontSize: '20px',
+                    fontWeight: '600',
+                    margin: '0 0 5px',
+                    fontFamily: 'Sora, sans-serif'
+                  }}>Latha Krishnan</h5>
+                  <div className="team-position" style={{
+                    fontSize: '14px',
+                    color: '#555555',
+                    fontFamily: 'Epilogue, sans-serif'
+                  }}>Volunteer</div>
                 </div>
               </div>
+
               {/* Team Member 4 */}
-              <div className="philantrop_team_item team-item">
-                <div className="philantrop_team_image team-image">
-                  <img src="/images/team_members/varun_lal.jpeg" alt="Team Member" />
-                  <div className="philantrop_team_overlay team-overlay">
-                    <ul className="philantrop_team_socials team-socials">
-                      <li><a href="https://www.facebook.com/lalvarun" target="_blank"><i className="fab fa-facebook-f"></i></a></li>
+              <div className="team-item" style={{
+                width: 'calc(20% - 20px)',
+                margin: '0 10px 30px',
+                textAlign: 'center'
+              }}>
+                <div className="team-image" style={{
+                  position: 'relative',
+                  overflow: 'hidden',
+                  borderRadius: '10px',
+                  aspectRatio: '1',
+                  marginBottom: '15px'
+                }}>
+                  <img src="/images/team_members/varun_lal.jpeg" alt="Varun Lal" style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    transition: 'transform 0.3s ease'
+                  }} />
+                  <div className="team-overlay" style={{
+                    position: 'absolute',
+                    top: '0',
+                    left: '0',
+                    right: '0',
+                    bottom: '0',
+                    backgroundColor: 'rgba(0,0,0,0.8)',
+                    opacity: '0',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    transition: 'all 0.3s ease'
+                  }}>
+                    <ul className="team-socials" style={{
+                      listStyle: 'none',
+                      padding: '0',
+                      margin: '0',
+                      display: 'flex',
+                      gap: '5px'
+                    }}>
+                      <li>
+                        <a href="https://www.facebook.com/lalvarun" target="_blank" style={{
+                          display: 'flex',
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                          width: '40px',
+                          height: '40px',
+                          backgroundColor: 'white',
+                          color: '#1877f2',
+                          borderRadius: '50%',
+                          textDecoration: 'none',
+                          transition: 'all 0.3s ease'
+                        }}>
+                          <i className="fab fa-facebook-f"></i>
+                        </a>
+                      </li>
                     </ul>
                   </div>
                 </div>
-                <div className="philantrop_team_content team-content">
-                  <h5 className="philantrop_team_title team-title">Varun Lal</h5>
-                  <div className="philantrop_team_position team-position">Volunteer</div>
+                <div className="team-content">
+                  <h5 className="team-title" style={{
+                    fontSize: '20px',
+                    fontWeight: '600',
+                    margin: '0 0 5px',
+                    fontFamily: 'Sora, sans-serif'
+                  }}>Varun Lal</h5>
+                  <div className="team-position" style={{
+                    fontSize: '14px',
+                    color: '#555555',
+                    fontFamily: 'Epilogue, sans-serif'
+                  }}>Volunteer</div>
                 </div>
               </div>
             </div>
@@ -728,7 +1094,7 @@ export default async function Page() {
         </section>
         {/* CONTACT SECTION - centered, four columns */}
         <section id="contact" className="bg-[#f9f9f9] py-12">
-          <div className="max-w-5xl mx-auto px-4">
+          <div className="max-w-5xl mx-auto px-4 md:px-4">
             <span className="text-yellow-400 font-semibold uppercase tracking-wide text-sm mb-2 block">Contact</span>
             <h2 className="text-2xl md:text-3xl font-bold mb-2">Get in touch</h2>
             <p className="text-gray-600 text-base md:text-lg mb-8 max-w-2xl mx-auto text-center">Connect with us to learn more about our community initiatives and how you can get involved in preserving and promoting Malayali culture across the United States. Join us in fostering cultural exchange and building stronger connections within our diverse communities.</p>
@@ -741,9 +1107,20 @@ export default async function Page() {
                 <h6 className="font-semibold mb-1">Phone</h6>
                 <p className="text-gray-700 text-sm">(908) 516-8781</p>
               </div>
-              <div>
+              <div className="flex flex-col items-center md:items-start">
                 <h6 className="font-semibold mb-1">Social</h6>
-                <a href="https://www.facebook.com/profile.php?id=61573944338286" className="inline-block text-gray-700 hover:text-yellow-500 text-2xl" target="_blank" rel="noopener noreferrer">
+                <a href="https://www.facebook.com/profile.php?id=61573944338286" className="inline-block text-2xl" target="_blank" rel="noopener noreferrer" style={{
+                  width: '40px',
+                  height: '40px',
+                  backgroundColor: 'white',
+                  color: '#1877f2',
+                  borderRadius: '50%',
+                  textDecoration: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.3s ease'
+                }}>
                   <i className="fab fa-facebook-f"></i>
                 </a>
               </div>
@@ -756,7 +1133,7 @@ export default async function Page() {
         </section>
         {/* EVENTS SECTION - two columns, event cards and main event */}
         <section className="bg-white py-12">
-          <div className="max-w-6xl mx-auto px-4">
+          <div className="max-w-6xl mx-auto px-4 md:px-4">
             <span className="text-yellow-400 font-semibold uppercase tracking-wide text-sm mb-2 block">Events</span>
             <h2 className="text-2xl md:text-3xl font-bold mb-8">Exciting events & announcements</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -788,7 +1165,13 @@ export default async function Page() {
                     </div>
                   </div>
                 </div>
-                <a href="/events.html" className="inline-block mt-4 px-6 py-2 border border-yellow-400 text-yellow-500 rounded-full font-semibold hover:bg-yellow-50 transition">See all events</a>
+                <a href="/events" className="events-button">
+                  <span>See all events</span>
+                  <svg width="9" height="9" viewBox="0 0 9 9" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path fillRule="evenodd" clipRule="evenodd" d="M7.72029 1.27952L2.60273 1.27947L2.60273 -1.13769e-07L8.99994 5.3966e-05L9 6.39733L7.72055 6.39733L7.72029 1.27952Z" />
+                    <path d="M0.90471 9L-3.95466e-08 8.09528L8.03093 0.0642592L8.93564 0.968978L0.90471 9Z" />
+                  </svg>
+                </a>
               </div>
               {/* Main event highlight */}
               <div className="bg-yellow-300 rounded-xl shadow-md p-8 flex flex-col justify-center">
@@ -801,8 +1184,6 @@ export default async function Page() {
         </section>
       </div>
 
-      {/* FOOTER - full-bleed, edge-to-edge */}
-      <Footer />
 
       {/* BACK TO TOP BUTTON */}
       <a href="#" className="back-to-top">
@@ -846,8 +1227,91 @@ export default async function Page() {
               animation: ticker 12s linear infinite;
             }
           }
+
+          /* Team Section Responsive Styles */
+          @media (max-width: 991px) {
+            .team-item {
+              width: calc(25% - 20px) !important;
+            }
+          }
+
+          @media (max-width: 767px) {
+            .team-item {
+              width: calc(50% - 20px) !important;
+            }
+            .team-title {
+              font-size: 18px !important;
+            }
+          }
+
+          @media (max-width: 480px) {
+            .team-item {
+              width: calc(100% - 20px) !important;
+              max-width: 280px !important;
+              margin: 0 auto 30px !important;
+            }
+          }
+
+          /* Team Hover Effects */
+          .team-image:hover img {
+            transform: scale(1.05) !important;
+          }
+
+          .team-image:hover .team-overlay {
+            opacity: 1 !important;
+          }
+
+          .team-socials a:hover {
+            background-color: #ffce59 !important;
+            color: white !important;
+          }
+
+          /* Events Button Styles */
+          :root {
+            --primary-color: #ffce59;
+            --secondary-color: #333333;
+            --body-font: 'Epilogue', sans-serif;
+          }
+
+          .events-button {
+            display: inline-flex;
+            align-items: center;
+            font-family: var(--body-font);
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--secondary-color);
+            background: transparent;
+            border: 2px solid var(--primary-color);
+            padding: 12px 28px;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            text-decoration: none;
+            margin-top: 30px;
+            margin-bottom: 30px;
+          }
+
+          .events-button:hover {
+            background: var(--primary-color);
+            color: var(--secondary-color);
+          }
+
+          .events-button svg {
+            margin-left: 8px;
+          }
+
+          @media (max-width: 480px) {
+            .events-button {
+              margin-top: 25px;
+              margin-bottom: 25px;
+              font-size: 13px;
+              padding: 10px 24px;
+            }
+          }
         `
       }} />
-    </>
+    </div>
   );
 }

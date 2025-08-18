@@ -1,7 +1,7 @@
 "use server";
 import { PromotionEmailRequestDTO } from '@/types';
 import { withTenantId } from '@/lib/withTenantId';
-import { getEmailHostUrlPrefix } from '@/lib/env';
+import { getTenantId, getAppUrl, getEmailHostUrlPrefix } from '@/lib/env';
 
 export async function sendPromotionEmailServer(form: Partial<PromotionEmailRequestDTO>) {
   // Trim and validate all required fields
@@ -16,19 +16,36 @@ export async function sendPromotionEmailServer(form: Partial<PromotionEmailReque
   // Get the email host URL prefix for email context
   const emailHostUrlPrefix = getEmailHostUrlPrefix();
 
+  // Explicitly set isTestEmail to ensure it's preserved
+  const isTestEmailValue = form.isTestEmail === true;
+
+  // Create payload without spreading form to avoid any potential overwrites
   const payload = withTenantId({
-    ...form,
+    tenantId: form.tenantId || "",
     to,
     subject,
     promoCode,
     bodyHtml,
     emailHostUrlPrefix,
+    headerImagePath: form.headerImagePath || null,
+    footerPath: form.footerPath || null,
+    isTestEmail: isTestEmailValue,  // Explicit assignment at the end
+    testEmail: isTestEmailValue,    // Try alternative naming in case Java expects this
   });
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+
+  // Debug logging
+  console.log('SendPromotionEmailServer - form.isTestEmail:', form.isTestEmail);
+  console.log('SendPromotionEmailServer - isTestEmailValue:', isTestEmailValue);
+  console.log('SendPromotionEmailServer - payload before fetch:', JSON.stringify(payload, null, 2));
+  console.log('SendPromotionEmailServer - payload.isTestEmail specifically:', payload.isTestEmail);
+  const baseUrl = getAppUrl();
+  const requestBody = JSON.stringify(payload);
+  console.log('SendPromotionEmailServer - Final request body:', requestBody);
+
   const res = await fetch(`${baseUrl}/api/proxy/send-promotion-emails`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
+    body: requestBody,
     cache: 'no-store',
   });
   if (!res.ok) {

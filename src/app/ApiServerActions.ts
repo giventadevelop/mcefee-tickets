@@ -1,6 +1,6 @@
 'use server';
 import type { EventDetailsDTO } from '@/types';
-import { getTenantId } from '@/lib/env';
+import { getTenantId, getAppUrl } from '@/lib/env';
 
 interface EventWithMedia extends EventDetailsDTO {
   thumbnailUrl?: string;
@@ -9,7 +9,7 @@ interface EventWithMedia extends EventDetailsDTO {
 
 // All event fetching is now in a server action
 export async function fetchEventsWithMediaServer(): Promise<EventWithMedia[]> {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  const baseUrl = getAppUrl();
   const tenantId = getTenantId();
 
   let eventsResponse = await fetch(
@@ -63,7 +63,7 @@ export async function fetchEventsWithMediaServer(): Promise<EventWithMedia[]> {
 }
 
 export async function fetchHeroImageForEventServer(eventId: number): Promise<string | null> {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  const baseUrl = getAppUrl();
   const tenantId = getTenantId();
   try {
     const mediaRes = await fetch(`${baseUrl}/api/proxy/event-medias?eventId.equals=${eventId}&isHeroImage.equals=true&isActiveHeroImage.equals=true&tenantId.equals=${tenantId}`);

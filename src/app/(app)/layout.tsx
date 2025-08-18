@@ -24,6 +24,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
 
     return (
       <div className="min-h-screen flex flex-col bg-gray-50">
+
         {/* Top navbar */}
         <Navbar />
 

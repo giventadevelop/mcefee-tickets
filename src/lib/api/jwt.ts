@@ -6,15 +6,37 @@ import { getApiJwtUser, getApiJwtPass } from '../env';
  * Adjust payload/secret as per backend requirements.
  */
 export async function generateApiJwt() {
-  const user = getApiJwtUser();
-  const pass = getApiJwtPass();
+  // Use helper functions which prioritize AMPLIFY_ prefix
+  const userHelper = getApiJwtUser();
+  const passHelper = getApiJwtPass();
+  
   const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
-  if (!user || !pass || !API_BASE_URL) throw new Error('API JWT credentials or API base URL missing');
+  
+  // Debug logging to see what we're getting
+  console.log('[JWT DEBUG] Helper getApiJwtUser():', userHelper ? 'SET' : 'UNDEFINED');
+  console.log('[JWT DEBUG] Helper getApiJwtPass():', passHelper ? 'SET' : 'UNDEFINED');
+  console.log('[JWT DEBUG] API_BASE_URL:', API_BASE_URL ? 'SET' : 'UNDEFINED');
+  console.log('[JWT DEBUG] NODE_ENV:', process.env.NODE_ENV);
+  
+  // Debug: Show all environment variables that contain 'JWT' or 'AMPLIFY'
+  console.log('[JWT DEBUG] All JWT/AMPLIFY-related env vars:');
+  Object.keys(process.env).filter(key => key.includes('JWT') || key.includes('AMPLIFY')).forEach(key => {
+    console.log(`[JWT DEBUG] ${key}:`, process.env[key] ? 'SET' : 'UNDEFINED');
+  });
+  
+  // Use helper functions which have proper priority order
+  const finalUser = userHelper;
+  const finalPass = passHelper;
+  
+  if (!finalUser || !finalPass || !API_BASE_URL) {
+    console.log('[JWT DEBUG] Missing values - user:', finalUser, 'pass:', finalPass, 'URL:', API_BASE_URL);
+    throw new Error('API JWT credentials or API base URL missing');
+  }
 
   const apiUrl = `${API_BASE_URL}/api/authenticate`;
   const body = {
-    username: user,
-    password: pass,
+    username: finalUser,
+    password: finalPass,
     rememberMe: true,
   };
 

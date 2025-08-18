@@ -2,6 +2,7 @@ import { fetchQrCodeUsageDetails } from './ApiServerActions';
 import { QrCodeUsageDTO } from '@/types';
 import CheckInFormClient from './CheckInFormClient';
 import { FaCalendarAlt, FaClock, FaMapMarkerAlt, FaTicketAlt, FaMoneyBillAlt } from 'react-icons/fa';
+import LocationDisplay from '@/components/LocationDisplay';
 
 function formatDate(dateStr?: string) {
   if (!dateStr) return '-';
@@ -22,8 +23,10 @@ function getTicketTypeName(ticketTypeId: number | undefined, eventTicketTypes: a
   return found?.name || '-';
 }
 
-export default async function QrCodeScanPage({ params }: { params: { eventId: string; transactionId: string } }) {
-  const { eventId, transactionId } = params;
+export default async function QrCodeScanPage({ params }: { params: Promise<{ eventId: string; transactionId: string }> | { eventId: string; transactionId: string } }) {
+  // Await params for Next.js 15+ compatibility
+  const resolvedParams = typeof params.then === 'function' ? await params : params;
+  const { eventId, transactionId } = resolvedParams;
   let qrCodeUsage: QrCodeUsageDTO | null = null;
   let fetchError: string | null = null;
   try {
@@ -66,7 +69,7 @@ export default async function QrCodeScanPage({ params }: { params: { eventId: st
           <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mb-2 text-lg text-gray-700">
             <span className="flex items-center gap-2"><FaCalendarAlt /> {formatDate(event.startDate)}</span>
             <span className="flex items-center gap-2"><FaClock /> {formatTimeRange(event.startTime, event.endTime)}</span>
-            {event.location && <span className="flex items-center gap-2"><FaMapMarkerAlt /> {event.location}</span>}
+            {event.location && <span className="flex items-center gap-2"><LocationDisplay location={event.location} /></span>}
           </div>
           {event.description && <div className="mt-2 text-gray-700">{event.description}</div>}
         </div>

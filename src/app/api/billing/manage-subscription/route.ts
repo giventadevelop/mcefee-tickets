@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth, currentUser } from '@clerk/nextjs';
 import Stripe from 'stripe';
 import type { UserProfileDTO, UserSubscriptionDTO } from '@/types';
+import { getAppUrl } from '@/lib/env';
 
 // Force Node.js runtime - Edge runtime is not compatible with Prisma
 export const runtime = 'nodejs';
@@ -27,7 +28,7 @@ export async function POST(req: Request) {
     }
 
     // Get base URL from environment or request
-    let baseUrl = process.env.NEXT_PUBLIC_APP_URL;
+    let baseUrl = getAppUrl();
     if (!baseUrl) {
       // Extract base URL from the request
       const urlObj = new URL(req.url);
@@ -195,10 +196,16 @@ export async function POST(req: Request) {
           }
           url = session.url;
         } else {
+          // Determine payment methods based on environment
+          const isProduction = process.env.NODE_ENV === 'production';
+          const paymentMethods: Stripe.Checkout.SessionCreateParams.PaymentMethodType[] = isProduction
+            ? ['card', 'link', 'cashapp'] // Add more options for production
+            : ['card', 'link']; // Keep it simple for local development
+
           const session = await stripe.checkout.sessions.create({
             success_url: `${baseUrl}/dashboard`,
             cancel_url: `${baseUrl}/dashboard`,
-            payment_method_types: ['card'],
+            payment_method_types: paymentMethods,
             mode: 'subscription',
             billing_address_collection: 'auto',
             customer: customerId,

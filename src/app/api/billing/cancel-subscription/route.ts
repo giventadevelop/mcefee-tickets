@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs";
-
 import Stripe from "stripe";
+import { getAppUrl } from '@/lib/env';
 
 // Force Node.js runtime - Edge runtime is not compatible with Prisma
 export const runtime = 'nodejs';
@@ -40,7 +40,7 @@ export async function POST(req: Request) {
 
     try {
       // Get base URL from environment or request
-      let baseUrl = process.env.NEXT_PUBLIC_APP_URL;
+      let baseUrl = getAppUrl();
       if (!baseUrl) {
         // Extract base URL from the request
         const url = new URL(req.url);

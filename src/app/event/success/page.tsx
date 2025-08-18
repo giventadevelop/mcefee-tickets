@@ -1,10 +1,6 @@
 import { processStripeSessionServer, fetchTransactionQrCode } from '@/app/event/success/ApiServerActions';
 import { fetchUserProfileServer } from '@/app/admin/ApiServerActions';
 import { fetchEventDetailsByIdServer } from '@/app/admin/events/[id]/media/ApiServerActions';
-import {
-  FaCheckCircle, FaTicketAlt, FaCalendarAlt, FaUser, FaEnvelope,
-  FaMoneyBillWave, FaInfoCircle, FaReceipt, FaMapMarkerAlt, FaClock, FaMapPin
-} from 'react-icons/fa';
 import { notFound, redirect } from 'next/navigation';
 import { auth } from '@clerk/nextjs/server';
 import Image from 'next/image';
@@ -12,10 +8,37 @@ import { formatInTimeZone } from 'date-fns-tz';
 import { Suspense } from 'react';
 import LoadingTicketFallback from './LoadingTicketFallback';
 import SuccessClient from './SuccessClient';
-import { getTenantId } from '@/lib/env';
+import { getTenantId, getAppUrl } from '@/lib/env';
 import { fetchWithJwtRetry } from '@/lib/proxyHandler';
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+// Function to verify payment intent status with Stripe
+async function verifyPaymentIntentStatus(paymentIntentId: string): Promise<{ status: string; succeeded: boolean }> {
+  try {
+    // Call our Stripe API to check the payment intent status
+    const response = await fetch(`${getAppUrl()}/api/stripe/verify-payment-intent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ paymentIntentId }),
+      cache: 'no-store'
+    });
+
+    if (!response.ok) {
+      console.error(`Failed to verify payment intent ${paymentIntentId}:`, await response.text());
+      return { status: 'unknown', succeeded: false };
+    }
+
+    const data = await response.json();
+    console.log(`Payment intent ${paymentIntentId} status:`, data.status);
+
+    return {
+      status: data.status,
+      succeeded: data.status === 'succeeded'
+    };
+  } catch (error) {
+    console.error('Error verifying payment intent status:', error);
+    return { status: 'error', succeeded: false };
+  }
+}
 
 // Function to check if transaction already exists on server side
 async function checkTransactionExistsServer(sessionId: string): Promise<{ exists: boolean; transaction?: any }> {
@@ -27,7 +50,7 @@ async function checkTransactionExistsServer(sessionId: string): Promise<{ exists
     });
 
     const response = await fetchWithJwtRetry(
-      `${APP_URL}/api/proxy/event-ticket-transactions?${params.toString()}`,
+      `${getAppUrl()}/api/proxy/event-ticket-transactions?${params.toString()}`,
       { cache: 'no-store' }
     );
 
@@ -53,9 +76,9 @@ async function checkTransactionExistsServer(sessionId: string): Promise<{ exists
 }
 
 async function getHeroImageUrl(eventId: number): Promise<string> {
-  const defaultHeroImageUrl = `/images/side_images/chilanka_2025.webp?v=${Date.now()}`;
+  const defaultHeroImageUrl = `/images/default_placeholder_hero_image.jpeg?v=${Date.now()}`;
   let imageUrl: string | null = null;
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  const baseUrl = getAppUrl();
   try {
     const flyerRes = await fetch(`${baseUrl}/api/proxy/event-medias?eventId.equals=${eventId}&eventFlyer.equals=true`, { cache: 'no-store' });
     if (flyerRes.ok) {
@@ -80,14 +103,14 @@ async function getHeroImageUrl(eventId: number): Promise<string> {
 }
 
 async function fetchTransactionItemsByTransactionId(transactionId: number) {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  const baseUrl = getAppUrl();
   const res = await fetch(`${baseUrl}/api/proxy/event-ticket-transaction-items?transactionId.equals=${transactionId}`, { cache: 'no-store' });
   if (!res.ok) return [];
   return res.json();
 }
 
 async function fetchTicketTypeById(ticketTypeId: number) {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  const baseUrl = getAppUrl();
   const res = await fetch(`${baseUrl}/api/proxy/event-ticket-types/${ticketTypeId}`, { cache: 'no-store' });
   if (!res.ok) return null;
   return res.json();
@@ -105,30 +128,61 @@ function formatTime(time: string): string {
   return `${hour.toString().padStart(2, '0')}:${minute} ${ampm}`;
 }
 
-export default async function SuccessPage({ searchParams }: { searchParams: Promise<{ session_id?: string }> | { session_id?: string } }) {
+export default async function SuccessPage({ searchParams }: { searchParams: Promise<{ session_id?: string; pi?: string; payment_intent?: string; payment_intent_client_secret?: string; redirect_status?: string }> | { session_id?: string; pi?: string; payment_intent?: string; payment_intent_client_secret?: string; redirect_status?: string } }) {
   // Await searchParams for Next.js 15+ compatibility
   const resolvedParams = typeof searchParams.then === 'function' ? await searchParams : searchParams;
   const session_id = resolvedParams.session_id;
-  if (!session_id) {
+  // Support Stripe redirect params from Link/3DS: payment_intent, payment_intent_client_secret, redirect_status
+  const pi = (resolvedParams as any).pi || (resolvedParams as any).payment_intent as string | undefined;
+
+  console.log('[SuccessPage SERVER] Received parameters:', {
+    session_id,
+    pi,
+    resolvedParams
+  });
+
+  if (!session_id && !pi) {
+    console.log('[SuccessPage SERVER] Missing both session_id and pi - showing error');
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 text-center p-4">
-        <h1 className="text-2xl font-bold text-gray-800">Missing session ID</h1>
-        <p className="text-gray-600 mt-2">No session ID was provided. Please check your payment link or contact support.</p>
+        <div className="text-4xl text-red-500 mb-4">⚠️</div>
+        <h1 className="text-2xl font-bold text-gray-800">Missing session ID or payment intent</h1>
+        <p className="text-gray-600 mt-2">No session ID or payment intent was provided. Please check your payment link or contact support.</p>
+        <p className="text-gray-500 text-sm mt-2">Debug: session_id={String(session_id || '')}, pi={String(pi || '')}</p>
       </div>
     );
   }
 
+  // If we have a payment intent, verify its status with Stripe
+  if (pi) {
+    console.log('[SuccessPage SERVER] Verifying payment intent status with Stripe...');
+    const { status, succeeded } = await verifyPaymentIntentStatus(pi);
+
+    if (!succeeded) {
+      console.log(`[SuccessPage SERVER] Payment intent ${pi} not succeeded (status: ${status}) - redirecting to tickets page`);
+      // Redirect back to tickets page if payment wasn't completed
+      redirect(`/events/3/tickets?payment_cancelled=true&pi=${pi}&status=${status}`);
+    }
+
+    console.log(`[SuccessPage SERVER] Payment intent ${pi} verified as succeeded`);
+  }
+
   // Check if transaction already exists on server side
-  const { exists: transactionExists, transaction } = await checkTransactionExistsServer(session_id);
+  const { exists: transactionExists, transaction } = session_id ? await checkTransactionExistsServer(session_id) : { exists: false } as any;
 
   if (transactionExists) {
     console.log(`Transaction already exists for session ${session_id}, redirecting to homepage`);
     console.log(`This could be due to: page refresh, back button, or duplicate access`);
     console.log(`Transaction ID: ${transaction?.id}, Status: ${transaction?.status}`);
-
-    // Redirect to homepage with a query parameter to indicate why
-    redirect('/?payment=already-processed');
+    // Keep user on success page after first load; only redirect on explicit refresh
+    // Detect a refresh via a special query flag
+    const refreshed = (resolvedParams as any)?.ref === '1';
+    if (refreshed) {
+      redirect('/?payment=already-processed');
+    }
   }
 
-  return <SuccessClient session_id={session_id} />;
+  // For mobile users with payment intent, we need to convert pi to session_id
+  // Pass both parameters to SuccessClient to handle the conversion
+  return <SuccessClient session_id={session_id || ''} payment_intent={pi} />;
 }

@@ -1,5 +1,6 @@
 "use client";
-import React, { useState, useTransition, useEffect } from 'react';
+import React, { useState, useTransition, useEffect, useRef } from 'react';
+import ReactDOM from 'react-dom';
 import Link from 'next/link';
 import { FaUsers, FaCalendarAlt, FaEdit, FaTrashAlt, FaPlus, FaSave, FaTimes, FaBan, FaPhotoVideo, FaTicketAlt, FaTags } from 'react-icons/fa';
 import type { EventDetailsDTO, EventTicketTypeDTO, EventTicketTypeFormDTO } from '@/types';
@@ -12,6 +13,108 @@ interface ValidationErrors {
   description?: string;
   price?: string;
   availableQuantity?: string;
+}
+
+// DetailsTooltip component following the UI style guide
+function TicketTypeDetailsTooltip({ ticketType, anchorRect, onClose }: { ticketType: EventTicketTypeDTO, anchorRect: DOMRect | null, onClose: () => void }) {
+  if (!anchorRect) return null;
+
+  const spacing = 8;
+  const tooltipWidth = 320;
+  let top = anchorRect.top;
+  let left = anchorRect.right + spacing;
+
+  // Clamp position to stay within the viewport
+  const estimatedHeight = 200;
+  if (top + estimatedHeight > window.innerHeight) {
+    top = window.innerHeight - estimatedHeight - spacing;
+  }
+  if (top < spacing) {
+    top = spacing;
+  }
+  if (left + tooltipWidth > window.innerWidth) {
+    left = window.innerWidth - tooltipWidth - spacing;
+  }
+
+  const style: React.CSSProperties = {
+    position: 'fixed',
+    top,
+    left,
+    zIndex: 9999,
+    width: tooltipWidth,
+    backgroundColor: 'white',
+    border: '1px solid #e5e7eb',
+    borderRadius: '8px',
+    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+    padding: '16px',
+    maxHeight: '300px',
+    overflowY: 'auto'
+  };
+
+  return ReactDOM.createPortal(
+    <div style={style} className="admin-tooltip">
+      {/* Sticky close button */}
+      <div className="sticky top-0 right-0 z-10 bg-white flex justify-end mb-2">
+        <button
+          onClick={onClose}
+          className="w-8 h-8 text-lg bg-red-500 hover:bg-red-600 text-white rounded-full shadow-lg flex items-center justify-center transition-all"
+          aria-label="Close tooltip"
+        >
+          &times;
+        </button>
+      </div>
+      
+      {/* Tooltip content */}
+      <div className="space-y-3">
+        <div>
+          <h4 className="font-semibold text-gray-900 mb-2">{ticketType.name}</h4>
+        </div>
+        <div className="space-y-2 text-sm">
+          <div className="flex justify-between">
+            <span className="text-gray-600">Code:</span>
+            <span className="font-medium">{ticketType.code}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-600">Price:</span>
+            <span className="font-medium">${ticketType.price.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-600">Available:</span>
+            <span className="font-medium">{ticketType.availableQuantity}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-600">Sold:</span>
+            <span className="font-medium">{ticketType.soldQuantity || 0}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-600">Service Fee:</span>
+            <span className="font-medium">${(ticketType.serviceFee || 0).toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-600">Fee Included:</span>
+            <span className="font-medium">{ticketType.isServiceFeeIncluded ? 'Yes' : 'No'}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-600">Status:</span>
+            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+              ticketType.isActive 
+                ? 'bg-green-100 text-green-800' 
+                : 'bg-red-100 text-red-800'
+            }`}>
+              {ticketType.isActive ? 'Active' : 'Inactive'}
+            </span>
+          </div>
+          {ticketType.description && (
+            <div className="pt-2 border-t border-gray-200">
+              <span className="text-gray-600 text-xs">Description:</span>
+              <p className="text-gray-900 text-xs mt-1">{ticketType.description}</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
 }
 
 interface TicketTypeListClientProps {
@@ -33,6 +136,11 @@ export default function TicketTypeListClient({ eventId, eventDetails, ticketType
   const [formData, setFormData] = useState<Partial<EventTicketTypeFormDTO>>({});
 
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // Tooltip state management
+  const [hoveredTicketType, setHoveredTicketType] = useState<EventTicketTypeDTO | null>(null);
+  const [popoverAnchor, setPopoverAnchor] = useState<DOMRect | null>(null);
+  const tooltipTimer = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (editingTicketType) {
@@ -152,6 +260,26 @@ export default function TicketTypeListClient({ eventId, eventDetails, ticketType
     });
   };
 
+  // Tooltip mouse event handlers
+  const handleMouseEnter = (ticketType: EventTicketTypeDTO, e: React.MouseEvent<HTMLElement>) => {
+    if (tooltipTimer.current) {
+      clearTimeout(tooltipTimer.current);
+    }
+    setHoveredTicketType(ticketType);
+    setPopoverAnchor(e.currentTarget.getBoundingClientRect());
+  };
+
+  const handleMouseLeave = () => {
+    tooltipTimer.current = setTimeout(() => {
+      setHoveredTicketType(null);
+    }, 200);
+  };
+
+  const closeTooltip = () => {
+    setPopoverAnchor(null);
+    setHoveredTicketType(null);
+  };
+
   return (
     <div className="max-w-5xl mx-auto px-8 py-8">
       <div className="bg-white rounded-lg shadow-md p-6">
@@ -164,24 +292,53 @@ export default function TicketTypeListClient({ eventId, eventDetails, ticketType
             <FaPlus /> Add New Ticket Type
           </button>
         </div>
+        
+        {/* Hint message */}
+        <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-4">
+          <div className="flex">
+            <div className="ml-3">
+              <p className="text-sm text-blue-700">
+                <strong>Note:</strong> Ticket types may not be immediately deletable but you can make them inactive by clicking the edit button and unchecking the Active checkbox.
+              </p>
+              <p className="text-sm text-blue-700 mt-2">
+                <strong>Tip:</strong> Hover over the Name, Price, or Available columns to see detailed information about each ticket type.
+              </p>
+            </div>
+          </div>
+        </div>
+        
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Available</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Active</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {ticketTypes.map((ticketType) => (
                 <tr key={ticketType.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">{ticketType.name}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{ticketType.code}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">${ticketType.price}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{ticketType.availableQuantity}</td>
+                  <td className="px-6 py-4 whitespace-nowrap cursor-pointer" onMouseEnter={(e) => handleMouseEnter(ticketType, e)} onMouseLeave={handleMouseLeave}>
+                    {ticketType.name}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap cursor-pointer" onMouseEnter={(e) => handleMouseEnter(ticketType, e)} onMouseLeave={handleMouseLeave}>
+                    ${ticketType.price.toFixed(2)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap cursor-pointer" onMouseEnter={(e) => handleMouseEnter(ticketType, e)} onMouseLeave={handleMouseLeave}>
+                    {ticketType.availableQuantity}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                      ticketType.isActive 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-red-100 text-red-800'
+                    }`}>
+                      {ticketType.isActive ? 'Active' : 'Inactive'}
+                    </span>
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center justify-center gap-4">
                       <button onClick={() => handleEditClick(ticketType)} className="flex flex-col items-center text-blue-600 hover:text-blue-800 focus:outline-none">
@@ -200,6 +357,26 @@ export default function TicketTypeListClient({ eventId, eventDetails, ticketType
           </table>
         </div>
       </div>
+
+      {/* Tooltip component */}
+      {hoveredTicketType && (
+        <div
+          onMouseEnter={() => {
+            if (tooltipTimer.current) clearTimeout(tooltipTimer.current);
+          }}
+          onMouseLeave={() => {
+            tooltipTimer.current = setTimeout(() => {
+              setHoveredTicketType(null);
+            }, 200);
+          }}
+        >
+          <TicketTypeDetailsTooltip 
+            ticketType={hoveredTicketType} 
+            anchorRect={popoverAnchor} 
+            onClose={closeTooltip} 
+          />
+        </div>
+      )}
 
       {deletingTicketType && (
         <Modal open={!!deletingTicketType} onClose={() => setDeletingTicketType(null)} title="Confirm Deletion">

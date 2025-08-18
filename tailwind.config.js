@@ -1,24 +1,9 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  safelist: [
-    'main-menu',
-    'container',
-    'row',
-    'col-12',
-    'col-md-6',
-    'col-md-8',
-    'feature-box',
-    'section-title-wrapper',
-    'team-item',
-    'event-item',
-    // Add any other custom classes you use
-  ],
   content: [
     './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
     './src/app/**/*.{js,ts,jsx,tsx,mdx}',
-    './src/**/*.{js,ts,jsx,tsx,mdx}',
-    './public/**/*.html',
   ],
   darkMode: ["class"],
   theme: {

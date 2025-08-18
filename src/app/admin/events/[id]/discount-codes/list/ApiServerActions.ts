@@ -1,5 +1,5 @@
 "use server";
-import { getTenantId } from "@/lib/env";
+import { getTenantId, getAppUrl } from "@/lib/env";
 import { fetchWithJwtRetry } from "@/lib/proxyHandler";
 import { withTenantId } from "@/lib/withTenantId";
 import { DiscountCodeDTO } from "@/types";
@@ -27,7 +27,7 @@ export async function createDiscountCodeServer(
   code: Omit<DiscountCodeDTO, "id" | "tenantId" | "createdAt" | "updatedAt">,
   eventId: string
 ): Promise<DiscountCodeDTO> {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  const baseUrl = getAppUrl();
   const url = `${baseUrl}/api/proxy/discount-codes`;
 
   const payload = withTenantId({
@@ -76,7 +76,7 @@ export async function deleteDiscountCodeServer(discountCodeId: number): Promise<
 export async function fetchDiscountCodeByIdServer(
   id: number
 ): Promise<DiscountCodeDTO | null> {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  const baseUrl = getAppUrl();
   const url = `${baseUrl}/api/proxy/discount-codes/${id}`;
 
   const response = await fetchWithJwtRetry(url, {
@@ -100,7 +100,7 @@ export async function patchDiscountCodeServer(
   id: number,
   code: Partial<Omit<DiscountCodeDTO, "tenantId" | "eventId" | "createdAt" | "updatedAt">> & { eventId: number }
 ): Promise<DiscountCodeDTO> {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  const baseUrl = getAppUrl();
   const url = `${baseUrl}/api/proxy/discount-codes/${id}`;
   const now = new Date().toISOString();
   const payload: Partial<DiscountCodeDTO> = {

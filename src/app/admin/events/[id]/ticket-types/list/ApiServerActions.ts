@@ -1,13 +1,13 @@
 "use server";
 
 import { revalidatePath } from 'next/cache';
-import { getTenantId } from '@/lib/env';
+import { getTenantId, getAppUrl } from '@/lib/env';
 import { withTenantId } from '@/lib/withTenantId';
 import type { EventTicketTypeDTO, EventTicketTypeFormDTO, EventDetailsDTO } from '@/types';
 import { getCachedApiJwt, generateApiJwt } from '@/lib/api/jwt';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+const APP_URL = getAppUrl();
 
 async function fetchWithJwtRetry(apiUrl: string, options: RequestInit = {}) {
   let token = await getCachedApiJwt();
@@ -72,12 +72,20 @@ export async function createTicketTypeServer(eventId: string, formData: EventTic
 
 export async function updateTicketTypeServer(ticketTypeId: number, eventId: string, formData: Partial<EventTicketTypeFormDTO>) {
   try {
+    // First fetch the existing ticket type to get the createdAt timestamp
+    const existingTicketType = await fetchTicketTypeByIdServer(ticketTypeId);
+    if (!existingTicketType) {
+      return { success: false, error: 'Ticket type not found' };
+    }
+
     const payload = withTenantId({
+      id: ticketTypeId,
       ...formData,
       event: { id: parseInt(eventId) },
       price: Number(formData.price),
       availableQuantity: Number(formData.availableQuantity),
       serviceFee: formData.isServiceFeeIncluded && formData.serviceFee ? Number(formData.serviceFee) : 0,
+      createdAt: existingTicketType.createdAt, // Preserve existing createdAt
       updatedAt: new Date().toISOString(),
     });
 
@@ -115,7 +123,7 @@ export async function deleteTicketTypeServer(ticketTypeId: number, eventId: stri
 export async function fetchTicketTypeByIdServer(
   ticketTypeId: number
 ): Promise<EventTicketTypeDTO | null> {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  const baseUrl = getAppUrl();
   const response = await fetch(
     `${baseUrl}/api/proxy/event-ticket-types/${ticketTypeId}`,
     {
@@ -153,7 +161,7 @@ export async function updateTicketTypeInventoryServer(
       updatedAt: new Date().toISOString(),
     };
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const baseUrl = getAppUrl();
     const response = await fetch(`${baseUrl}/api/proxy/event-ticket-types/${ticketTypeId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },

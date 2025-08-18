@@ -18,11 +18,12 @@ interface DashboardContentProps {
   subscription: UserSubscriptionDTO | null;
   pendingSubscription?: boolean;
   errorBanner?: React.ReactNode;
+  userProfileId?: number;
 }
 
 const PAGE_SIZE = 3;
 
-export function DashboardContent({ tasks = [], stats, subscription, pendingSubscription = false, errorBanner }: DashboardContentProps) {
+export function DashboardContent({ tasks = [], stats, subscription, pendingSubscription = false, errorBanner, userProfileId }: DashboardContentProps) {
   const searchParams = useSearchParams();
   const currentPage = searchParams?.get("page") ? parseInt(searchParams.get("page")!) : 1;
 
@@ -32,15 +33,13 @@ export function DashboardContent({ tasks = [], stats, subscription, pendingSubsc
   const handleDelete = async (taskId: string) => {
     if (confirm('Are you sure you want to delete this task?')) {
       try {
-        const response = await fetch(`/api/tasks`, {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: taskId }),
-        });
-        if (!response.ok) {
-          throw new Error('Failed to delete task');
+        const { deleteTaskServer } = await import('../app/dashboard/ApiServerActions');
+        const success = await deleteTaskServer(taskId);
+        if (success) {
+          window.location.reload();
+        } else {
+          alert('Failed to delete task. Please try again.');
         }
-        window.location.reload();
       } catch (error) {
         console.error('Error deleting task:', error);
         alert('Failed to delete task. Please try again.');
@@ -50,23 +49,14 @@ export function DashboardContent({ tasks = [], stats, subscription, pendingSubsc
 
   // Polling logic for pending subscription
   React.useEffect(() => {
-    if (!pendingSubscription) return;
+    if (!pendingSubscription || !userProfileId) return;
     let interval: NodeJS.Timeout;
     const poll = async () => {
       try {
-        const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
-        if (!apiBaseUrl) return;
-        const res = await fetch(`/api/proxy/user-subscriptions/by-profile/me`, {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' },
-          cache: 'no-store',
-        });
-        if (res.ok) {
-          const data = await res.json();
-          const sub = Array.isArray(data) ? data[0] : data;
-          if (sub && (sub.status === 'active' || sub.status === 'trialing')) {
-            window.location.reload();
-          }
+        const { checkSubscriptionStatusServer } = await import('../app/dashboard/ApiServerActions');
+        const sub = await checkSubscriptionStatusServer(userProfileId);
+        if (sub && (sub.status === 'active' || sub.status === 'trialing')) {
+          window.location.reload();
         }
       } catch (e) {
         // Ignore errors, keep polling
@@ -74,7 +64,7 @@ export function DashboardContent({ tasks = [], stats, subscription, pendingSubsc
     };
     interval = setInterval(poll, 2000);
     return () => clearInterval(interval);
-  }, [pendingSubscription]);
+  }, [pendingSubscription, userProfileId]);
 
   if (pendingSubscription) {
     return (

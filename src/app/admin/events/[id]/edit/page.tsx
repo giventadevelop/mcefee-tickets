@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { EventForm } from '@/components/EventForm';
 import type { EventDetailsDTO, EventTypeDetailsDTO } from '@/types';
 import Link from 'next/link';
-import { FaUsers, FaPhotoVideo, FaCalendarAlt } from 'react-icons/fa';
+import { FaUsers, FaPhotoVideo, FaCalendarAlt, FaTags, FaTicketAlt, FaHome } from 'react-icons/fa';
 
 export default function EditEventPage() {
   const router = useRouter();
@@ -46,11 +46,15 @@ export default function EditEventPage() {
   if (!event) return <div className="p-8">Loading event details...</div>;
 
   return (
-    <div className="min-h-screen p-8 max-w-3xl mx-auto">
+    <div className="min-h-screen p-8 max-w-3xl mx-auto" style={{ paddingTop: '118px' }}>
       {/* Dashboard Card with Grid Buttons */}
       <div className="flex justify-center mb-8">
         <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-3xl">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <Link href="/admin" className="flex flex-col items-center justify-center bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-lg shadow-sm px-4 py-4 transition font-semibold text-sm">
+              <FaHome className="mb-2 text-2xl" />
+              <span>Admin Home</span>
+            </Link>
             <Link href="/admin/manage-usage" className="flex flex-col items-center justify-center bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg shadow-sm px-4 py-4 transition font-semibold text-sm">
               <FaUsers className="mb-2 text-2xl" />
               <span>Manage Usage</span>
@@ -64,10 +68,22 @@ export default function EditEventPage() {
               <FaCalendarAlt className="mb-2 text-2xl" />
               Manage Events
             </Link>
+            {event?.admissionType === 'ticketed' && (
+              <>
+                <Link href={`/admin/events/${eventId}/ticket-types/list`} className="flex flex-col items-center justify-center bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg shadow-sm px-4 py-4 transition font-semibold text-sm">
+                  <FaTags className="mb-2 text-2xl" />
+                  Manage Ticket Types
+                </Link>
+                <Link href={`/admin/events/${eventId}/tickets/list`} className="flex flex-col items-center justify-center bg-teal-50 hover:bg-teal-100 text-teal-700 rounded-lg shadow-sm px-4 py-4 transition font-semibold text-sm">
+                  <FaTicketAlt className="mb-2 text-2xl" />
+                  Manage Tickets
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </div>
-      <h1 className="text-2xl font-bold mb-4">Edit Event</h1>
+      <h1 className="text-2xl font-bold mb-4">Edit Event - ID: {eventId}</h1>
       {error && <div className="bg-red-50 text-red-500 p-3 rounded mb-4">{error}</div>}
       <div className="border rounded p-4 bg-white shadow-sm min-h-[200px]">
         <EventForm event={event} eventTypes={eventTypes} onSubmit={handleSubmit} loading={loading} />

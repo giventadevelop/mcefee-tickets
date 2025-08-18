@@ -12,6 +12,7 @@ import ReactDOM from 'react-dom';
 interface EventListProps {
   events: EventDetailsDTO[];
   eventTypes: EventTypeDetailsDTO[];
+  calendarEvents?: EventCalendarEntryDTO[];
   onEdit: (event: EventDetailsDTO) => void;
   onCancel: (event: EventDetailsDTO) => void;
   loading?: boolean;
@@ -27,6 +28,7 @@ interface EventListProps {
 export function EventList({
   events,
   eventTypes: eventTypesProp,
+  calendarEvents: calendarEventsProp = [],
   onEdit,
   onCancel,
   loading,
@@ -39,7 +41,7 @@ export function EventList({
   boldEventIdLabel = false
 }: EventListProps) {
   const [hoveredEventId, setHoveredEventId] = useState<number | null>(null);
-  const [calendarEvents, setCalendarEvents] = useState<EventCalendarEntryDTO[]>([]);
+  const [calendarEvents, setCalendarEvents] = useState<EventCalendarEntryDTO[]>(calendarEventsProp);
   const [eventTypes, setEventTypes] = useState<EventTypeDetailsDTO[]>(eventTypesProp || []);
   const [showTicketTypeModal, setShowTicketTypeModal] = useState(false);
   const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
@@ -47,21 +49,28 @@ export function EventList({
   const [tooltipAnchor, setTooltipAnchor] = useState<DOMRect | null>(null);
 
   useEffect(() => {
-    // Fetch all calendar events for quick lookup
-    const tenantId = getTenantId();
-    fetch(`/api/proxy/event-calendar-entries?size=1000&tenantId.equals=${tenantId}`)
-      .then(res => res.ok ? res.json() : [])
-      .then(data => setCalendarEvents(Array.isArray(data) ? data : []));
-  }, []);
+    // Use provided calendar events or fetch if not provided
+    if (calendarEventsProp.length > 0) {
+      setCalendarEvents(calendarEventsProp);
+    } else {
+      // Fallback: fetch calendar events if not provided
+      const tenantId = getTenantId();
+      fetch(`/api/proxy/event-calendar-entries?size=1000&tenantId.equals=${tenantId}`)
+        .then(res => res.ok ? res.json() : [])
+        .then(data => setCalendarEvents(Array.isArray(data) ? data : []));
+    }
+  }, [calendarEventsProp]);
 
   useEffect(() => {
-    const tenantId = getTenantId();
-    if (!eventTypesProp || eventTypesProp.length === 0) {
+    // Use provided event types or fetch if not provided
+    if (eventTypesProp && eventTypesProp.length > 0) {
+      setEventTypes(eventTypesProp);
+    } else {
+      // Fallback: fetch event types if not provided
+      const tenantId = getTenantId();
       fetch(`/api/proxy/event-type-details?tenantId.equals=${tenantId}`)
         .then(res => res.ok ? res.json() : [])
         .then(data => setEventTypes(Array.isArray(data) ? data : []));
-    } else {
-      setEventTypes(eventTypesProp);
     }
   }, [eventTypesProp]);
 
@@ -258,10 +267,17 @@ export function EventList({
                   <span className={`px-2 py-1 rounded text-xs font-bold ${isActive ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'}`}>{isActive ? 'Yes' : 'No'}</span>
                 </td>
                 <td className="p-2 border text-center align-middle">
-                  <button className="flex flex-col items-center text-blue-600 hover:text-blue-800 focus:outline-none" onClick={() => onEdit(event)}>
+                  <a
+                    href={`/admin/events/${event.id}/edit`}
+                    className="flex flex-col items-center text-blue-600 hover:text-blue-800 focus:outline-none inline-block w-full h-full"
+                    onClick={(e) => {
+                      // Allow default behavior (navigation) but also call onEdit for backward compatibility
+                      onEdit(event);
+                    }}
+                  >
                     <FaEdit className="w-7 h-7" />
                     <span className="text-[10px] text-gray-600 mt-1 block font-bold">Edit/View,<br />Event Details</span>
-                  </button>
+                  </a>
                 </td>
                 <td className="p-2 border text-center align-middle">
                   <button className="flex flex-col items-center text-red-600 hover:text-red-800 focus:outline-none" onClick={() => onCancel(event)}>

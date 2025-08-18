@@ -4,6 +4,8 @@ import { useParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import type { EventWithMedia, EventMediaDTO, EventDetailsDTO } from "@/types";
+import { formatInTimeZone } from 'date-fns-tz';
+import LocationDisplay from '@/components/LocationDisplay';
 
 export default function EventDetailsPage() {
   const params = useParams();
@@ -198,7 +200,7 @@ export default function EventDetailsPage() {
           <span className="font-semibold">Date:</span> {event.startDate} <span className="ml-4 font-semibold">Time:</span> {event.startTime} - {event.endTime}
         </div>
         <div className="mb-4">
-          <span className="font-semibold">Location:</span> {event.location}
+          {event.location && <LocationDisplay location={event.location} />}
         </div>
         <div className="mb-6 text-lg">{event.description}</div>
         {isUpcoming && calendarLink && (

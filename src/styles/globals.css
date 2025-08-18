@@ -97,8 +97,6 @@
   animation: dash-right 1s linear infinite;
 }
 
-
-
 @keyframes dash-right {
   0% {
     transform: translateX(0);

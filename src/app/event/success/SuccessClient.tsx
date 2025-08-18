@@ -4,16 +4,16 @@ import LoadingTicket from "./LoadingTicket";
 import Image from "next/image";
 import {
   FaCheckCircle, FaTicketAlt, FaCalendarAlt, FaUser, FaEnvelope,
-  FaMoneyBillWave, FaInfoCircle, FaReceipt, FaMapPin, FaClock
+  FaMoneyBillWave, FaInfoCircle, FaReceipt, FaMapPin, FaClock, FaTags
 } from "react-icons/fa";
 import { formatInTimeZone } from "date-fns-tz";
-import { PhilantropHeaderClient } from '@/components/PhilantropHeaderClient';
-import { Footer } from '@/components/Footer';
+import LocationDisplay from '@/components/LocationDisplay';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { HydrationSafeHeroImage } from '@/components/HydrationSafeHeroImage';
+import { sendTicketEmailAsync } from '@/lib/emailUtils';
 
 interface SuccessClientProps {
   session_id: string;
+  payment_intent?: string;
 }
 
 function formatTime(time: string): string {
@@ -27,71 +27,138 @@ function formatTime(time: string): string {
   return `${hour.toString().padStart(2, '0')}:${minute} ${ampm}`;
 }
 
-export default function SuccessClient({ session_id }: SuccessClientProps) {
+export default function SuccessClient({ session_id, payment_intent }: SuccessClientProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<any>(null);
+  const [readyToShowNotFound, setReadyToShowNotFound] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Hero image is handled by the HydrationSafeHeroImage component
+  // Enhanced desktop debug logging
+  console.log('[DESKTOP SUCCESS DEBUG] SuccessClient component initialized');
+  console.log('[DESKTOP SUCCESS DEBUG] Props:', { session_id, payment_intent });
+  console.log('[DESKTOP SUCCESS DEBUG] User Agent:', typeof window !== 'undefined' ? navigator.userAgent : 'SSR');
+  console.log('[DESKTOP SUCCESS DEBUG] URL:', typeof window !== 'undefined' ? window.location.href : 'SSR');
+  console.log('[DESKTOP SUCCESS DEBUG] Referrer:', typeof window !== 'undefined' ? document.referrer : 'SSR');
 
-  // Check if we were redirected due to already processed payment
+  // Log component initialization
+  console.log('[SuccessClient] Component initialized with props:', {
+    session_id,
+    payment_intent
+  });
+
+  // Mobile detection and redirect logic - show brief success then redirect
   useEffect(() => {
-    const paymentStatus = searchParams?.get('payment');
-    if (paymentStatus === 'already-processed') {
-      console.log('User was redirected due to already processed payment');
-      // You could show a toast or notification here if needed
-    }
-  }, [searchParams]);
+    if (typeof window === 'undefined') return;
 
-  // Enhanced back button prevention
-  useEffect(() => {
-    console.log('Setting up enhanced navigation prevention...');
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+      window.innerWidth <= 768;
 
-    // Check if we're on a Stripe URL and redirect
-    if (window.location.href.includes('checkout.stripe.com')) {
-      console.log('Detected Stripe URL - redirecting to home');
-      window.location.replace('/');
+    console.log('[DESKTOP SUCCESS DEBUG] Mobile detection result:', {
+      isMobile,
+      userAgent: navigator.userAgent,
+      windowWidth: window.innerWidth,
+      session_id,
+      payment_intent,
+      mobileRegexMatch: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent),
+      narrowScreenMatch: window.innerWidth <= 768
+    });
+
+    if (isMobile) {
+      console.log('[SuccessClient] Mobile browser detected - will show brief success then redirect');
+
+      // Determine which identifier to use and store, with robust URL/sessionStorage fallbacks
+      let identifier: string | null = session_id || payment_intent || null;
+      if (!identifier) {
+        try {
+          const urlParams = new URLSearchParams(window.location.search);
+          identifier = urlParams.get('session_id') || urlParams.get('pi') || null;
+        } catch { }
+      }
+      if (!identifier) {
+        try {
+          identifier = sessionStorage.getItem('stripe_session_id') || sessionStorage.getItem('stripe_payment_intent') || null;
+        } catch { }
+      }
+      if (!identifier) {
+        console.log('[SuccessClient] ERROR: Missing both session_id and payment_intent');
+        setError('Missing session ID or payment intent');
+        setLoading(false);
+        return;
+      }
+
+      // Show brief success message then redirect after 2 seconds
+      setLoading(false);
+      const resolvedSessionId: string | undefined = session_id || (typeof identifier === 'string' && identifier.startsWith('cs_') ? (identifier as string) : undefined);
+      const resolvedPi: string | undefined = payment_intent || (typeof identifier === 'string' && identifier.startsWith('pi_') ? (identifier as string) : undefined);
+
+      setResult({
+        isMobileBrief: true,
+        identifier,
+        session_id: resolvedSessionId,
+        payment_intent: resolvedPi
+      });
+
+      setTimeout(() => {
+        // Store the identifier in sessionStorage for QR page
+        if (session_id || (identifier && (identifier as string).startsWith('cs_'))) {
+          const sid = session_id || (identifier as string);
+          const redirectUrl = `/event/ticket-qr?session_id=${encodeURIComponent(sid)}`;
+          console.log('[SuccessClient] Redirecting with session_id:', {
+            session_id: sid,
+            redirectUrl,
+            currentUrl: window.location.href
+          });
+          sessionStorage.setItem('stripe_session_id', sid);
+          router.replace(redirectUrl);
+        } else if (payment_intent || (identifier && (identifier as string).startsWith('pi_'))) {
+          const pid = payment_intent || (identifier as string);
+          const redirectUrl = `/event/ticket-qr?pi=${encodeURIComponent(pid)}`;
+          console.log('[SuccessClient] Redirecting with payment_intent:', {
+            payment_intent: pid,
+            redirectUrl,
+            currentUrl: window.location.href
+          });
+          sessionStorage.setItem('stripe_payment_intent', pid);
+          router.replace(redirectUrl);
+        } else {
+          console.error('[SuccessClient] ERROR: No session_id or payment_intent to redirect with!');
+        }
+      }, 2000);
+
       return;
     }
 
-    // Enhanced back button prevention
-    const handlePopState = (e: PopStateEvent) => {
-      console.log('Back button detected - preventing navigation and redirecting to home');
-      e.preventDefault();
-      window.location.replace('/');
-    };
+    // Desktop flow - continue with normal success page
+    console.log('[SuccessClient] Desktop browser detected - staying on success page');
+  }, [session_id, payment_intent, router]);
 
-    // Remove beforeunload handler to allow normal navigation
-    // Only prevent specific refresh attempts via keydown
+  // Email sending effect for desktop flow - trigger when QR code is successfully loaded
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
 
-    // Enhanced keydown prevention for F5 and Ctrl+R
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'F5' || (e.ctrlKey && e.key === 'r')) {
-        console.log('Refresh attempt detected - preventing');
-        e.preventDefault();
-        window.location.replace('/');
-        return false;
+    // Only send email in desktop flow when QR code is successfully loaded
+    if (result?.transaction && result?.eventDetails && result?.qrCodeData && !result?.isMobileBrief) {
+      const { transaction, eventDetails } = result;
+
+      // Check if we have the required data for email sending
+      if (transaction.id && eventDetails.id && transaction.email) {
+        console.log('[DESKTOP SUCCESS] QR code loaded successfully, sending ticket email:', {
+          eventId: eventDetails.id,
+          transactionId: transaction.id,
+          email: transaction.email
+        });
+
+        // Send email asynchronously after QR code is displayed
+        sendTicketEmailAsync({
+          eventId: eventDetails.id,
+          transactionId: transaction.id,
+          email: transaction.email
+        });
       }
-    };
-
-    // Add event listeners
-    window.addEventListener('popstate', handlePopState);
-    window.addEventListener('keydown', handleKeyDown);
-
-    // Push current state to prevent back navigation
-    window.history.pushState(null, '', window.location.href);
-    window.history.pushState(null, '', window.location.href);
-
-    console.log('Enhanced navigation prevention setup complete');
-
-    // Cleanup
-    return () => {
-      window.removeEventListener('popstate', handlePopState);
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, []);
+    }
+  }, [result]);
 
   // Helper to get ticket number from either camelCase or snake_case, or fallback to 'TKTN'+id
   function getTicketNumber(transaction: any) {
@@ -102,46 +169,110 @@ export default function SuccessClient({ session_id }: SuccessClientProps) {
     );
   }
 
+  // Data fetching effect for desktop flow
   useEffect(() => {
+    // Skip data fetching for mobile users - they get the brief success page
+    if (typeof window !== 'undefined') {
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+        window.innerWidth <= 768;
+      if (isMobile) {
+        console.log('[SuccessClient] Skipping data fetch for mobile user');
+        return;
+      }
+    }
+
+    // Desktop data fetching logic
     let cancelled = false;
     async function fetchData() {
       setLoading(true);
       setError(null);
       try {
-        // 1. Try to GET the transaction by session_id (idempotency)
-        const getRes = await fetch(`/api/event/success/process?session_id=${session_id}`);
+        console.log('[DESKTOP SUCCESS DEBUG] Desktop - starting data fetch');
+        console.log('[DESKTOP SUCCESS DEBUG] Fetching with identifiers:', { session_id, payment_intent });
+        // 1. Try to GET the transaction by session_id or payment_intent (PRB/mobile style)
+        if (!session_id && !payment_intent) {
+          console.error('[DESKTOP SUCCESS DEBUG] Missing both session_id and payment_intent');
+          setError('Missing session ID or payment intent');
+          setLoading(false);
+          return;
+        }
+        const getQuery = session_id
+          ? `session_id=${encodeURIComponent(session_id)}`
+          : `pi=${encodeURIComponent(payment_intent as string)}`;
+        const getUrl = `/api/event/success/process?${getQuery}&_t=${Date.now()}`;
+        console.log('[DESKTOP SUCCESS DEBUG] GET request URL:', getUrl);
+
+        const getRes = await fetch(getUrl, {
+          cache: 'no-store'
+        });
+
+        console.log('[DESKTOP SUCCESS DEBUG] GET response status:', getRes.status);
+
         if (getRes.ok) {
           const data = await getRes.json();
+          console.log('[DESKTOP SUCCESS DEBUG] GET response data:', data);
+
           if (data.transaction) {
+            console.log('[DESKTOP SUCCESS DEBUG] Transaction found in GET response:', data.transaction.id);
             if (!cancelled) {
               setResult(data);
-              // Hero image is handled by HydrationSafeHeroImage component
             }
             setLoading(false);
             return;
+          } else {
+            console.log('[DESKTOP SUCCESS DEBUG] No transaction in GET response, will try POST');
           }
+        } else {
+          const errorText = await getRes.text();
+          console.error('[DESKTOP SUCCESS DEBUG] GET request failed:', getRes.status, errorText);
         }
         // 2. If not found, POST to create it
+        console.log('[DESKTOP SUCCESS DEBUG] Making POST request to create transaction');
+        const postBody = session_id ? { session_id } : { pi: payment_intent } as any;
+        console.log('[DESKTOP SUCCESS DEBUG] POST body:', postBody);
+
         const postRes = await fetch("/api/event/success/process", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ session_id }),
+          body: JSON.stringify(postBody),
         });
-        if (!postRes.ok) throw new Error(await postRes.text());
+
+        console.log('[DESKTOP SUCCESS DEBUG] POST response status:', postRes.status);
+
+        if (!postRes.ok) {
+          const errorText = await postRes.text();
+          console.error('[DESKTOP SUCCESS DEBUG] POST request failed:', postRes.status, errorText);
+          throw new Error(errorText);
+        }
+
         const postData = await postRes.json();
+        console.log('[DESKTOP SUCCESS DEBUG] POST response data:', postData);
+
         if (!cancelled) {
+          console.log('[DESKTOP SUCCESS DEBUG] Setting result data:', postData);
           setResult(postData);
-          // Hero image is handled by HydrationSafeHeroImage component
         }
       } catch (err: any) {
-        if (!cancelled) setError(err?.message || "Unknown error");
+        if (!cancelled) {
+          console.error('[DESKTOP SUCCESS DEBUG] Error in fetchData:', err);
+          console.error('[DESKTOP SUCCESS DEBUG] Error details:', {
+            message: err?.message,
+            stack: err?.stack,
+            session_id
+          });
+          setError(err?.message || "Unknown error");
+        }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     }
+
     fetchData();
     return () => { cancelled = true; };
   }, [session_id]);
+
 
   if (loading) {
     return <LoadingTicket sessionId={session_id} />;
@@ -155,6 +286,25 @@ export default function SuccessClient({ session_id }: SuccessClientProps) {
       </div>
     );
   }
+
+  // Handle mobile brief success display
+  if (result?.isMobileBrief) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 text-center p-4">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100 mb-4">
+          <FaCheckCircle className="h-10 w-10 text-green-500" />
+        </div>
+        <h1 className="text-3xl font-bold text-gray-800 mb-4">Payment Successful!</h1>
+        <p className="text-gray-600 mb-6">Thank you for your purchase. Your tickets are confirmed.</p>
+        <div className="flex items-center justify-center gap-2 text-teal-600">
+          <FaTicketAlt className="animate-bounce" />
+          <span className="text-lg font-semibold">Preparing your tickets...</span>
+        </div>
+        <p className="text-sm text-gray-500 mt-4">You will be redirected to view your tickets in a moment.</p>
+      </div>
+    );
+  }
+
   const { transaction, userProfile, eventDetails, qrCodeData, transactionItems, heroImageUrl: fetchedHeroImageUrl } = result || {};
 
   // Clear hero image storage since we're on success page
@@ -175,82 +325,97 @@ export default function SuccessClient({ session_id }: SuccessClientProps) {
       </div>
     );
   }
-  if (!eventDetails?.id) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 text-center p-4">
-        <FaInfoCircle className="text-4xl text-red-500 mb-4" />
-        <h1 className="text-2xl font-bold text-gray-800">Event Details Not Found</h1>
-        <p className="text-gray-600 mt-2">We could not find the event details for your transaction.</p>
-      </div>
-    );
-  }
-  const displayName = transaction.firstName || '';
+  const displayName = transaction?.firstName || '';
   let qrError: string | null = null;
   // If qrCodeData is an error object, handle it
   if (qrCodeData && qrCodeData.error) qrError = qrCodeData.error;
 
-  return (
-    <div className="min-h-screen bg-gray-100">
-      {/* HEADER */}
-      <PhilantropHeaderClient />
 
-      {/* HERO SECTION - Full width bleeding to edges */}
-      <section className="hero-section" style={{ position: 'relative', marginTop: '20px', paddingTop: '40px', padding: '40px 0 0 0', margin: '0', backgroundColor: 'transparent', height: 'auto', overflow: 'hidden', width: '100vw', marginLeft: 'calc(-50vw + 50%)', marginRight: 'calc(-50vw + 50%)' }}>
-        <HydrationSafeHeroImage
+  return (
+    <div className="min-h-screen bg-gray-100" style={{ overflowX: 'hidden' }}>
+
+      {/* HERO SECTION - Full width bleeding to header */}
+      <section className="hero-section" style={{
+        position: 'relative',
+        marginTop: '0',
+        backgroundColor: 'transparent',
+        minHeight: '400px',
+        overflow: 'hidden',
+        width: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '80px 0 0 0'
+      }}>
+        <img
+          src={fetchedHeroImageUrl || "/images/default_placeholder_hero_image.jpeg"}
           alt="Event Hero"
           className="hero-image"
-          fetchedImageUrl={fetchedHeroImageUrl}
+          style={{
+            margin: '0 auto',
+            padding: '0',
+            display: 'block',
+            width: '100%',
+            maxWidth: '100%',
+            height: 'auto',
+            objectFit: 'cover',
+            borderRadius: '0'
+          }}
         />
-        {/* Responsive logo positioned as overlay on hero image */}
-        <div className="absolute top-1/2 left-4 z-50 mobile-logo" style={{ transform: 'translateY(-50%)' }}>
-          <img src="/images/mcefee_logo_black_border_transparent.png" alt="MCEFEE Logo" style={{ width: '140px', height: 'auto', maxWidth: '30vw' }} className="block md:hidden" />
-          <img src="/images/mcefee_logo_black_border_transparent.png" alt="MCEFEE Logo" style={{ width: '180px', height: 'auto', maxWidth: '15vw' }} className="hidden md:block" />
-        </div>
         <div className="hero-overlay" style={{ opacity: 0.1, height: '5px', padding: '20' }}></div>
       </section>
 
-      {/* CSS Styles for hero section */}
+      {/* Responsive Hero Image CSS */}
       <style dangerouslySetInnerHTML={{
         __html: `
           .hero-image {
             width: 100%;
-            height: auto; /* Let image dictate height */
-            object-fit: cover; /* Cover full width, may crop height */
+            max-width: 100%;
+            height: auto;
+            object-fit: cover;
             object-position: center;
             display: block;
-            margin: 0;
-            padding: 0; /* Remove padding to bleed to edges */
+            margin: 0 auto;
+            padding: 0;
+            border-radius: 0;
           }
 
           .hero-section {
-            min-height: 10vh;
-            background-color: transparent !important; /* Remove coral background */
-            padding-top: 40px; /* Top padding to prevent header cut-off */
-            margin-left: calc(-50vw + 50%) !important;
-            margin-right: calc(-50vw + 50%) !important;
-            width: 100vw !important;
+            min-height: 15vh;
+            background-color: transparent !important;
+            padding: 80px 0 0 0 !important;
+            width: 100% !important;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
           }
 
           @media (max-width: 768px) {
             .hero-image {
-              height: auto; /* Let image dictate height on mobile */
-              padding: 0; /* Remove padding to bleed to edges on mobile */
+              width: 100%;
+              max-width: 100%;
+              height: auto;
+              padding: 0;
+              border-radius: 0;
+            }
+
+            .hero-section {
+              padding: 80px 0 0 0 !important;
+              min-height: 12vh !important;
             }
           }
 
-          @media (max-width: 767px) {
-            .hero-section {
-              padding-top: 50px !important; /* Extra mobile top padding */
-              margin-top: 0 !important;
-              min-height: 5vh !important;
-              background-color: transparent !important; /* Remove coral background on mobile */
-              margin-left: calc(-50vw + 50%) !important;
-              margin-right: calc(-50vw + 50%) !important;
-              width: 100vw !important;
+          @media (max-width: 480px) {
+            .hero-image {
+              width: 100%;
+              padding: 0;
+              border-radius: 0;
             }
 
-            .mobile-logo {
-              top: 120px !important;
+            .hero-section {
+              padding: 80px 0 0 0 !important;
+              min-height: 10vh !important;
             }
           }
         `
@@ -311,8 +476,7 @@ export default function SuccessClient({ session_id }: SuccessClientProps) {
             </div>
             {eventDetails.location && (
               <div className="flex items-center gap-2">
-                <FaMapPin />
-                <span>{eventDetails.location}</span>
+                <LocationDisplay location={eventDetails.location} />
               </div>
             )}
           </div>
@@ -341,6 +505,17 @@ export default function SuccessClient({ session_id }: SuccessClientProps) {
                 ) : (
                   <div className="text-gray-500">QR code not available.</div>
                 )}
+
+                {/* Email Status Section */}
+                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-center gap-2 text-blue-700">
+                    <FaEnvelope className="text-sm" />
+                    <span className="text-sm font-medium">Ticket email sent to {transaction.email}</span>
+                  </div>
+                  <p className="text-xs text-blue-600 mt-1">
+                    Check your email for your tickets. If you don't see it, check your spam folder.
+                  </p>
+                </div>
               </div>
             </>
           )}
@@ -375,8 +550,33 @@ export default function SuccessClient({ session_id }: SuccessClientProps) {
             </div>
             <div className="flex flex-col">
               <label className="text-sm font-medium text-gray-500 flex items-center gap-2 mb-1"><FaMoneyBillWave /> Amount Paid</label>
-              <p className="text-lg text-gray-800 font-medium">${(transaction.totalAmount ?? 0).toFixed(2)}</p>
+              <p className="text-lg text-gray-800 font-medium">${(transaction.finalAmount ?? transaction.totalAmount ?? 0).toFixed(2)}</p>
             </div>
+            {(transaction.discountAmount ?? 0) > 0 && (
+              <div className="flex flex-col">
+                <label className="text-sm font-medium text-gray-500 flex items-center gap-2 mb-1"><FaTags /> Discount Applied</label>
+                <p className="text-lg text-green-600 font-medium">-${transaction.discountAmount.toFixed(2)}</p>
+              </div>
+            )}
+            {(transaction.discountAmount ?? 0) > 0 && (
+              <div className="col-span-1 md:col-span-2 bg-gray-50 p-4 rounded-lg">
+                <h3 className="text-sm font-semibold text-gray-700 mb-2">Price Breakdown</h3>
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Original Amount:</span>
+                    <span className="text-gray-800">${(transaction.totalAmount ?? 0).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Discount:</span>
+                    <span className="text-green-600">-${transaction.discountAmount.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between border-t pt-1">
+                    <span className="text-gray-800 font-semibold">Final Amount:</span>
+                    <span className="text-gray-800 font-semibold">${(transaction.finalAmount ?? transaction.totalAmount ?? 0).toFixed(2)}</span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -413,8 +613,6 @@ export default function SuccessClient({ session_id }: SuccessClientProps) {
         )}
       </div>
 
-      {/* FOOTER - full-bleed, edge-to-edge */}
-      <Footer />
     </div>
   );
 }

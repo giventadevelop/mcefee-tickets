@@ -3,12 +3,13 @@ import { EventDetailsDTO, EventTypeDetailsDTO, UserProfileDTO, EventCalendarEntr
 import React, { useState, useEffect } from 'react';
 import { EventList } from '@/components/EventList';
 import { useAuth } from "@clerk/nextjs";
-import { FaUsers, FaCalendarAlt, FaPlus, FaEnvelope } from 'react-icons/fa';
+import { FaUsers, FaCalendarAlt, FaPlus, FaEnvelope, FaCreditCard } from 'react-icons/fa';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   fetchEventsFilteredServer,
   fetchEventTypesServer,
+  fetchCalendarEventsServer,
   cancelEventServer,
   deleteCalendarEventForEventServer,
 } from './ApiServerActions';
@@ -19,6 +20,7 @@ export default function AdminPage() {
   const router = useRouter();
   const [events, setEvents] = useState<EventDetailsDTO[]>([]);
   const [eventTypes, setEventTypes] = useState<EventTypeDetailsDTO[]>([]);
+  const [calendarEvents, setCalendarEvents] = useState<EventCalendarEntryDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(0);
@@ -51,9 +53,11 @@ export default function AdminPage() {
       else if (searchField === 'caption') filterParams.caption = searchCaption;
       const { events: eventsResult, totalCount: fetchedTotalCount } = await fetchEventsFilteredServer(filterParams);
       const types = await fetchEventTypesServer();
+      const calendarEventsResult = await fetchCalendarEventsServer();
       setEvents(eventsResult);
       setTotalCount(fetchedTotalCount);
       setEventTypes(types);
+      setCalendarEvents(calendarEventsResult);
     } catch (e: any) {
       setError(e.message || 'Failed to load events');
     } finally {
@@ -101,11 +105,11 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-8 py-8">
+    <div className="max-w-5xl mx-auto px-8 py-8" style={{ paddingTop: '118px' }}>
       <h1 className="text-3xl font-bold text-gray-900 mb-8">Admin Event Management</h1>
       <div className="flex justify-center mb-8">
-        <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-2xl">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 justify-items-center mx-auto">
+        <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-4xl">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 justify-items-center mx-auto">
             <Link href="/admin/manage-usage" className="w-48 max-w-xs mx-auto flex flex-col items-center justify-center bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-md shadow p-1 sm:p-2 text-xs sm:text-xs transition-all cursor-pointer">
               <FaUsers className="text-base sm:text-lg mb-1 mx-auto" />
               <span className="font-semibold text-center leading-tight">Manage Users [Usage]</span>
@@ -117,6 +121,10 @@ export default function AdminPage() {
             <Link href="/admin/promotion-emails" className="w-48 max-w-xs mx-auto flex flex-col items-center justify-center bg-yellow-50 hover:bg-yellow-100 text-yellow-700 rounded-md shadow p-1 sm:p-2 text-xs sm:text-xs transition-all cursor-pointer">
               <FaEnvelope className="text-base sm:text-lg mb-1 mx-auto" />
               <span className="font-semibold text-center leading-tight">Manage Promotion Emails</span>
+            </Link>
+            <Link href="/admin/test-stripe" className="w-48 max-w-xs mx-auto flex flex-col items-center justify-center bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-md shadow p-1 sm:p-2 text-xs sm:text-xs transition-all cursor-pointer">
+              <FaCreditCard className="text-base sm:text-lg mb-1 mx-auto" />
+              <span className="font-semibold text-center leading-tight">Test Stripe Payments</span>
             </Link>
           </div>
         </div>
@@ -202,6 +210,7 @@ export default function AdminPage() {
           <EventList
             events={events}
             eventTypes={eventTypes}
+            calendarEvents={calendarEvents}
             onEdit={event => router.push(`/admin/events/${event.id}/edit`)}
             onCancel={handleCancel}
             loading={loading}
